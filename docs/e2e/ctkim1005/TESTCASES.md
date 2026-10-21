@@ -3,6 +3,7 @@
 - 도구: Playwright (`npm run test:e2e`, UI 모드 `npx playwright test --ui`)
 - 전제: 앱이 `http://localhost:8080` 에서 실행 중 (`.\gradlew.bat bootRun`)
 - 코드: `src/test/e2e/*.spec.ts` (No.와 코드의 TC ID가 1:1로 대응)
+- 명세: `docs/e2e/ctkim1005/TESTCASES.md` (이 문서)
 
 | No. | 영역 | 시나리오 | 절차 | 목적 | 예상시간 | Pass 조건 | 담당자 |
 |---|---|---|---|---|---|---|---|

@@ -18,7 +18,7 @@ import { test, expect } from '@playwright/test';
  *           5. 다시 /login 으로 막힘
  * 담당자    (공란)
  * 전제      앱이 http://localhost:8080 에서 실행 중 (.\gradlew.bat bootRun)
- * 명세      src/test/e2e/TESTCASES.md
+ * 명세      docs/e2e/ctkim1005/TESTCASES.md
  */
 test('TC-E2E-001 로그인 → 주문 목록 → 로그아웃', async ({ page }) => {
   // 절차 1 — 로그인 없이 홈 접속
