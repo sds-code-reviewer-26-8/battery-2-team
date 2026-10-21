@@ -46,3 +46,10 @@ CLAUDE.md
 
 ### Playwright MCP captures ###
 .playwright-mcp/
+
+### Node / Playwright ###
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

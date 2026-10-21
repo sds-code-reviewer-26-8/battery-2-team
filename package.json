@@ -1,0 +1,29 @@
+{
+  "name": "battery-2-team-e2e",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sds-code-reviewer-26-8/battery-2-team.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sds-code-reviewer-26-8/battery-2-team/issues"
+  },
+  "homepage": "https://github.com/sds-code-reviewer-26-8/battery-2-team#readme",
+  "private": "true",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}
