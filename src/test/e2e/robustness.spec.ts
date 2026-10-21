@@ -7,7 +7,8 @@ import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, ord
  * - 이미 실행 중인 서버(playwright.config.ts 의 baseURL)를 대상으로 한다.
  * - 시나리오마다 20초 이내(시나리오 표의 기준)에 끝나야 하므로 테스트 제한 시간을 20초로 둔다.
  * - 화면에 입력칸이 없는 시나리오(2, 4, 5)와 화면 제한을 우회하는 단계는 page.request(로그인 세션 공유)로 요청한다.
- * - 주문을 만드는 시나리오(8, 9)는 끝나면 취소(=삭제)로 정리한다. 시나리오 7 은 기준값 번호만 올린다.
+ * - 주문을 만드는 시나리오(8)는 끝나면 취소(=삭제)로 정리한다. 시나리오 7 은 기준값 번호만 올린다.
+ * - S2, S6, S9 는 팀 통합 시나리오 14, 30, 25 로 scenarios-sy9169park.spec.ts 로 옮겼다.
  */
 test.describe.configure({ timeout: 20_000 });
 
@@ -30,24 +31,6 @@ test.describe('견고성', () => {
     await page.goto('/orders');
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.locator('table.grid')).toHaveCount(0);
-  });
-
-  test('S2 입력 검증: 수량 0, 음수 요청 거절', async ({ page }) => {
-    await login(page);
-
-    const zero = await page.request.post('/api/simulate', {
-      data: { orders: { CHINA: 0, JAPAN: 0, VIETNAM: 0, INDONESIA: 0 } },
-    });
-    expect(zero.status()).toBe(400);
-    const zeroBody = await zero.json();
-    expect(zeroBody.error).toBe('총 생산 필요 수는 1K 이상이어야 합니다');
-    expect(zeroBody.options).toBeUndefined();
-
-    const negative = await page.request.post('/api/simulate', { data: { orders: { CHINA: -5, JAPAN: 100 } } });
-    expect(negative.status()).toBe(400);
-    const negativeBody = await negative.json();
-    expect(negativeBody.error).toBe('중국 주문 수량은 0 이상이어야 합니다');
-    expect(negativeBody.options).toBeUndefined();
   });
 
   test('S3 입력 검증: 총 수량 상한(100,000K) 초과 입력', async ({ page }) => {
@@ -112,37 +95,6 @@ test.describe('견고성', () => {
     await expect(page.getByRole('heading', { name: '주문 목록' })).toBeVisible();
   });
 
-  test('S6 기준값: 잘못된 기준값은 모두 안내하고 저장하지 않음', async ({ page }) => {
-    await login(page);
-    await page.goto('/master');
-    const ship = page.locator('input[name="shipCount"]');
-    const cost = page.locator('input[name="shipDailyCost"]');
-    const china = page.locator('input[name="maxDaily_CHINA"]');
-    const beforeShip = await ship.inputValue();
-    const beforeCost = await cost.inputValue();
-    const beforeChina = await china.inputValue();
-
-    // 화면에서 넣을 수 있는 잘못된 값: 운항비 문자, 숫자 칸 비우기 (여러 곳을 한꺼번에)
-    await cost.fill('abc');
-    await china.fill('');
-    await page.locator('input[name="unitCost_VIETNAM"]').fill('');
-    await page.getByRole('button', { name: '저장' }).click();
-    const errors = page.locator('.alert.error li');
-    await expect(errors.filter({ hasText: '척당 일 운항비(억 원)는 숫자로 입력하세요' })).toHaveCount(1);
-    await expect(errors.filter({ hasText: '중국 하루 최대 생산량은(는) 정수로 입력하세요' })).toHaveCount(1);
-    await expect(errors.filter({ hasText: '베트남 셀당 원가은(는) 정수로 입력하세요' })).toHaveCount(1);
-
-    // 화면 제한(최대 4척)을 우회한 요청
-    const bypass = await page.request.post('/master', { form: { shipCount: '9', shipDailyCost: '1' } });
-    expect(await bypass.text()).toContain('배 척수은(는) 1 이상 4 이하의 정수여야 합니다');
-
-    // 아무것도 저장되지 않았다
-    await page.goto('/master');
-    await expect(ship).toHaveValue(beforeShip);
-    await expect(cost).toHaveValue(beforeCost);
-    await expect(china).toHaveValue(beforeChina);
-  });
-
   test('S7 기준값: 시뮬레이션 뒤 기준값이 바뀌면 확정 거절', async ({ page }) => {
     await login(page);
     const before = await orderTotalCount(page);
@@ -190,39 +142,6 @@ test.describe('견고성', () => {
         .locator('tbody tr');
       await expect(history).toHaveCount(1);
     } finally {
-      await removeOrder(page, id);
-    }
-  });
-
-  test('S9 동시성: 두 탭에서 같은 주문을 동시에 변경', async ({ page }) => {
-    await login(page);
-    const id = await createOrder(page);
-    const tabB = await page.context().newPage();
-    try {
-      // 두 탭 모두 "확정" 상태의 같은 주문을 연다
-      await page.goto(`/orders/${id}`);
-      await tabB.goto(`/orders/${id}`);
-
-      // 탭 A: 진행으로 변경 (확인 창에서 동의)
-      page.once('dialog', (d) => d.accept());
-      await page.getByRole('button', { name: '진행(으)로 변경' }).click();
-      await expect(page.locator('.badge')).toHaveText('진행');
-
-      // 탭 B(새로 고치지 않은 화면): 취소 시도 → 먼저 바꾼 쪽이 이긴다
-      tabB.once('dialog', (d) => d.accept());
-      await tabB.getByRole('button', { name: '취소(으)로 변경' }).click();
-      await expect(tabB.locator('.alert.error')).toContainText(
-        '다른 사용자가 먼저 이 주문을 변경했습니다. 화면을 새로 고쳐 현재 상태를 확인한 뒤 다시 시도해 주세요',
-      );
-
-      // 주문은 삭제되지 않고 "진행"이며 이력은 2건(확정, 진행)
-      await expect(tabB.locator('.badge')).toHaveText('진행');
-      const history = tabB
-        .locator('section.card', { has: tabB.getByRole('heading', { name: '상태 이력' }) })
-        .locator('tbody tr');
-      await expect(history).toHaveCount(2);
-    } finally {
-      await tabB.close();
       await removeOrder(page, id);
     }
   });
