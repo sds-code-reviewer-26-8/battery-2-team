@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battery 주문·운송 시뮬레이션</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f6f7f9;
+    --border: #d9dde3;
+    --text: #1f2328;
+    --muted: #59636e;
+    --accent: #0b5cad;
+    --accent-soft: #e3eefb;
+    --code-bg: #eef1f4;
+    --radius: 8px;
+    --maxw: 960px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1419;
+      --surface: #171d24;
+      --border: #2b343e;
+      --text: #e6edf3;
+      --muted: #9aa6b2;
+      --accent: #6cb4ff;
+      --accent-soft: #15283d;
+      --code-bg: #1e262f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1419;
+    --surface: #171d24;
+    --border: #2b343e;
+    --text: #e6edf3;
+    --muted: #9aa6b2;
+    --accent: #6cb4ff;
+    --accent-soft: #15283d;
+    --code-bg: #1e262f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+  main { max-width: var(--maxw); margin: 0 auto; padding: 32px 16px 64px; }
+  header.hero { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 24px; }
+  header.hero h1 { font-size: 1.9rem; margin: 0 0 6px; }
+  header.hero p.lead { color: var(--muted); margin: 0 0 12px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); font-size: 0.8rem; font-weight: 600;
+  }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 28px; }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 24px; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  section { margin-bottom: 40px; }
+  h2 { font-size: 1.35rem; border-left: 4px solid var(--accent); padding-left: 10px; margin: 0 0 14px; }
+  h3 { font-size: 1.05rem; margin: 18px 0 8px; }
+  p { margin: 0 0 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .card h3 { margin: 0 0 6px; }
+  .card p { color: var(--muted); font-size: 0.92rem; margin: 0 0 6px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 0.92rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { background: var(--surface); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.88em; font-family: Consolas, "D2Coding", monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; }
+  pre code { background: none; padding: 0; font-size: 0.88rem; }
+  ul.rules { padding-left: 20px; }
+  ul.rules li { margin-bottom: 6px; }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+  .flow .state { padding: 6px 14px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .flow .sep { color: var(--muted); }
+  .tree { font-family: Consolas, "D2Coding", monospace; font-size: 0.88rem; white-space: pre; overflow-x: auto; }
+  footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--border); padding-top: 14px; }
+  @media (max-width: 600px) {
+    nav.toc ol { columns: 1; }
+    header.hero h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>Battery 주문·운송 시뮬레이션</h1>
+    <p class="lead">해외 4개국 배터리 공장의 생산과 한국행 선박 운송을 시뮬레이션해 최적 경로를 고르고, 주문을 확정·관리하는 웹 시스템</p>
+    <div class="badges">
+      <span class="badge">Java 17</span>
+      <span class="badge">Spring Boot 4.1.1</span>
+      <span class="badge">Spring Data JPA</span>
+      <span class="badge">Thymeleaf</span>
+      <span class="badge">H2 (file)</span>
+      <span class="badge">Gradle 9.8.1</span>
+    </div>
+    <p class="lead" style="margin-top:10px">생성일: 2026-10-21 · 저장소: <code>battery-2-team</code></p>
+  </header>
+
+  <nav class="toc">
+    <ol>
+      <li><a href="#overview">개요</a></li>
+      <li><a href="#features">주요 기능</a></li>
+      <li><a href="#routes">화면 / API 흐름</a></li>
+      <li><a href="#domain">도메인 모델</a></li>
+      <li><a href="#rules">핵심 규칙</a></li>
+      <li><a href="#seed">기본 데이터</a></li>
+      <li><a href="#run">실행 방법</a></li>
+      <li><a href="#structure">소스 구조</a></li>
+    </ol>
+  </nav>
+
+  <section id="overview">
+    <h2>개요</h2>
+    <p>중국·일본·베트남·인도네시아 4개국 공장에서 배터리를 생산하고, 보유 선박으로 한국까지 운송하는 과정을 일 단위로 시뮬레이션하는 시스템입니다.
+    사용자가 나라별 주문 수량(단위 K)을 입력하면 서버가 <strong>운항비 최소 / 가장 빠르게 / 가까운 곳부터</strong> 세 가지 경로안을 계산해 총 소요일과 생산비·운항비를 비교해 보여 줍니다.</p>
+    <p>마음에 드는 경로를 고르면 주문이 확정되고, 이후 <strong>확정 → 진행 → 완료</strong>의 상태 흐름을 따라 관리합니다. 공장 생산 능력, 단가, 항로 일수, 선박 수 같은 마스터 데이터는 화면에서 수정할 수 있으며, 시뮬레이션 이후 마스터가 바뀌면 확정을 거부하는 버전 검사가 들어 있습니다.</p>
+    <p>단일 계정 로그인으로 보호되는 사내용 도구이며, DB는 파일 기반 H2를 사용해 별도 설치 없이 실행됩니다.</p>
+  </section>
+
+  <section id="features">
+    <h2>주요 기능</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>주문 시뮬레이션</h3>
+        <p>나라별 주문 수량을 입력하면 3가지 경로안(비용·속도·근거리)을 계산하고, 지도 애니메이션과 일정표로 보여 줍니다.</p>
+        <p><code>GET /orders/new</code> · <code>POST /api/simulate</code></p>
+      </div>
+      <div class="card">
+        <h3>주문 확정</h3>
+        <p>선택한 경로로 주문을 저장합니다. 서버가 같은 입력으로 재계산하며, 마스터 버전이 다르면 409로 거부합니다.</p>
+        <p><code>POST /api/orders</code></p>
+      </div>
+      <div class="card">
+        <h3>주문 목록 / 상세 / 상태 변경</h3>
+        <p>상태별 필터와 건수 집계, 상세 화면에서 저장된 계획 재생과 상태 변경 이력을 제공합니다. 낙관적 잠금으로 동시 수정을 막습니다.</p>
+        <p><code>GET /orders</code> · <code>GET /orders/{id}</code> · <code>POST /orders/{id}/status</code></p>
+      </div>
+      <div class="card">
+        <h3>마스터 데이터 관리</h3>
+        <p>공장별 일 최대 생산량·재고 상한·단가, 항로 일수, 선박 수와 일 운항비를 수정합니다. 저장할 때마다 마스터 버전이 올라갑니다.</p>
+        <p><code>GET /master</code> · <code>POST /master</code> · <code>GET /api/master</code></p>
+      </div>
+      <div class="card">
+        <h3>로그인</h3>
+        <p>세션 기반 단일 계정 로그인. <code>/login</code>과 정적 자원을 제외한 모든 경로를 인터셉터가 보호합니다.</p>
+        <p><code>GET /login</code> · <code>POST /login</code> · <code>POST /logout</code></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="routes">
+    <h2>화면 / API 흐름</h2>
+    <p>컨트롤러는 <code>AppController</code> 하나이며, 화면(Thymeleaf)과 JSON API를 함께 제공합니다.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>메서드</th><th>URL</th><th>역할</th><th>반환</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/</code></td><td>홈. 주문 목록으로 이동</td><td>redirect <code>/orders</code></td></tr>
+          <tr><td>GET</td><td><code>/login</code></td><td>로그인 폼. 이미 로그인했으면 목록으로</td><td><code>login.html</code></td></tr>
+          <tr><td>POST</td><td><code>/login</code></td><td>아이디/비밀번호 검사 후 세션 저장</td><td>redirect <code>/orders</code> 또는 오류 표시</td></tr>
+          <tr><td>POST</td><td><code>/logout</code></td><td>세션 무효화</td><td>redirect <code>/login</code></td></tr>
+          <tr><td>GET</td><td><code>/orders</code></td><td>주문 목록. <code>?status=</code>로 필터, 상태별 건수 포함</td><td><code>orders.html</code></td></tr>
+          <tr><td>GET</td><td><code>/orders/new</code></td><td>주문 추가(시뮬레이션) 화면. 현재 마스터를 함께 전달</td><td><code>order-new.html</code></td></tr>
+          <tr><td>GET</td><td><code>/orders/{id}</code></td><td>주문 상세. 저장된 계획과 상태 변경 이력</td><td><code>order-detail.html</code></td></tr>
+          <tr><td>POST</td><td><code>/orders/{id}/status</code></td><td>상태 변경. <code>version</code> 불일치 시 거부</td><td>redirect <code>/orders/{id}</code> + flash 메시지</td></tr>
+          <tr><td>GET</td><td><code>/master</code></td><td>마스터 데이터 편집 폼</td><td><code>master.html</code></td></tr>
+          <tr><td>POST</td><td><code>/master</code></td><td>마스터 저장. 검증 오류 시 폼 재표시</td><td>redirect <code>/master</code></td></tr>
+          <tr><td>GET</td><td><code>/api/master</code></td><td>현재 마스터 데이터</td><td>JSON <code>Master</code></td></tr>
+          <tr><td>POST</td><td><code>/api/simulate</code></td><td>주문 수량으로 경로 3안 계산</td><td>JSON <code>SimulationResult</code> / 400</td></tr>
+          <tr><td>POST</td><td><code>/api/orders</code></td><td>경로 선택 후 주문 확정</td><td>JSON <code>{id}</code> / 400 / 409(마스터 변경)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:10px">프런트는 Thymeleaf 템플릿 5개(<code>login</code>, <code>orders</code>, <code>order-new</code>, <code>order-detail</code>, <code>master</code>)와 공통 조각 <code>fragments.html</code>, 그리고 순수 JS 4개로 구성됩니다. <code>anim.js</code>는 지도 위 선박 이동 애니메이션, <code>planview.js</code>는 계획 일정표를 그리며, 주문 추가와 주문 상세가 같은 모듈을 공유합니다.</p>
+  </section>
+
+  <section id="domain">
+    <h2>도메인 모델</h2>
+
+    <h3>Country (enum)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>값</th><th>라벨</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>KOREA</code></td><td>한국</td><td>도착지(본국). 공장 아님</td></tr>
+          <tr><td><code>CHINA</code></td><td>중국</td><td>공장</td></tr>
+          <tr><td><code>JAPAN</code></td><td>일본</td><td>공장</td></tr>
+          <tr><td><code>VIETNAM</code></td><td>베트남</td><td>공장</td></tr>
+          <tr><td><code>INDONESIA</code></td><td>인도네시아</td><td>공장</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>OrderStatus (enum) 와 상태 전이</h3>
+    <div class="flow">
+      <span class="state">확정 CONFIRMED</span><span class="sep">→</span>
+      <span class="state">진행 IN_PROGRESS</span><span class="sep">→</span>
+      <span class="state">완료 COMPLETED</span>
+    </div>
+    <p>확정·진행 상태에서는 <strong>취소 CANCELED</strong>로도 바꿀 수 있습니다. 완료·취소는 종료 상태라 더 이상 바꿀 수 없습니다. 취소된 주문은 이력만 남기고 주문 레코드는 삭제됩니다.</p>
+
+    <h3>Factory (엔티티)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>필드</th><th>타입</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>country</code></td><td>Country (PK)</td><td>공장 소재국</td></tr>
+          <tr><td><code>maxDaily</code></td><td>int</td><td>하루 최대 생산량 (K)</td></tr>
+          <tr><td><code>stockLimit</code></td><td>int</td><td>재고 상한 (K). 선박 1회 방문으로 실어 갈 수 있는 최대치</td></tr>
+          <tr><td><code>unitCost</code></td><td>long</td><td>개당 생산 단가 (원)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Route (엔티티)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>필드</th><th>타입</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>Long</td><td>PK</td></tr>
+          <tr><td><code>fromCountry</code> / <code>toCountry</code></td><td>Country</td><td>구간 양 끝. 방향 무관하게 한 건으로 저장</td></tr>
+          <tr><td><code>days</code></td><td>int</td><td>항해 일수</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Setting (엔티티, 단일 행)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>필드</th><th>타입</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>shipCount</code></td><td>int</td><td>보유 선박 수</td></tr>
+          <tr><td><code>shipDailyCostWon</code></td><td>long</td><td>선박 1척 1일 운항비 (원)</td></tr>
+          <tr><td><code>masterVersion</code></td><td>long</td><td>마스터 저장마다 증가. 시뮬레이션과 확정 사이 변경 감지에 사용</td></tr>
+          <tr><td><code>lockVersion</code></td><td>long</td><td>JPA 낙관적 잠금 버전</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Order (엔티티)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>필드</th><th>타입</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>Long</td><td>PK</td></tr>
+          <tr><td><code>confirmedAt</code>, <code>createdBy</code></td><td>LocalDateTime, String</td><td>확정 시각과 확정한 사용자</td></tr>
+          <tr><td><code>totalK</code></td><td>int</td><td>총 주문 수량 (K)</td></tr>
+          <tr><td><code>routeType</code>, <code>routeLabel</code></td><td>String</td><td>선택한 경로 종류(<code>COST</code>/<code>FAST</code>/<code>NEAR</code>)와 표시명</td></tr>
+          <tr><td><code>totalDays</code></td><td>int</td><td>마지막 선박 귀항까지 총 일수</td></tr>
+          <tr><td><code>productionCost</code>, <code>shippingCost</code>, <code>totalCost</code></td><td>long</td><td>생산비, 운항비, 합계 (원). 화면에는 억 단위로 표시</td></tr>
+          <tr><td><code>status</code></td><td>OrderStatus</td><td>현재 상태</td></tr>
+          <tr><td><code>memo</code></td><td>String</td><td>메모 (최대 1000자)</td></tr>
+          <tr><td><code>planJson</code></td><td>String</td><td>확정 당시 마스터·주문·방문 횟수·계획 전체를 JSON으로 보존</td></tr>
+          <tr><td><code>version</code></td><td>long</td><td>낙관적 잠금 버전. 상태 변경 시 화면이 본 값과 비교</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>OrderStatusHistory (엔티티)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>필드</th><th>타입</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td><code>orderId</code></td><td>Long</td><td>대상 주문</td></tr>
+          <tr><td><code>fromStatus</code> → <code>toStatus</code></td><td>OrderStatus</td><td>전이 전/후 상태. 최초 확정은 from이 null</td></tr>
+          <tr><td><code>changedBy</code>, <code>changedAt</code></td><td>String, LocalDateTime</td><td>변경자와 시각</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>시뮬레이션 레코드 (DB 저장 없음)</h3>
+    <p><code>Master</code>는 마스터 데이터 스냅샷(버전, 선박 수, 일 운항비, 공장 파라미터, 항로)이고, <code>Plan</code>은 경로안 하나로 <code>ShipPlan</code>(선박별) → <code>Trip</code>(왕복) → <code>Stop</code>(기항지: 도착일, 출발일, 적재량) 계층을 가집니다. <code>StoredPlan</code>은 이 넷을 묶어 주문의 <code>planJson</code>에 저장되는 형태입니다.</p>
+  </section>
+
+  <section id="rules">
+    <h2>핵심 규칙</h2>
+    <p><code>Planner</code>가 주문 수량으로 경로 3안을 계산합니다. 소스 Javadoc에 적힌 규칙을 옮기면 다음과 같습니다.</p>
+    <ul class="rules">
+      <li>0일차에 모든 공장이 동시에 생산을 시작한다. 하루 생산량 = min(하루 최대, 재고 상한 − 현재 재고, 남은 주문).</li>
+      <li>배는 도착 시점의 재고를 모두 가져간다. 한 나라는 한 척의 배만 방문한다.</li>
+      <li>한 나라의 방문 횟수 = 올림(주문 ÷ 재고 상한). 마지막 방문 전까지는 재고 상한만큼, 마지막에는 나머지를 싣는다.</li>
+      <li>여러 번 수거할 때는 한국에 들러 내려놓고 다시 출항한다(왕복을 나눈다).</li>
+      <li>배는 재고가 채워지는 날에 맞춰 가능한 한 늦게 출항한다. 한국에서 대기하는 비용은 없다.</li>
+      <li><strong>운항비 최소(COST)</strong>와 <strong>가장 빠르게(FAST)</strong>는 나라들을 선박 수 이하의 묶음으로 나누는 모든 경우와 왕복 구성 패턴을 열거해 각각 운항비·총 일수가 최소인 후보를 고른다.</li>
+      <li><strong>가까운 곳부터(NEAR)</strong>는 한국에서 가까운 나라를 차례로 배에 돌려 가며 배정하고, 왕복마다 가까운 나라부터 방문한다.</li>
+      <li>생산비 = 수량(K) × 1000 × 단가, 운항비 = 선박별 항해 일수 합 × 일 운항비. 총비용은 둘의 합.</li>
+      <li>입력 검증: 나라별 수량은 0 이상, 총합은 1K 이상 100,000K 이하.</li>
+      <li>확정 시 서버가 같은 입력으로 다시 계산하며(클라이언트 값은 믿지 않음), 시뮬레이션 때의 마스터 버전과 다르면 409 Conflict로 거부한다.</li>
+      <li>상태 변경 시 화면이 본 <code>version</code>과 다르면 "다른 사용자가 먼저 변경했습니다"로 거부한다.</li>
+    </ul>
+  </section>
+
+  <section id="seed">
+    <h2>기본 데이터</h2>
+    <p>앱을 처음 실행하면 <code>DataInitializer</code>가 <code>BatteryService.initDefaults()</code>를 호출해 아래 값을 넣습니다. 이미 설정이 있으면 건너뜁니다.</p>
+
+    <h3>공장</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>나라</th><th>하루 최대 생산 (K)</th><th>재고 상한 (K)</th><th>단가 (원)</th></tr></thead>
+        <tbody>
+          <tr><td>중국</td><td class="num">400</td><td class="num">4,000</td><td class="num">700</td></tr>
+          <tr><td>일본</td><td class="num">800</td><td class="num">2,000</td><td class="num">900</td></tr>
+          <tr><td>베트남</td><td class="num">200</td><td class="num">10,000</td><td class="num">550</td></tr>
+          <tr><td>인도네시아</td><td class="num">300</td><td class="num">7,000</td><td class="num">450</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>항로 (항해 일수)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>구간</th><th>일수</th><th>구간</th><th>일수</th></tr></thead>
+        <tbody>
+          <tr><td>한국 – 중국</td><td class="num">1</td><td>중국 – 베트남</td><td class="num">4</td></tr>
+          <tr><td>한국 – 일본</td><td class="num">2</td><td>중국 – 인도네시아</td><td class="num">6</td></tr>
+          <tr><td>한국 – 베트남</td><td class="num">5</td><td>일본 – 베트남</td><td class="num">5</td></tr>
+          <tr><td>한국 – 인도네시아</td><td class="num">7</td><td>일본 – 인도네시아</td><td class="num">7</td></tr>
+          <tr><td>중국 – 일본</td><td class="num">2</td><td>베트남 – 인도네시아</td><td class="num">2</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>선박</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>값</th></tr></thead>
+        <tbody>
+          <tr><td>보유 선박 수</td><td class="num">3</td></tr>
+          <tr><td>1척 1일 운항비</td><td class="num">1억 원</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="run">
+    <h2>실행 방법</h2>
+    <pre><code># Windows
+.\gradlew.bat bootRun
+
+# macOS / Linux
+./gradlew bootRun</code></pre>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>값</th></tr></thead>
+        <tbody>
+          <tr><td>접속 URL</td><td><code>http://localhost:8080</code> (포트 설정 없음, Spring Boot 기본값)</td></tr>
+          <tr><td>로그인 계정</td><td>아이디 <code>admin</code> / 비밀번호 <code>admin</code> (<code>AppController.ACCOUNT</code>에 고정)</td></tr>
+          <tr><td>DB</td><td>H2 파일 모드 <code>./data/battery</code>, <code>AUTO_SERVER=TRUE</code>. <code>data/</code> 폴더는 <code>.gitignore</code> 대상</td></tr>
+          <tr><td>스키마</td><td><code>spring.jpa.hibernate.ddl-auto=update</code> 로 자동 생성</td></tr>
+          <tr><td>템플릿 캐시</td><td>꺼져 있음(<code>spring.thymeleaf.cache=false</code>). devtools 포함으로 수정 즉시 반영</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:10px">8080 포트를 다른 프로세스가 쓰고 있으면 기동에 실패하므로, 기존 프로세스를 종료하거나 <code>server.port</code>를 지정해야 합니다.</p>
+  </section>
+
+  <section id="structure">
+    <h2>소스 구조</h2>
+    <div class="tree">src/main/java/com/example/demo/
+├── DemoApplication.java        Spring Boot 진입점
+├── config/
+│   ├── DataInitializer.java    기동 시 기본 마스터 데이터 적재
+│   ├── JpaConfig.java          JPA 설정
+│   ├── LoginInterceptor.java   세션 로그인 검사
+│   └── WebConfig.java          인터셉터 등록 (/login, 정적 자원 제외)
+├── controller/
+│   └── AppController.java      화면 + JSON API 전체
+├── entity/
+│   ├── Country.java            나라 enum (한국 + 공장 4개국)
+│   ├── Factory.java            공장 파라미터
+│   ├── Route.java              항로 일수
+│   ├── Setting.java            선박 수·운항비·마스터 버전 (단일 행)
+│   ├── Order.java              확정 주문
+│   ├── OrderStatus.java        상태 enum과 전이 규칙
+│   └── OrderStatusHistory.java 상태 변경 이력
+├── repository/
+│   ├── MasterRepositories.java Factory / Route / Setting 리포지토리
+│   └── OrderRepositories.java  Order / OrderStatusHistory 리포지토리
+├── service/
+│   ├── BatteryService.java     마스터 관리, 시뮬레이션, 주문 확정·상태 변경
+│   └── BusinessException.java  검증 오류 (conflict 플래그 포함)
+└── simulation/
+    ├── Master.java             마스터 스냅샷 레코드
+    ├── Plan.java               경로안 레코드 (ShipPlan → Trip → Stop)
+    ├── Planner.java            경로 3안 계산 알고리즘
+    └── StoredPlan.java         주문에 저장되는 계획 묶음
+
+src/main/resources/
+├── application.properties      H2 파일 DB, JPA, Thymeleaf 설정
+├── templates/                  login, orders, order-new, order-detail, master, fragments
+└── static/
+    ├── css/app.css
+    ├── images/map.png, ship.png 지도·선박 애니메이션용 이미지
+    └── js/common.js, anim.js, planview.js, order-new.js</div>
+  </section>
+
+  <footer>이 문서는 html-report skill이 프로젝트 소스를 분석해 자동 생성했습니다.</footer>
+</main>
+</body>
+</html>

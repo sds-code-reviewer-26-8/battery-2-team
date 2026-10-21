@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배터리 주문 프로토타입</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#1d2433;--sub:#5b667a;--line:#e1e5ee;--accent:#2563eb;--accent-bg:#e8f0ff;--ok:#15803d;--warn:#b45309;--bad:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#11151d;--card:#1a2030;--ink:#e8ecf5;--sub:#9aa5bb;--line:#2b3347;--accent:#7aa2ff;--accent-bg:#1f2b4d;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header b{font-size:17px}
+nav{display:flex;gap:4px;flex:1}
+nav button{border:0;background:none;color:var(--sub);font:inherit;font-weight:600;padding:8px 12px;border-radius:8px;cursor:pointer}
+nav button[aria-current=true]{background:var(--accent-bg);color:var(--accent)}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.notice{background:var(--accent-bg);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+h2{font-size:18px;margin:0 0 10px}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:middle}
+th{color:var(--sub);font-weight:600;font-size:13px}
+tr.click{cursor:pointer}tr.click:hover{background:var(--accent-bg)}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:700;font-size:13px;border:1px solid currentColor}
+button.act{padding:8px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font:inherit;cursor:pointer}
+button.act.alt{background:none;color:var(--accent)}
+button.act:disabled{opacity:.35;cursor:not-allowed}
+input,textarea,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);width:100%}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:5px 12px;border-radius:99px;cursor:pointer;font:inherit}
+.chip[aria-pressed=true]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.opt{border:2px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;background:var(--card)}
+.opt[aria-checked=true]{border-color:var(--accent);background:var(--accent-bg)}
+.opt h3{margin:0 0 4px;font-size:16px}
+.big{font-size:20px;font-weight:700}
+.err{color:var(--bad);font-weight:600}.msg{color:var(--ok);font-weight:600}
+.lane{font-size:13px;color:var(--sub);margin-top:6px}
+.hide{display:none}
+@media (max-width:560px){th:nth-child(4),td:nth-child(4){display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>🔋 배터리 주문 (프로토타입)</b>
+  <nav>
+    <button data-v="orders">주문 목록</button>
+    <button data-v="new">새 주문</button>
+    <button data-v="master">기준 정보</button>
+  </nav>
+  <span style="color:var(--sub)">👤 admin</span>
+</header>
+<div class="wrap">
+  <div class="notice">⚠️ 연습용입니다. 가짜(Mock) 데이터이며 계산은 이해를 위해 <b>단순화</b>했습니다(실제 앱과 결과가 다를 수 있음). 새로고침하면 처음 상태로 돌아갑니다.</div>
+
+  <!-- 주문 목록 / 상세 -->
+  <div id="v-orders">
+    <div class="card"><h2>주문 목록</h2>
+      <div class="chips" id="chips"></div>
+      <table><thead><tr><th>번호</th><th>상태</th><th>수량(천 개)</th><th>계획</th><th>총 비용</th></tr></thead><tbody id="orderRows"></tbody></table>
+    </div>
+    <div class="card hide" id="detail"></div>
+  </div>
+
+  <!-- 새 주문 -->
+  <div id="v-new" class="hide">
+    <div class="card"><h2>① 나라별 주문 수량 (천 개)</h2>
+      <div class="g" id="qtyInputs"></div>
+      <p><button class="act" id="simBtn">계획 계산하기</button> <span id="simMsg" class="err"></span></p>
+    </div>
+    <div class="card hide" id="result"><h2>② 계획을 비교하고 하나를 고르세요</h2>
+      <div class="g" id="options"></div>
+      <p><label>메모</label><textarea id="memo" rows="2" placeholder="예) 3분기 긴급 물량"></textarea></p>
+      <button class="act" id="confirmBtn">이 계획으로 확정</button> <span id="confMsg" class="msg"></span>
+    </div>
+  </div>
+
+  <!-- 기준 정보 -->
+  <div id="v-master" class="hide">
+    <div class="card"><h2>공장 기준 정보</h2>
+      <table><thead><tr><th>공장</th><th>하루 생산량</th><th>창고 한도</th><th>단가</th><th>한국까지(일)</th></tr></thead><tbody id="mRows"></tbody></table>
+      <div class="g" style="margin-top:12px">
+        <div><label>배 수 (1~4)</label><input type="number" id="shipCount" min="1" max="4"></div>
+        <div><label>배 1척 하루 운항비 (억 원)</label><input type="number" id="shipCost" min="0" step="0.1"></div>
+      </div>
+      <p><button class="act" id="saveMaster">저장</button> <span id="mMsg"></span></p>
+      <p style="color:var(--sub);font-size:13px">저장하면 이후 계산부터 반영됩니다. (이미 확정된 주문은 그대로입니다)</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Mock Data (실제 앱의 초기값 기준) ===== */
+const NAMES=['중국','일본','베트남','인도네시아'];
+const MASTER={
+  fac:{중국:{daily:400,limit:4000,cost:700},일본:{daily:800,limit:2000,cost:900},베트남:{daily:200,limit:10000,cost:550},인도네시아:{daily:300,limit:7000,cost:450}},
+  d:{한국:{중국:1,일본:2,베트남:5,인도네시아:7},중국:{일본:2,베트남:4,인도네시아:6},일본:{베트남:5,인도네시아:7},베트남:{인도네시아:2}},
+  ships:3,shipCost:1 /* 억 원/일 */
+};
+const dist=(a,b)=>a===b?0:(MASTER.d[a]?.[b]??MASTER.d[b]?.[a]);
+const ST={CONFIRMED:['확정','var(--accent)',['IN_PROGRESS','CANCELED']],IN_PROGRESS:['진행','var(--warn)',['COMPLETED','CANCELED']],COMPLETED:['완료','var(--ok)',[]],CANCELED:['취소','var(--bad)',[]]};
+const KIND={COST:['💰 운항비 최소','배 1척이 공장들을 이어서 한 바퀴 돕니다'],FAST:['⚡ 가장 빠르게','배 여러 척이 나눠서 동시에 다녀옵니다'],NEAR:['📍 가까운 곳부터','배 1척이 가까운 나라부터 차례로 다녀옵니다']};
+let orders=[];
+let nextId=3,filter=null,lastSim=null,picked=null;
+const fmt=n=>(+n.toFixed(1)).toLocaleString();
+
+/* ===== 단순화한 계획 계산 ===== */
+function visitsOf(c,q){const l=MASTER.fac[c].limit;return q>0?Math.ceil(q/l):0}
+function loads(c,q){const l=MASTER.fac[c].limit,v=visitsOf(c,q),a=[];let cum=0;
+  for(let i=0;i<v;i++){cum+=i<v-1?l:q-(v-1)*l;a.push(cum)}return a} // 누적 수량
+const ready=(c,cum)=>Math.ceil(cum/MASTER.fac[c].daily);
+function roundTrip(t,c,cum){const d=dist('한국',c);const s=Math.max(t,ready(c,cum)-d);return{end:s+2*d,sail:2*d}}
+function seqRoundTrips(list,t0=0){ // 배 1척이 왕복 목록을 차례로 수행
+  let t=t0,sail=0;for(const[c,cum]of list){const r=roundTrip(t,c,cum);t=r.end;sail+=r.sail}return{days:t,sail}}
+function plan(q){
+  const act=NAMES.filter(c=>q[c]>0);
+  const trips=act.flatMap(c=>loads(c,q[c]).map((cum,i)=>({c,cum,i})));
+  // NEAR: 가까운 곳부터 왕복
+  const near=[...trips].sort((a,b)=>dist('한국',a.c)-dist('한국',b.c)||a.i-b.i);
+  const nr=seqRoundTrips(near.map(x=>[x.c,x.cum]));
+  // COST: 첫 방문은 이어서 한 바퀴(가까운 이웃 순), 나머지는 왕복
+  let order=[],cur='한국',left=[...act];
+  while(left.length){left.sort((a,b)=>dist(cur,a)-dist(cur,b));cur=left.shift();order.push(cur)}
+  const dep=Math.max(0,ready(order[0],loads(order[0],q[order[0]])[0])-dist('한국',order[0])); // 한국에서 기다리는 건 무료
+  let t=dep,pos='한국';for(const c of order){t=Math.max(t+dist(pos,c),ready(c,loads(c,q[c])[0]));pos=c}
+  t+=dist(pos,'한국');
+  const extra=trips.filter(x=>x.i>0);
+  const ex=seqRoundTrips(extra.map(x=>[x.c,x.cum]),t);
+  let cost={days:ex.days,sail:(t-dep)+ex.sail};
+  if(nr.sail<cost.sail||(nr.sail===cost.sail&&nr.days<cost.days))cost=nr; // 가까운 곳부터가 더 싸면 그 안이 최소
+  // FAST: 왕복을 여러 척에 나눠 동시에 (긴 것부터 가장 한가한 배에)
+  const n=Math.min(MASTER.ships,trips.length),ships=Array.from({length:n},()=>({t:0,sail:0}));
+  [...trips].sort((a,b)=>dist('한국',b.c)-dist('한국',a.c)).forEach(x=>{
+    const s=ships.reduce((m,k)=>k.t<m.t?k:m);const r=roundTrip(s.t,x.c,x.cum);s.t=r.end;s.sail+=r.sail});
+  const fast={days:Math.max(...ships.map(s=>s.t)),sail:ships.reduce((a,s)=>a+s.sail,0)};
+  const res=[['COST',cost],['FAST',fast],['NEAR',nr]];
+  const prod=+(act.reduce((a,c)=>a+q[c]*MASTER.fac[c].cost,0)/1e5).toFixed(1); // 생산비(억 원) = 천 개 × 1000 × 셀당 원가(원) ÷ 1억
+  return res.map(([k,r])=>({kind:k,days:r.days,ship:+(r.sail*MASTER.shipCost).toFixed(1),prod}));
+}
+
+/* ===== 가짜 주문 (위 계산기로 만든 값) ===== */
+function mkOrder(id,status,q,kind,memo,hist){const p=plan(q).find(x=>x.kind===kind);
+  return{id,status,q,kind,days:p.days,ship:p.ship,prod:p.prod,memo,hist}}
+orders=[mkOrder(2,'IN_PROGRESS',{중국:3000,일본:4000},'FAST','샘플: 긴급',['확정','진행']),
+        mkOrder(1,'COMPLETED',{베트남:8000},'NEAR','',['확정','진행','완료'])];
+
+/* ===== 화면 전환 ===== */
+const views=['orders','new','master'];
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+function show(v){views.forEach(x=>document.getElementById('v-'+x).classList.toggle('hide',x!==v));
+  document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.v===v));
+  if(v==='orders')renderOrders();if(v==='master')renderMaster()}
+
+/* ===== 주문 목록 ===== */
+const pill=s=>`<span class="pill" style="color:${ST[s][1]}">${ST[s][0]}</span>`;
+const qtyText=q=>Object.entries(q).filter(([,v])=>v>0).map(([c,v])=>`${c} ${v.toLocaleString()}`).join(', ');
+function renderOrders(){
+  const cnt=s=>orders.filter(o=>!s||o.status===s).length;
+  chips.innerHTML='';[[null,'전체']].concat(Object.entries(ST).map(([k,v])=>[k,v[0]])).forEach(([k,l])=>{
+    const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',filter===k);
+    b.textContent=`${l} ${cnt(k)}`;b.onclick=()=>{filter=k;renderOrders()};chips.appendChild(b)});
+  orderRows.innerHTML='';orders.filter(o=>!filter||o.status===filter).forEach(o=>{
+    const tr=document.createElement('tr');tr.className='click';
+    tr.innerHTML=`<td>#${o.id}</td><td>${pill(o.status)}</td><td>${qtyText(o.q)}</td><td>${KIND[o.kind][0]}</td><td>${fmt(o.prod+o.ship)}억</td>`;
+    tr.onclick=()=>openDetail(o.id);orderRows.appendChild(tr)});
+  if(!orderRows.children.length)orderRows.innerHTML='<tr><td colspan="5" style="color:var(--sub)">해당하는 주문이 없습니다</td></tr>';
+}
+function openDetail(id){
+  const o=orders.find(x=>x.id===id);detail.classList.remove('hide');
+  detail.innerHTML=`<h2>주문 #${o.id} ${pill(o.status)}</h2>
+   <p>수량: ${qtyText(o.q)}<br>계획: ${KIND[o.kind][0]} · 약 ${o.days}일 · 총 ${fmt(o.prod+o.ship)}억 (생산 ${fmt(o.prod)} + 운항 ${fmt(o.ship)})<br>메모: ${o.memo||'-'}</p>
+   <div class="chips" id="dBtns"></div>
+   <p style="color:var(--sub);font-size:13px">변경 기록: ${o.hist.join(' → ')}</p>`;
+  ST[o.status][2].forEach(k=>{const b=document.createElement('button');b.className='act'+(k==='CANCELED'?' alt':'');
+    b.textContent=ST[k][0]+'(으)로 바꾸기';b.onclick=()=>{if(k==='CANCELED'){orders=orders.filter(x=>x.id!==id);renderOrders();
+      detail.innerHTML=`<p class="msg">주문 #${id}을(를) 취소했습니다. 실제 앱처럼 취소된 주문은 목록에서 지워지고 변경 기록만 남습니다.</p>`;return}
+      o.status=k;o.hist.push(ST[k][0]);renderOrders();openDetail(id)};dBtns.appendChild(b)});
+  if(!ST[o.status][2].length)dBtns.innerHTML='<span style="color:var(--sub)">종료된 주문이라 더 바꿀 수 없습니다.</span>';
+  detail.scrollIntoView({behavior:'smooth'});
+}
+
+/* ===== 새 주문 ===== */
+qtyInputs.innerHTML=NAMES.map(c=>`<div><label>${c} (한도 ${MASTER.fac[c].limit.toLocaleString()})</label><input type="number" min="0" step="100" value="0" data-c="${c}"></div>`).join('');
+simBtn.onclick=()=>{
+  const q={};qtyInputs.querySelectorAll('input').forEach(i=>q[i.dataset.c]=Math.max(0,+i.value||0));
+  simMsg.textContent='';confMsg.textContent='';
+  if(!NAMES.some(c=>q[c]>0)){simMsg.textContent='주문 수량을 하나 이상 입력하세요';result.classList.add('hide');return}
+  if(NAMES.reduce((a,c)=>a+q[c],0)>100000){simMsg.textContent='총 수량은 100,000(천 개) 이하여야 합니다';result.classList.add('hide');return}
+  lastSim={q,plans:plan(q)};picked=null;
+  options.innerHTML='';lastSim.plans.forEach(p=>{
+    const d=document.createElement('div');d.className='opt';d.setAttribute('role','radio');d.setAttribute('aria-checked','false');d.tabIndex=0;
+    const v=NAMES.filter(c=>q[c]>0).map(c=>`${c} ${visitsOf(c,q[c])}번`).join(' · ');
+    d.innerHTML=`<h3>${KIND[p.kind][0]}</h3><div class="big">${p.days}일 · 총 ${fmt(p.prod+p.ship)}억</div><div class="lane">생산 ${fmt(p.prod)} + 운항 ${fmt(p.ship)} (억 원)</div><div class="lane">${KIND[p.kind][1]}</div><div class="lane">방문: ${v}</div>`;
+    const pick=()=>{picked=p;[...options.children].forEach(x=>x.setAttribute('aria-checked','false'));d.setAttribute('aria-checked','true')};
+    d.onclick=pick;d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}};options.appendChild(d)});
+  result.classList.remove('hide');
+};
+confirmBtn.onclick=()=>{
+  if(!picked){confMsg.className='err';confMsg.textContent='계획을 하나 선택하세요';return}
+  orders.unshift({id:nextId++,status:'CONFIRMED',q:lastSim.q,kind:picked.kind,days:picked.days,ship:picked.ship,prod:picked.prod,memo:memo.value,hist:['확정']});
+  memo.value='';result.classList.add('hide');qtyInputs.querySelectorAll('input').forEach(i=>i.value=0);
+  filter=null;show('orders');openDetail(orders[0].id)};
+
+/* ===== 기준 정보 ===== */
+function renderMaster(){
+  mRows.innerHTML=NAMES.map(c=>{const f=MASTER.fac[c];
+    return `<tr><td>${c}</td><td><input type="number" min="1" data-k="daily" data-c="${c}" value="${f.daily}"></td><td><input type="number" min="1" data-k="limit" data-c="${c}" value="${f.limit}"></td><td><input type="number" min="0" data-k="cost" data-c="${c}" value="${f.cost}"></td><td><input type="number" min="1" data-k="days" data-c="${c}" value="${dist('한국',c)}"></td></tr>`}).join('');
+  shipCount.value=MASTER.ships;shipCost.value=MASTER.shipCost;mMsg.textContent='';
+}
+saveMaster.onclick=()=>{
+  const bad=[...mRows.querySelectorAll('input')].some(i=>!(+i.value>0)&&i.dataset.k!=='cost');
+  if(bad||shipCount.value<1||shipCount.value>4||shipCost.value<0){mMsg.className='err';mMsg.textContent='값을 확인하세요 (배는 1~4척, 나머지는 0보다 커야 합니다)';return}
+  mRows.querySelectorAll('input').forEach(i=>{const c=i.dataset.c,k=i.dataset.k;
+    if(k==='days')MASTER.d.한국[c]=+i.value;else MASTER.fac[c][k]=+i.value});
+  MASTER.ships=+shipCount.value;MASTER.shipCost=+shipCost.value;
+  qtyInputs.querySelectorAll('label').forEach((l,i)=>l.textContent=`${NAMES[i]} (한도 ${MASTER.fac[NAMES[i]].limit.toLocaleString()})`);
+  mMsg.className='msg';mMsg.textContent='저장했습니다 (다음 계산부터 반영)';
+};
+show('orders');
+</script>
+</body>
+</html>
