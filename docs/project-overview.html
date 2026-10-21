@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>battery 프로젝트 한눈에 보기</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --text:#1c2430; --muted:#5b6675; --line:#dfe3e9;
+  --accent:#1f6feb; --accent-soft:#e6f0ff; --ok:#1a7f4b; --ok-soft:#e3f5ea;
+  --warn:#9a5b00; --warn-soft:#fff2d9; --bad:#b42318; --bad-soft:#fde8e6;
+  --code:#f0f2f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+    --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+    --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+  --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.7 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:28px 16px}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+header.top .wrap{padding:0}
+h1{margin:0 0 6px;font-size:1.7rem}
+h2{margin:0 0 12px;font-size:1.3rem}
+h3{margin:20px 0 8px;font-size:1.05rem}
+p{margin:8px 0}
+.sub{color:var(--muted);margin:0}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding:8px 16px}
+nav.toc a{white-space:nowrap;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:.9rem}
+nav.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+section{padding:28px 0 8px;scroll-margin-top:52px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:12px 0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.step .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;
+  background:var(--accent);color:#fff;font-weight:700;font-size:.9rem;margin-bottom:6px}
+.step b{display:block;margin-bottom:4px}
+.tag{display:inline-block;padding:1px 9px;border-radius:999px;font-size:.8rem;font-weight:600;margin-right:4px}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.info{background:var(--accent-soft);color:var(--accent)}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.95rem}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.85rem}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font:0.88em ui-monospace,Consolas,monospace}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+.callout.ok{border-color:var(--ok);background:var(--ok-soft)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+svg{max-width:100%;height:auto;display:block;margin:8px auto}
+svg text{fill:var(--text);font:13px -apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+svg .box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .hl{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+svg .okb{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+svg .badb{fill:var(--bad-soft);stroke:var(--bad);stroke-width:1.5}
+svg .arrow{stroke:var(--muted);stroke-width:1.6;fill:none}
+svg .sm{font-size:11.5px;fill:var(--muted)}
+ul.check{list-style:none;padding:0;margin:8px 0}
+ul.check li{padding:6px 0 6px 28px;position:relative;border-bottom:1px dashed var(--line)}
+ul.check li::before{content:"☐";position:absolute;left:4px;color:var(--accent)}
+.themebtn{float:right;border:1px solid var(--line);background:var(--surface);color:var(--text);
+  border-radius:8px;padding:4px 10px;cursor:pointer}
+footer{padding:28px 0 60px;color:var(--muted);font-size:.9rem}
+@media (max-width:560px){ h1{font-size:1.4rem} .card{padding:14px} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <button class="themebtn" id="themebtn" type="button">테마 전환</button>
+    <h1>battery 프로젝트 한눈에 보기</h1>
+    <p class="sub">처음 보는 사람이 단계별로 이해하고, 코드 리뷰까지 이어갈 수 있게 정리한 자료입니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#what">1 무엇을 하는 시스템</a>
+  <a href="#flow">2 업무 흐름</a>
+  <a href="#terms">3 핵심 용어</a>
+  <a href="#rules">4 계산 규칙</a>
+  <a href="#arch">5 코드 구조</a>
+  <a href="#confirm">6 주문 확정</a>
+  <a href="#status">7 상태 변경</a>
+  <a href="#gap">8 요구사항 대비</a>
+  <a href="#review">9 리뷰 체크</a>
+  <a href="#files">10 파일 맵</a>
+</div></nav>
+
+<main class="wrap">
+
+<!-- 1 -->
+<section id="what">
+  <h2>1. 무엇을 하는 시스템인가</h2>
+  <div class="card">
+    <p><b>DSD</b>는 한국 본사에서 배터리 셀(전기차용 2170 원통형)을 생산·공급하는 회사입니다. 중국·일본·베트남·인도네시아에 공장이 있고, 완성된 셀은 <b>배</b>로 한국까지 실어 옵니다.</p>
+    <p>이 프로그램은 <b>고객 주문이 들어왔을 때</b>, "어느 배가 어느 공장을 어떤 순서로 돌아야 비용이 적거나 빨리 끝나는지"를 미리 계산해 보여 주고, 마음에 드는 방법을 골라 <b>주문으로 확정</b>하게 합니다.</p>
+  </div>
+  <div class="grid">
+    <div class="step"><b>공장 4곳</b>하루 생산량, 창고(재고) 용량, 셀당 원가가 나라마다 다릅니다.</div>
+    <div class="step"><b>배 1~4척</b>빌려 쓰며 척당 하루 약 1억 원. 한국 항구에서 대기하는 동안은 무료입니다.</div>
+    <div class="step"><b>단위 K</b>1K = 셀 1,000개. 예: 주문 15,000K ≈ 1,500만 개.</div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="flow">
+  <h2>2. 업무 흐름</h2>
+  <div class="grid">
+    <div class="step"><span class="n">1</span><b>주문 추가</b>공장별 수량을 입력합니다. 슬라이더를 움직이면 합계가 유지되도록 이웃 나라가 자동 조정됩니다.</div>
+    <div class="step"><span class="n">2</span><b>시뮬레이션</b>경로 3가지(운항비 최소 / 가장 빠르게 / 가까운 곳부터)와 비용·일수, 지도 애니메이션을 보여 줍니다.</div>
+    <div class="step"><span class="n">3</span><b>주문 확정</b>경로 하나와 메모를 골라 확정합니다. 이 순간의 계획이 그대로 저장됩니다.</div>
+    <div class="step"><span class="n">4</span><b>상태 관리</b>주문 목록에서 상태를 바꾸고 이력을 확인합니다.</div>
+  </div>
+  <p>화면은 5개입니다: <code>/login</code> <code>/orders</code>(목록) <code>/orders/new</code>(추가) <code>/orders/{id}</code>(상세) <code>/master</code>(기준값).</p>
+</section>
+
+<!-- 3 -->
+<section id="terms">
+  <h2>3. 핵심 용어</h2>
+  <div class="card">
+  <table>
+    <tr><th>용어</th><th>뜻</th><th>코드에서</th></tr>
+    <tr><td>K</td><td>셀 1,000개 (주문 수량 단위)</td><td><code>totalK</code>, <code>loadK</code></td></tr>
+    <tr><td>하루 최대 생산량</td><td>공장이 하루에 만들 수 있는 양</td><td><code>Factory.maxDaily</code></td></tr>
+    <tr><td>재고 상한</td><td>공장 창고에 쌓아 둘 수 있는 최대량. 차면 생산이 멈춤</td><td><code>Factory.stockLimit</code></td></tr>
+    <tr><td>셀당 원가</td><td>셀 1개 생산비(원)</td><td><code>Factory.unitCost</code></td></tr>
+    <tr><td>항해 일수</td><td>두 나라 사이 배로 걸리는 일수</td><td><code>Route.days</code></td></tr>
+    <tr><td>왕복(Trip)</td><td>한국 출항 → 여러 나라 방문 → 한국 귀환 한 바퀴</td><td><code>Plan.Trip</code></td></tr>
+    <tr><td>마스터 데이터</td><td>위 기준값 전체(공장·항로·배 척수·운항비)</td><td><code>/master</code> 화면</td></tr>
+    <tr><td>마스터 버전</td><td>마스터를 저장할 때마다 1 증가. 확정 시 "결과를 본 뒤 기준값이 바뀌었는지" 확인</td><td><code>Setting.masterVersion</code></td></tr>
+    <tr><td>일차</td><td>주문일을 0일로 센 날짜</td><td><code>arriveDay</code></td></tr>
+  </table>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="rules">
+  <h2>4. 계산 규칙 (Planner)</h2>
+  <div class="card">
+    <ol>
+      <li>0일차에 모든 공장이 <b>동시에 생산</b>을 시작합니다.</li>
+      <li>하루 생산 = <b>하루 최대, 남은 창고 공간, 남은 주문량</b> 중 가장 작은 값.</li>
+      <li>창고가 차면 배가 가져가기 전까지 생산이 <b>멈춥니다</b>.</li>
+      <li>배는 도착하면 그 시점의 재고를 <b>전부</b> 싣고 갑니다.</li>
+      <li><b>한 나라는 한 척</b>의 배만 방문합니다.</li>
+      <li>필요 방문 횟수 = 올림(주문량 ÷ 재고 상한). 여러 번이면 한국에 들러 내려놓고 다시 출항합니다.</li>
+      <li>배는 재고가 찰 날에 맞춰 <b>늦게 출항</b>합니다 (한국에서 기다리는 건 무료).</li>
+    </ol>
+  </div>
+
+  <h3>예시로 이해하기 (PlannerTest의 값)</h3>
+  <div class="grid">
+    <div class="card"><b>베트남 2,000K, 하루 200K</b><p>생산 10일 · 한국↔베트남 5일<br>→ <b>5일차 출항</b>, 10일차 도착, <b>15일차 귀환</b><br>운항비 = 10일 × 1억 = 10억 원</p></div>
+    <div class="card"><b>일본 4,500K, 재고 상한 2,000K</b><p>방문 3번 = 2,000 / 2,000 / 500<br>배는 한국을 3번 왕복합니다.</p></div>
+  </div>
+
+  <h3>경로 3종</h3>
+  <table>
+    <tr><th>코드</th><th>이름</th><th>기준</th></tr>
+    <tr><td><code>COST</code></td><td>운항비 최소</td><td>모든 후보 중 운항비가 가장 적은 것 (같으면 더 빠른 것)</td></tr>
+    <tr><td><code>FAST</code></td><td>가장 빠르게</td><td>모든 후보 중 총 일수가 가장 짧은 것 (같으면 더 싼 것)</td></tr>
+    <tr><td><code>NEAR</code></td><td>가까운 곳부터</td><td>한국에서 가까운 나라부터 배에 번갈아 배정 (단순 규칙, 최적 아님)</td></tr>
+  </table>
+  <div class="callout">비용 = <b>생산 원가</b>(주문 K × 1,000 × 셀당 원가) + <b>운항비</b>(배가 항해한 일수 × 일 운항비). 한국 대기일은 포함되지 않습니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="arch">
+  <h2>5. 코드 구조</h2>
+  <p>요청은 위에서 아래로 흐르고, 계산은 DB와 무관한 <code>simulation</code> 패키지에서만 일어납니다.</p>
+  <div class="card">
+  <svg viewBox="0 0 720 360" role="img" aria-label="계층 구조 그림">
+    <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="box" x="230" y="10" width="260" height="44" rx="8"/><text x="360" y="30" text-anchor="middle">브라우저 (Thymeleaf + JS)</text><text class="sm" x="360" y="46" text-anchor="middle">order-new.js · planview.js · anim.js</text>
+    <path class="arrow" d="M360 54V82" marker-end="url(#a)"/>
+    <rect class="hl" x="230" y="84" width="260" height="44" rx="8"/><text x="360" y="104" text-anchor="middle">AppController</text><text class="sm" x="360" y="120" text-anchor="middle">화면 + JSON API, 오류를 메시지로 변환</text>
+    <path class="arrow" d="M360 128V156" marker-end="url(#a)"/>
+    <rect class="hl" x="230" y="158" width="260" height="44" rx="8"/><text x="360" y="178" text-anchor="middle">BatteryService</text><text class="sm" x="360" y="194" text-anchor="middle">비즈니스 규칙 · 트랜잭션</text>
+    <path class="arrow" d="M300 202L170 244" marker-end="url(#a)"/>
+    <path class="arrow" d="M420 202L550 244" marker-end="url(#a)"/>
+    <rect class="okb" x="40" y="246" width="260" height="52" rx="8"/><text x="170" y="268" text-anchor="middle">Planner (simulation)</text><text class="sm" x="170" y="286" text-anchor="middle">순수 계산 · Spring/JPA 의존 없음</text>
+    <rect class="box" x="420" y="246" width="260" height="52" rx="8"/><text x="550" y="268" text-anchor="middle">Repository → H2 (data/battery)</text><text class="sm" x="550" y="286" text-anchor="middle">Order · Factory · Route · Setting · 이력</text>
+    <rect class="box" x="10" y="318" width="700" height="34" rx="8"/><text class="sm" x="360" y="340" text-anchor="middle">config: LoginInterceptor(세션 로그인, /api는 401) · DataInitializer(시작 시 기본 마스터 입력) · JpaConfig · WebConfig</text>
+  </svg>
+  </div>
+  <table>
+    <tr><th>패키지</th><th>역할</th></tr>
+    <tr><td><code>controller</code></td><td>화면 5개와 API 3개(<code>/api/master</code>, <code>/api/simulate</code>, <code>/api/orders</code>). 로직은 서비스에 위임</td></tr>
+    <tr><td><code>service</code></td><td>마스터 검증·저장, 시뮬레이션, 주문 확정, 상태 변경. 사용자용 오류는 <code>BusinessException</code></td></tr>
+    <tr><td><code>simulation</code></td><td><code>Planner</code>(계산), <code>Master</code>(마스터 스냅샷), <code>Plan</code>(결과), <code>StoredPlan</code>(저장용)</td></tr>
+    <tr><td><code>entity / repository</code></td><td>JPA 엔티티와 리포지토리(중첩 인터페이스로 묶여 있음)</td></tr>
+    <tr><td><code>config</code></td><td>로그인 검사, 기본 데이터, 설정</td></tr>
+  </table>
+</section>
+
+<!-- 6 -->
+<section id="confirm">
+  <h2>6. 주문 확정은 어떻게 안전하게 이뤄지나</h2>
+  <div class="card">
+  <svg viewBox="0 0 720 230" role="img" aria-label="주문 확정 순서">
+    <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="box" x="10" y="20" width="150" height="56" rx="8"/><text x="85" y="44" text-anchor="middle">요청</text><text class="sm" x="85" y="62" text-anchor="middle">수량·경로 이름·버전</text>
+    <path class="arrow" d="M160 48H190" marker-end="url(#b)"/>
+    <rect class="hl" x="192" y="20" width="160" height="56" rx="8"/><text x="272" y="44" text-anchor="middle">서버가 다시 계산</text><text class="sm" x="272" y="62" text-anchor="middle">클라이언트 값은 안 믿음</text>
+    <path class="arrow" d="M352 48H382" marker-end="url(#b)"/>
+    <rect class="badb" x="384" y="20" width="160" height="56" rx="8"/><text x="464" y="44" text-anchor="middle">마스터 버전 비교</text><text class="sm" x="464" y="62" text-anchor="middle">다르면 409 거절</text>
+    <path class="arrow" d="M544 48H574" marker-end="url(#b)"/>
+    <rect class="okb" x="576" y="20" width="134" height="56" rx="8"/><text x="643" y="44" text-anchor="middle">주문 저장</text><text class="sm" x="643" y="62" text-anchor="middle">계획 JSON 스냅샷</text>
+    <path class="arrow" d="M643 76V110" marker-end="url(#b)"/>
+    <rect class="box" x="520" y="112" width="190" height="56" rx="8"/><text x="615" y="136" text-anchor="middle">상태 이력 기록</text><text class="sm" x="615" y="154" text-anchor="middle">(없음) → 확정</text>
+    <text class="sm" x="10" y="200">주문과 이력은 한 트랜잭션: 함께 저장되거나 함께 취소됩니다.</text>
+  </svg>
+  </div>
+  <div class="callout ok"><b>왜 이렇게?</b> 화면에서 본 결과와 저장되는 결과가 어긋나지 않게 하기 위해서입니다. 확정 후에는 계획 전체(마스터 값 포함)가 주문에 저장되므로, 나중에 기준값을 바꿔도 <b>이미 확정된 주문은 달라지지 않습니다</b>.</div>
+</section>
+
+<!-- 7 -->
+<section id="status">
+  <h2>7. 주문 상태 변경</h2>
+  <div class="card">
+  <svg viewBox="0 0 720 170" role="img" aria-label="상태 전이">
+    <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="hl" x="20" y="20" width="130" height="50" rx="25"/><text x="85" y="49" text-anchor="middle">확정</text>
+    <path class="arrow" d="M150 45H250" marker-end="url(#c)"/>
+    <rect class="hl" x="252" y="20" width="130" height="50" rx="25"/><text x="317" y="49" text-anchor="middle">진행</text>
+    <path class="arrow" d="M382 45H482" marker-end="url(#c)"/>
+    <rect class="okb" x="484" y="20" width="130" height="50" rx="25"/><text x="549" y="49" text-anchor="middle">완료</text>
+    <rect class="badb" x="252" y="110" width="130" height="46" rx="23"/><text x="317" y="138" text-anchor="middle">취소</text>
+    <path class="arrow" d="M100 70C120 100 200 125 250 133" marker-end="url(#c)"/>
+    <path class="arrow" d="M317 70V108" marker-end="url(#c)"/>
+    <text class="sm" x="420" y="138">완료·취소는 최종 상태 (더 바꿀 수 없음)</text>
+  </svg>
+  </div>
+  <ul>
+    <li>업무 의미: <b>확정</b>=구두 확정, <b>진행</b>=계약서 작성 후 생산 시작, <b>완료</b>=물량이 한국에 모두 입고, <b>취소</b>=확정/진행 중 취소.</li>
+    <li>화면의 <code>version</code>과 현재 값이 다르면(그 사이 다른 사람이 변경) <span class="tag bad">409 충돌</span>로 거절합니다. DB 낙관적 락(<code>@Version</code>)이 한 번 더 막습니다.</li>
+    <li>모든 변경은 <code>OrderStatusHistory</code>에 기록됩니다.</li>
+    <li><span class="tag warn">현재 구현</span> 취소하면 주문 행이 <b>삭제</b>되고 이력만 남습니다.</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section id="gap">
+  <h2>8. 요구사항 설명 대비 현재 구현</h2>
+  <p class="sub">설명 문서(기획 설명)와 코드를 비교한 결과입니다. 이후 개발 범위를 정할 때 참고하세요.</p>
+  <div class="card">
+  <table>
+    <tr><th>항목</th><th>설명 내용</th><th>현재</th><th></th></tr>
+    <tr><td>공장·배 기본 규칙</td><td>일일 생산량, 재고 용량, 원가, 배 1~4척, 한국 대기 무료</td><td>반영됨</td><td><span class="tag ok">일치</span></td></tr>
+    <tr><td>주문 상태</td><td>확정→진행→완료, 확정/진행 중 취소</td><td>반영됨</td><td><span class="tag ok">일치</span></td></tr>
+    <tr><td>물량 배분</td><td>시스템이 4개국 배분을 결정</td><td>사용자가 슬라이더로 직접 배분</td><td><span class="tag warn">차이</span></td></tr>
+    <tr><td>취소 주문</td><td>하나의 상태로 목록에 남음</td><td>삭제되고 이력만 남음</td><td><span class="tag warn">차이</span></td></tr>
+    <tr><td>공장 운영비</td><td>국가별로 다름 (추가 개발)</td><td>없음 → 총 비용이 작게 나옴</td><td><span class="tag bad">미구현</span></td></tr>
+    <tr><td>고객사·납기</td><td>주문 시 입력 (추가 개발)</td><td>없음 (메모만)</td><td><span class="tag bad">미구현</span></td></tr>
+    <tr><td>완료의 의미</td><td>한국에 물량이 모두 입고된 상태</td><td>관리자가 수동으로 변경</td><td><span class="tag warn">차이</span></td></tr>
+    <tr><td>생산원가 범위</td><td>셀당 500~1,000원</td><td>인도네시아 기본값 450원</td><td><span class="tag warn">확인</span></td></tr>
+  </table>
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="review">
+  <h2>9. 코드 리뷰 체크 포인트</h2>
+  <div class="card">
+  <ul class="check">
+    <li>확정 로직에서 <b>클라이언트가 보낸 계획을 신뢰</b>하는 코드가 생기지 않았는가 (서버 재계산 원칙)</li>
+    <li>마스터를 바꾸는 코드가 <code>masterVersion</code>을 올리는가</li>
+    <li>상태를 바꿀 때 <b>이력</b>을 남기고 <code>version</code>을 비교하는가</li>
+    <li>새 URL이 로그인 검사(<code>LoginInterceptor</code>) 대상인가 / API 오류가 <code>{error, conflict}</code> 형태인가</li>
+    <li><code>simulation</code> 패키지에 Spring·JPA 의존이 들어오지 않았는가</li>
+    <li><code>Plan</code>/<code>StoredPlan</code> 필드를 바꿨다면 <code>planview.js</code>, <code>anim.js</code>, <b>이미 저장된 주문</b>과 호환되는가</li>
+    <li>계산 규칙을 바꿨다면 <code>PlannerTest</code>의 구체적 숫자 테스트가 함께 바뀌었는가</li>
+    <li>컨트롤러에 비즈니스 로직이 새로 들어오지 않았는가</li>
+  </ul>
+  </div>
+  <div class="callout warn"><b>조심해서 볼 파일</b> <code>Planner.java</code>(완전 탐색·일정 계산), <code>BatteryService.java</code>(동시성·검증), <code>AppController.java</code>(화면+API 혼재), <code>anim.js</code>(고정 지도 좌표). <code>Planner</code>는 공장·배가 늘면 후보 수가 급격히 늘어나는 구조입니다.</div>
+</section>
+
+<!-- 10 -->
+<section id="files">
+  <h2>10. 파일 맵</h2>
+  <details open><summary>서비스 · 컨트롤러 · 설정</summary>
+    <table>
+      <tr><td><code>service/BatteryService.java</code></td><td>마스터 검증·저장, 시뮬레이션, 확정, 상태 변경, 이력 조회</td></tr>
+      <tr><td><code>service/BusinessException.java</code></td><td>사용자에게 보여 줄 오류. <code>conflict</code>면 409, 아니면 400</td></tr>
+      <tr><td><code>controller/AppController.java</code></td><td>화면 + JSON API</td></tr>
+      <tr><td><code>config/LoginInterceptor.java</code></td><td>세션 로그인 확인 (계정 <code>admin</code>/<code>admin</code> 하나)</td></tr>
+      <tr><td><code>config/DataInitializer.java</code></td><td>시작 시 기본 마스터 입력</td></tr>
+    </table>
+  </details>
+  <details><summary>시뮬레이션</summary>
+    <table>
+      <tr><td><code>simulation/Planner.java</code></td><td>경로 3종 계산, 일정, 일별 생산·재고 검증</td></tr>
+      <tr><td><code>simulation/Master.java</code></td><td>계산에 쓰는 마스터 스냅샷</td></tr>
+      <tr><td><code>simulation/Plan.java</code></td><td>결과(배별 왕복, 일별 재고·생산, 비용)</td></tr>
+      <tr><td><code>simulation/StoredPlan.java</code></td><td>주문에 JSON으로 저장되는 스냅샷</td></tr>
+    </table>
+  </details>
+  <details><summary>데이터</summary>
+    <table>
+      <tr><td><code>entity/Order.java</code></td><td>주문, 비용, 상태, 계획 JSON, 낙관적 락 버전</td></tr>
+      <tr><td><code>entity/OrderStatus.java</code></td><td>상태와 전이 규칙</td></tr>
+      <tr><td><code>entity/OrderStatusHistory.java</code></td><td>상태 변경 이력</td></tr>
+      <tr><td><code>entity/Factory · Route · Setting · Country</code></td><td>공장, 항로, 설정(배 척수·운항비·버전), 나라</td></tr>
+    </table>
+  </details>
+  <details><summary>화면</summary>
+    <table>
+      <tr><td><code>templates/*.html</code></td><td>로그인, 목록, 추가, 상세, 마스터 (<code>fragments.html</code>이 공통 머리말)</td></tr>
+      <tr><td><code>static/js/order-new.js</code></td><td>수량 입력, 시뮬레이션 호출, 확정</td></tr>
+      <tr><td><code>static/js/planview.js</code></td><td>계획을 표로 렌더링 (추가·상세 화면 공용)</td></tr>
+      <tr><td><code>static/js/anim.js</code></td><td>지도 위 배 이동 애니메이션</td></tr>
+      <tr><td><code>static/js/common.js</code></td><td>숫자·억원 변환, JSON 요청 도우미</td></tr>
+    </table>
+  </details>
+  <details><summary>테스트</summary>
+    <table>
+      <tr><td><code>PlannerTest</code></td><td>계산 규칙 단위 테스트 (DB 없음)</td></tr>
+      <tr><td><code>OrderFlowTests</code></td><td>로그인→시뮬레이션→확정→상태 변경·충돌 통합 테스트</td></tr>
+    </table>
+  </details>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  battery 프로젝트 · 소스 코드를 읽고 정리한 자료입니다. 코드가 바뀌면 내용도 달라질 수 있으니, 리뷰 전에 해당 파일을 함께 확인하세요.
+</div></footer>
+
+<script>
+(function(){
+  var btn=document.getElementById('themebtn');
+  var root=document.documentElement;
+  try{var saved=localStorage.getItem('theme'); if(saved) root.setAttribute('data-theme',saved);}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var cur=root.getAttribute('data-theme')||(dark?'dark':'light');
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('theme',next);}catch(e){}
+  });
+})();
+</script>
+</body>
+</html>
