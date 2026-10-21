@@ -38,3 +38,9 @@ out/
 
 ### H2 file database ###
 data/
+
+### Playwright MCP captures ###
+.playwright-mcp/
+
+### Understand Anything analysis data ###
+.ua/
