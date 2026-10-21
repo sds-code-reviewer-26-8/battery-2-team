@@ -58,6 +58,9 @@ node_modules/
 ### Playwright MCP captures ###
 .playwright-mcp/
 
+### impl-code 개인 로그 ###
+docs/logs/
+
 # Playwright
 node_modules/
 /test-results/
