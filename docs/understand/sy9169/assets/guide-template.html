@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{제목: 2~4단어}}</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --text:#1c2430; --muted:#5b6675; --line:#dfe3e9;
+  --accent:#1f6feb; --accent-soft:#e6f0ff; --ok:#1a7f4b; --ok-soft:#e3f5ea;
+  --warn:#9a5b00; --warn-soft:#fff2d9; --bad:#b42318; --bad-soft:#fde8e6; --code:#f0f2f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+    --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+    --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+  --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.7 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:24px 0 0}
+h1{margin:0 0 4px;font-size:1.6rem}
+h2{margin:0 0 10px;font-size:1.2rem}
+h3{margin:16px 0 6px;font-size:1rem}
+p{margin:8px 0}
+.sub{color:var(--muted);margin:0 0 14px}
+.themebtn{float:right;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:4px 10px;cursor:pointer}
+.tabs{display:flex;gap:4px;overflow-x:auto}
+.tab{border:0;background:transparent;color:var(--muted);padding:10px 16px;cursor:pointer;font:inherit;
+  border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.panel{display:none;padding:18px 0 40px}
+.panel.active{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+.card.warn{border:2px solid var(--warn);background:var(--warn-soft)}
+.chip{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:middle}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.pick{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:10px;cursor:pointer;font:inherit;text-align:center}
+.pick[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.result{margin-top:10px;padding:10px 12px;border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.result.ok{border-color:var(--ok);background:var(--ok-soft)}
+.result.bad{border-color:var(--bad);background:var(--bad-soft)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.row>div{flex:1 1 150px}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:2px}
+input[type=number],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+input[type=range]{width:100%}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.93rem}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:.82rem}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.states{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.st{padding:6px 14px;border-radius:999px;border:2px solid var(--line);color:var(--muted)}
+.st.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.st.gone{border-color:var(--bad);background:var(--bad-soft);color:var(--bad);font-weight:700}
+ol.log{padding-left:20px;margin:6px 0}
+ol.log li{margin:2px 0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font:.88em ui-monospace,Consolas,monospace}
+.quiz .q{margin:10px 0 14px}
+.quiz .opt{display:block;width:100%;text-align:left;margin:4px 0;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font:inherit}
+.quiz .opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.quiz .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.src{color:var(--muted);font-size:.85rem}
+@media (max-width:560px){h1{font-size:1.35rem}.tab{padding:9px 11px}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <button class="themebtn" id="themebtn" type="button">테마 전환</button>
+  <h1>{{제목}}</h1>
+  <p class="sub">{{한 줄 부제: 누구를 위한 자료인지}}</p>
+  <div class="tabs" role="tablist" aria-label="이해 단계">
+    <button class="tab" role="tab" id="t1" aria-controls="p1" aria-selected="true">1. {{탭1 이름}}</button>
+    <button class="tab" role="tab" id="t2" aria-controls="p2" aria-selected="false">2. {{탭2 이름}}</button>
+    <button class="tab" role="tab" id="t3" aria-controls="p3" aria-selected="false">3. {{탭3 이름}}</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+<!-- 탭마다 <section class="panel" id="pN" role="tabpanel" aria-labelledby="tN" hidden> 하나. 첫 탭만 class="panel active"에 hidden 없음. -->
+<!-- 카드 부품: .card  .card.warn(확인이 필요한 점)  .grid>.pick  .result(.ok/.bad)  .row>div>label+input  details>summary  .chip(안내 문구) -->
+<section class="panel active" id="p1" role="tabpanel" aria-labelledby="t1">
+  <div class="card">
+    <h2>{{카드 제목}}</h2>
+    <p>{{업무 언어로 쓴 한 문단. 개발 용어 금지}}</p>
+    <p class="src">{{숫자의 출처(기본값 등)와 바뀔 수 있다는 안내}}</p>
+  </div>
+  <div class="card">
+    <h2>{{인터랙션 카드 제목}} <span class="chip">{{눌러/움직여/계산해 보세요}}</span></h2>
+    <!-- 인터랙션 하나 이상: 선택해서 보기 / 입력해서 계산 / 슬라이더 / 상태 체험 / 시나리오 "다음 ▶" / 퀴즈 -->
+    <div class="result" id="{{결과 영역 id}}">{{초기 안내}}</div>
+  </div>
+  <div class="card warn">
+    <h2>확인이 필요한 점: {{한 줄}}</h2>
+    <p>{{코드에서 읽은 사실. 확정된 요구사항이 아님을 명시}}</p>
+  </div>
+</section>
+<section class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden>{{탭 2 카드들}}</section>
+<section class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+  {{탭 3 카드들}}
+  <div class="card quiz"><h2>이해 확인 퀴즈</h2><div id="quiz"></div></div>
+</section>
+</main>
+
+<script>
+/* ===== common: 테마, 탭, 퀴즈 도우미 (템플릿에도 그대로 들어갑니다) ===== */
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themebtn');
+  try{var s=localStorage.getItem('theme'); if(s) root.setAttribute('data-theme',s);}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var cur=root.getAttribute('data-theme')||(dark?'dark':'light');
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('theme',next);}catch(e){}
+  });
+})();
+
+var Tabs=(function(){
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  function show(i,focus){
+    tabs.forEach(function(t,k){
+      var on=k===i;
+      t.setAttribute('aria-selected',on);
+      t.tabIndex=on?0:-1;
+      var p=document.getElementById(t.getAttribute('aria-controls'));
+      p.classList.toggle('active',on); p.hidden=!on;
+    });
+    if(focus) tabs[i].focus();
+    try{localStorage.setItem('lastTab',String(i));}catch(e){}
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener('click',function(){show(i);});
+    t.addEventListener('keydown',function(e){
+      if(e.key==='ArrowRight'){e.preventDefault();show((i+1)%tabs.length,true);}
+      if(e.key==='ArrowLeft'){e.preventDefault();show((i+tabs.length-1)%tabs.length,true);}
+    });
+  });
+  var last=0; try{last=parseInt(localStorage.getItem('lastTab')||'0',10)||0;}catch(e){}
+  show(Math.min(Math.max(last,0),tabs.length-1));
+  return {show:show};
+})();
+
+function el(id){return document.getElementById(id);}
+function fmt(n){return Number(n).toLocaleString('ko-KR');}
+function eok(won){return (won/1e8).toFixed(2);}
+function ceilDiv(a,b){return Math.floor((a+b-1)/b);}
+
+/* 퀴즈: items=[{q, opts:[...], ans:index, why:'해설'}] */
+function renderQuiz(rootEl,items){
+  rootEl.innerHTML='';
+  items.forEach(function(it,qi){
+    var box=document.createElement('div'); box.className='q';
+    var h=document.createElement('div'); h.innerHTML='<b>Q'+(qi+1)+'.</b> '+it.q; box.appendChild(h);
+    var res=document.createElement('div'); res.className='src';
+    it.opts.forEach(function(o,oi){
+      var b=document.createElement('button'); b.type='button'; b.className='opt'; b.textContent=o;
+      b.addEventListener('click',function(){
+        [].forEach.call(box.querySelectorAll('.opt'),function(x){x.classList.remove('right','wrong');});
+        var ok=oi===it.ans; b.classList.add(ok?'right':'wrong');
+        res.textContent=(ok?'정답입니다. ':'다시 생각해 보세요. ')+(ok?it.why:'');
+      });
+      box.appendChild(b);
+    });
+    box.appendChild(res); rootEl.appendChild(box);
+  });
+}
+
+/* ===== content: 대상 코드의 기본값과 규칙 =====
+   - 숫자·규칙은 반드시 실제 코드와 일치시킨다 (초기값, 계산식, 오류 메시지).
+   - 단순화했다면 화면에 그렇게 적는다.
+   - 위 common 영역의 도우미를 쓴다: el(id) fmt(n) eok(won) ceilDiv(a,b) renderQuiz(root, items) Tabs.show(i)
+   - localStorage 는 try/catch 로만 쓴다. */
+{{데이터 상수}}
+{{인터랙션별 함수}}
+renderQuiz(el("quiz"),[ {q:"{{질문}}",opts:["{{보기1}}","{{보기2}}"],ans:0,why:"{{해설}}"} ]);
+</script>
+</body>
+</html>

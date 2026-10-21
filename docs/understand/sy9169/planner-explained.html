@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planner 경로 계산 이해</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --text:#1c2430; --muted:#5b6675; --line:#dfe3e9;
+  --accent:#1f6feb; --accent-soft:#e6f0ff; --ok:#1a7f4b; --ok-soft:#e3f5ea;
+  --warn:#9a5b00; --warn-soft:#fff2d9; --bad:#b42318; --bad-soft:#fde8e6;
+  --code:#f0f2f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+    --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+    --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+  --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.7 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:28px 16px}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+header.top .wrap{padding:0}
+h1{margin:0 0 6px;font-size:1.7rem}
+h2{margin:0 0 12px;font-size:1.3rem}
+h3{margin:20px 0 8px;font-size:1.05rem}
+p{margin:8px 0}
+.sub{color:var(--muted);margin:0}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding:8px 16px}
+nav.toc a{white-space:nowrap;color:var(--muted);text-decoration:none;padding:6px 12px;border-radius:999px;font-size:.9rem}
+nav.toc a:hover{background:var(--accent-soft);color:var(--accent)}
+section{padding:28px 0 8px;scroll-margin-top:52px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:12px 0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.step .n{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;
+  background:var(--accent);color:#fff;font-weight:700;font-size:.9rem;margin-bottom:6px}
+.step b{display:block;margin-bottom:4px}
+.tag{display:inline-block;padding:1px 9px;border-radius:999px;font-size:.8rem;font-weight:600;margin-right:4px}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.info{background:var(--accent-soft);color:var(--accent)}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.95rem}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.85rem}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font:0.88em ui-monospace,Consolas,monospace}
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+.callout.ok{border-color:var(--ok);background:var(--ok-soft)}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+svg{max-width:100%;height:auto;display:block;margin:8px auto}
+svg text{fill:var(--text);font:13px -apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+svg .box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+svg .hl{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+svg .okb{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.5}
+svg .badb{fill:var(--bad-soft);stroke:var(--bad);stroke-width:1.5}
+svg .arrow{stroke:var(--muted);stroke-width:1.6;fill:none}
+svg .sm{font-size:11.5px;fill:var(--muted)}
+ul.check{list-style:none;padding:0;margin:8px 0}
+ul.check li{padding:6px 0 6px 28px;position:relative;border-bottom:1px dashed var(--line)}
+ul.check li::before{content:"☐";position:absolute;left:4px;color:var(--accent)}
+.themebtn{float:right;border:1px solid var(--line);background:var(--surface);color:var(--text);
+  border-radius:8px;padding:4px 10px;cursor:pointer}
+footer{padding:28px 0 60px;color:var(--muted);font-size:.9rem}
+@media (max-width:560px){ h1{font-size:1.4rem} .card{padding:14px} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <button class="themebtn" id="themebtn" type="button">테마 전환</button>
+    <h1>Planner: 경로는 어떻게 계산되나</h1>
+    <p class="sub">처음 보는 사람이 경로 계산(Planner)을 단계별로 이해하고 리뷰할 수 있게 정리한 자료입니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#what">1 무엇을 하는 코드</a><a href="#flow">2 계산 순서</a><a href="#rules">3 규칙과 예시</a><a href="#shape">4 입출력</a><a href="#check">5 자체 검증</a><a href="#notes">6 알아둘 점</a><a href="#review">7 리뷰 체크</a><a href="#files">8 관련 파일</a>
+</div></nav>
+
+
+<main class="wrap">
+
+<section id="what">
+  <h2>1. 무엇을 하는 코드인가</h2>
+  <div class="card">
+    <p><code>Planner</code>는 <b>"주문 수량이 정해졌을 때, 배가 어떤 공장을 어떤 순서로 돌면 좋은가"</b>를 계산하는 부분입니다. 이 시스템에서 가장 복잡한 코드이고, 화면에 보이는 <b>경로 3가지</b>(운항비 최소 / 가장 빠르게 / 가까운 곳부터)가 모두 여기서 나옵니다.</p>
+    <p>DB나 화면과 무관한 <b>순수 계산</b>입니다. 같은 입력이면 항상 같은 결과가 나오므로 테스트하기 쉽습니다.</p>
+  </div>
+  <div class="grid">
+    <div class="step"><b>입력</b>마스터 값(공장·항로·배 척수·운항비) + 나라별 주문 수량(K)</div>
+    <div class="step"><b>출력</b><code>Plan</code> 3개: 배별 왕복 일정, 일별 생산·재고, 일수, 비용</div>
+    <div class="step"><b>호출하는 곳</b><code>BatteryService.simulate()</code> 한 곳뿐 (확정할 때도 이걸 다시 부릅니다)</div>
+  </div>
+</section>
+
+<section id="flow">
+  <h2>2. 계산 순서</h2>
+  <p>큰 흐름은 "후보를 많이 만들고 → 일정을 계산하고 → 좋은 것을 고른다"입니다.</p>
+  <div class="grid">
+    <div class="step"><span class="n">1</span><b>대상 추리기</b>주문이 0보다 큰 나라만 계산합니다. 모두 0이면 오류.</div>
+    <div class="step"><span class="n">2</span><b>방문별 적재량</b>나라마다 "방문할 때마다 몇 K 싣는지"를 정합니다.</div>
+    <div class="step"><span class="n">3</span><b>후보 만들기</b>나라를 배에 나누고, 왕복에 배치하고, 방문 순서를 정합니다.</div>
+    <div class="step"><span class="n">4</span><b>일정 계산</b>후보마다 출항일·도착일·귀환일을 계산합니다.</div>
+    <div class="step"><span class="n">5</span><b>고르기</b>운항비 최소(COST), 일수 최소(FAST). NEAR는 규칙대로 하나만 만듭니다.</div>
+    <div class="step"><span class="n">6</span><b>일별 생산 확정</b>고른 3개에 대해 하루씩 생산·재고를 계산하고 비용을 채웁니다.</div>
+  </div>
+  <details><summary>3단계 "후보 만들기"를 조금 더 자세히</summary>
+    <ul>
+      <li><b>배 배정</b>(<code>partitions</code>): 주문이 있는 나라들을 배 한 척이 맡는 묶음으로 나누는 모든 방법. 배는 <code>min(배 척수, 주문 나라 수)</code>척까지.</li>
+      <li><b>왕복 구성</b>(<code>tripStructures</code>): 한 나라를 여러 번 방문해야 할 때, 어느 왕복에 들를지 3가지 패턴(앞쪽 / 뒤쪽 / 고르게)을 모두 시도.</li>
+      <li><b>방문 순서</b>(<code>shortestOrder</code>): 한 왕복 안에서는 모든 순열을 보고 항해 일수가 가장 짧은 순서를 선택.</li>
+    </ul>
+  </details>
+</section>
+
+<section id="rules">
+  <h2>3. 핵심 규칙과 숫자 예시</h2>
+  <div class="card">
+    <ol>
+      <li>모든 공장은 <b>0일차에 동시에</b> 생산을 시작합니다.</li>
+      <li>하루 생산 = <b>하루 최대 / 창고 남은 공간 / 남은 주문량</b> 중 최솟값.</li>
+      <li>배는 도착 시점의 재고를 <b>전부</b> 싣습니다. <b>한 나라는 한 척</b>만 방문합니다.</li>
+      <li>방문 횟수 = 올림(주문 ÷ 재고 상한). 마지막 방문 전까지는 상한만큼, 마지막은 나머지를 싣습니다.</li>
+      <li>배는 재고가 찰 날에 맞춰 <b>늦게 출항</b>합니다. 한국에서 기다리는 것은 무료입니다.</li>
+    </ol>
+  </div>
+
+  <h3>출항일 계산식</h3>
+  <div class="callout">
+    <code>준비되는 날</code> = (그 나라의 지난 수거일) + 올림(적재량 ÷ 하루 최대 생산량)<br>
+    <code>출항일</code> = max(배가 한국에 돌아온 날, 준비되는 날 − 한국에서 그 나라까지 항해 일수)
+  </div>
+
+  <div class="grid">
+    <div class="card"><b>예 1) 중국 400K (하루 최대 400K)</b>
+      <p>준비 = 0 + 1 = 1일, 항해 1일 → 출항 max(0, 1−1)=<b>0일</b><br>도착 <b>1일</b>, 귀환 <b>2일</b><br>운항비 = 2일 × 1억 = 2억 원</p></div>
+    <div class="card"><b>예 2) 베트남 2,000K (하루 최대 200K)</b>
+      <p>준비 = 0 + 10 = 10일, 항해 5일 → 출항 max(0, 10−5)=<b>5일</b><br>도착 <b>10일</b>, 귀환 <b>15일</b><br>운항비 = 10일 × 1억 = 10억 원</p></div>
+    <div class="card"><b>예 3) 일본 4,500K (재고 상한 2,000K)</b>
+      <p>방문 3번 = <b>2,000 / 2,000 / 500</b><br>배가 한국을 3번 왕복하며 나눠 싣습니다.</p></div>
+  </div>
+  <p class="sub">위 숫자는 <code>PlannerTest</code>의 기대값과 같습니다(기본 마스터: 배 1척, 일 운항비 1억 원 기준).</p>
+
+  <h3>경로 3종은 어떻게 고르나</h3>
+  <table>
+    <tr><th>코드</th><th>기준</th><th>성격</th></tr>
+    <tr><td><code>COST</code></td><td>운항비 최소. 같으면 일수가 짧은 쪽</td><td>모든 후보 중 최적</td></tr>
+    <tr><td><code>FAST</code></td><td>일수 최소. 같으면 운항비가 낮은 쪽</td><td>모든 후보 중 최적</td></tr>
+    <tr><td><code>NEAR</code></td><td>한국에서 가까운 나라부터 배에 번갈아 배정, 왕복마다 가까운 순서로 방문</td><td>단순 규칙. 최적 아님</td></tr>
+  </table>
+  <p>그래서 항상 <b>COST 운항비 ≤ FAST ≤ NEAR</b>, <b>FAST 일수 ≤ COST ≤ NEAR</b>가 성립합니다(<code>PlannerTest</code>가 확인).</p>
+</section>
+
+<section id="shape">
+  <h2>4. 입력과 출력의 모양</h2>
+  <div class="card">
+  <svg viewBox="0 0 720 250" role="img" aria-label="Planner 입력과 출력">
+    <defs><marker id="p1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="box" x="10" y="20" width="200" height="86" rx="8"/><text x="110" y="42" text-anchor="middle">Master</text>
+    <text class="sm" x="110" y="62" text-anchor="middle">공장: 하루 최대·재고 상한·원가</text><text class="sm" x="110" y="78" text-anchor="middle">항로: 나라 쌍별 일수</text><text class="sm" x="110" y="94" text-anchor="middle">배 척수 · 일 운항비</text>
+    <rect class="box" x="10" y="130" width="200" height="60" rx="8"/><text x="110" y="156" text-anchor="middle">나라별 주문 수량(K)</text><text class="sm" x="110" y="174" text-anchor="middle">Map&lt;Country, Integer&gt;</text>
+    <path class="arrow" d="M210 63H280" marker-end="url(#p1)"/><path class="arrow" d="M210 160C245 160 250 100 280 90" marker-end="url(#p1)"/>
+    <rect class="okb" x="282" y="50" width="150" height="80" rx="8"/><text x="357" y="82" text-anchor="middle">Planner.plan()</text><text class="sm" x="357" y="102" text-anchor="middle">순수 계산</text>
+    <path class="arrow" d="M432 90H500" marker-end="url(#p1)"/>
+    <rect class="hl" x="502" y="14" width="208" height="170" rx="8"/><text x="606" y="36" text-anchor="middle">Plan × 3 (COST/FAST/NEAR)</text>
+    <text class="sm" x="606" y="62" text-anchor="middle">총 일수 · 생산 원가 · 운항비 · 총 비용</text>
+    <text class="sm" x="606" y="84" text-anchor="middle">ships: 배별 왕복(Trip)</text><text class="sm" x="606" y="100" text-anchor="middle">└ 출항일·귀환일·방문지(Stop)</text><text class="sm" x="606" y="116" text-anchor="middle">   └ 도착일·적재량(loadK)</text>
+    <text class="sm" x="606" y="142" text-anchor="middle">stock: 나라별 일별 재고</text><text class="sm" x="606" y="160" text-anchor="middle">production: 나라별 일별 생산량</text>
+    <text class="sm" x="10" y="232">모든 시각은 주문일을 0일로 센 일수입니다.</text>
+  </svg>
+  </div>
+</section>
+
+<section id="check">
+  <h2>5. 계산이 스스로 맞는지 확인하는 장치</h2>
+  <div class="card">
+    <p>마지막 단계에서 하루씩 생산·수거를 진행하며 <b>배가 싣는 양이 그날 재고와 정확히 같은지</b> 검사합니다. 다르거나 주문이 남으면 <code>IllegalStateException</code>으로 멈춥니다. 즉 일정 계산에 오류가 생기면 조용히 틀린 결과를 내는 대신 <b>바로 실패</b>합니다.</p>
+  </div>
+  <div class="callout ok">리뷰에서 일정 계산(<code>schedule</code>)을 건드린 변경을 볼 때는, 이 검사가 그대로 통과하는지 테스트가 확인해 주는지부터 보면 됩니다.</div>
+</section>
+
+<section id="notes">
+  <h2>6. 알아둘 점</h2>
+  <ul>
+    <li><span class="tag warn">확인됨</span> <code>Planner.visitedCountries()</code>는 정의만 있고 <b>호출하는 곳이 없습니다</b>(주석상 테스트·검증용). 정리 대상일 수 있습니다.</li>
+    <li><span class="tag info">구조</span> 후보를 <b>전부 탐색</b>하는 방식입니다. 공장 4곳·배 최대 4척인 지금은 작지만(나라를 배에 나누는 방법만 최대 15가지), 공장이나 배가 늘면 후보 수가 빠르게 불어납니다.</li>
+    <li><span class="tag info">설계</span> <code>NEAR</code>는 최적화하지 않는 비교 기준용 단순 규칙입니다.</li>
+    <li><span class="tag info">입력 상한</span> 총 주문은 <code>MAX_TOTAL_K</code> = 100,000K 이하(검증은 <code>BatteryService</code>에서 합니다).</li>
+  </ul>
+</section>
+
+<section id="review">
+  <h2>7. 리뷰 체크 포인트</h2>
+  <div class="card">
+  <ul class="check">
+    <li>규칙(생산, 적재, 출항일)을 바꿨다면 <code>PlannerTest</code>의 <b>구체적 숫자</b> 테스트(중국 2일, 베트남 15일, 일본 2000/2000/500)가 함께 바뀌었는가</li>
+    <li>"실은 양의 합 = 주문량", "한 나라는 한 척", "재고는 상한 이하" 세 불변 조건이 계속 지켜지는가</li>
+    <li>COST/FAST의 <b>동률 처리 순서</b>(운항비 → 일수, 일수 → 운항비)가 바뀌지 않았는가</li>
+    <li><code>Plan</code>의 필드를 바꿨다면 <code>planview.js</code>, <code>anim.js</code>, <b>이미 저장된 주문(<code>StoredPlan</code> JSON)</b>이 깨지지 않는가</li>
+    <li><code>simulation</code> 패키지에 Spring/JPA 의존이 들어오지 않았는가</li>
+    <li>공장·배 수를 늘리는 변경이라면 후보 수 증가에 따른 <b>실행 시간</b>을 확인했는가</li>
+  </ul>
+  </div>
+</section>
+
+<section id="files">
+  <h2>8. 관련 파일</h2>
+  <details open><summary>simulation 패키지</summary>
+    <table>
+      <tr><td><code>Planner.java</code></td><td>후보 생성, 일정 계산, 일별 생산·재고 검증</td></tr>
+      <tr><td><code>Master.java</code></td><td>계산에 쓰는 마스터 값 스냅샷(공장·항로·배 설정)</td></tr>
+      <tr><td><code>Plan.java</code></td><td>결과 record. <code>ShipPlan</code> → <code>Trip</code> → <code>Stop</code></td></tr>
+      <tr><td><code>StoredPlan.java</code></td><td>확정 시 주문에 JSON으로 저장되는 스냅샷(마스터 + 주문량 + 선택한 Plan)</td></tr>
+    </table>
+  </details>
+  <details><summary>PlannerTest가 확인하는 것 (12개)</summary>
+    <table>
+      <tr><td>방문 횟수는 올림(주문 ÷ 재고 상한)</td><td>모든 경로가 주문한 양을 정확히 수거</td></tr>
+      <tr><td>한 나라는 한 척만 방문</td><td>생산 원가 = 셀 수 × 셀당 원가</td></tr>
+      <tr><td>소량 주문 = 생산 + 왕복</td><td>늦게 출항해서 항구에서 기다리지 않음</td></tr>
+      <tr><td>재고 상한 초과 주문은 여러 왕복으로 수거</td><td>수거 전까지 재고는 상한을 넘지 않음</td></tr>
+      <tr><td>COST는 가장 싸고 FAST는 가장 빠름</td><td>가용 배 수를 넘지 않음</td></tr>
+      <tr><td>빈 주문은 거부</td><td>기본 주문 요약 출력(검증 없음)</td></tr>
+    </table>
+  </details>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  기준 커밋 43cfb35 · 범위: simulation 패키지(Planner, Master, Plan, StoredPlan)와 PlannerTest · 코드가 바뀌면 내용도 달라질 수 있습니다.
+</div></footer>
+
+<script>
+(function(){
+  var btn=document.getElementById('themebtn');
+  var root=document.documentElement;
+  try{var saved=localStorage.getItem('theme'); if(saved) root.setAttribute('data-theme',saved);}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var cur=root.getAttribute('data-theme')||(dark?'dark':'light');
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('theme',next);}catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

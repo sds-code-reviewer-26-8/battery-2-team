@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배터리 주문 앱 기본 가이드</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --text:#1c2430; --muted:#5b6675; --line:#dfe3e9;
+  --accent:#1f6feb; --accent-soft:#e6f0ff; --ok:#1a7f4b; --ok-soft:#e3f5ea;
+  --warn:#9a5b00; --warn-soft:#fff2d9; --bad:#b42318; --bad-soft:#fde8e6; --code:#f0f2f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+    --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+    --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10141a; --surface:#181e27; --text:#e6eaf0; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa6ff; --accent-soft:#1b2a44; --ok:#56d28d; --ok-soft:#14301f;
+  --warn:#f2b44d; --warn-soft:#33270f; --bad:#ff8a80; --bad-soft:#3a1a18; --code:#222a35;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.7 -apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:24px 0 0}
+h1{margin:0 0 4px;font-size:1.6rem}
+h2{margin:0 0 10px;font-size:1.2rem}
+h3{margin:16px 0 6px;font-size:1rem}
+p{margin:8px 0}
+.sub{color:var(--muted);margin:0 0 14px}
+.themebtn{float:right;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:4px 10px;cursor:pointer}
+.tabs{display:flex;gap:4px;overflow-x:auto}
+.tab{border:0;background:transparent;color:var(--muted);padding:10px 16px;cursor:pointer;font:inherit;
+  border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.panel{display:none;padding:18px 0 40px}
+.panel.active{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+.card.warn{border:2px solid var(--warn);background:var(--warn-soft)}
+.chip{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:middle}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.pick{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:10px;cursor:pointer;font:inherit;text-align:center}
+.pick[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.result{margin-top:10px;padding:10px 12px;border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.result.ok{border-color:var(--ok);background:var(--ok-soft)}
+.result.bad{border-color:var(--bad);background:var(--bad-soft)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.row>div{flex:1 1 150px}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:2px}
+input[type=number],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+input[type=range]{width:100%}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.93rem}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:.82rem}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.steps{display:flex;gap:8px;flex-wrap:wrap}
+.states{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.st{padding:6px 14px;border-radius:999px;border:2px solid var(--line);color:var(--muted)}
+.st.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.st.gone{border-color:var(--bad);background:var(--bad-soft);color:var(--bad);font-weight:700}
+ol.log{padding-left:20px;margin:6px 0}
+ol.log li{margin:2px 0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 14px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}
+code{background:var(--code);padding:1px 6px;border-radius:5px;font:.88em ui-monospace,Consolas,monospace}
+.quiz .q{margin:10px 0 14px}
+.quiz .opt{display:block;width:100%;text-align:left;margin:4px 0;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font:inherit}
+.quiz .opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.quiz .opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.src{color:var(--muted);font-size:.85rem}
+@media (max-width:560px){h1{font-size:1.35rem}.tab{padding:9px 11px}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <button class="themebtn" id="themebtn" type="button">테마 전환</button>
+  <h1>배터리 주문 앱 기본 가이드</h1>
+  <p class="sub">개발 지식 없이 읽는 3단계 이해 자료입니다. 눌러 보고, 움직여 보고, 계산해 보세요.</p>
+  <div class="tabs" role="tablist" aria-label="이해 단계">
+    <button class="tab" role="tab" id="t1" aria-controls="p1" aria-selected="true">1. 무엇을 하는 앱인가</button>
+    <button class="tab" role="tab" id="t2" aria-controls="p2" aria-selected="false">2. 사용자는 무엇을 하나</button>
+    <button class="tab" role="tab" id="t3" aria-controls="p3" aria-selected="false">3. 주문과 3가지 안</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+
+<!-- ============ 탭 1 ============ -->
+<section class="panel active" id="p1" role="tabpanel" aria-labelledby="t1">
+  <div class="card">
+    <h2>한 문단 요약</h2>
+    <p>한국 본사가 <b>중국·일본·베트남·인도네시아</b> 공장에 배터리 셀을 주문하면, 공장에서 만든 셀을 <b>배</b>가 돌면서 한국으로 실어 옵니다. 이 앱은 주문이 들어왔을 때 <b>"배가 어떤 순서로 돌면 비용이 적거나 빨리 끝나는지"</b>를 미리 계산해 보여 주고, 담당자가 하나를 골라 <b>주문으로 확정</b>하게 합니다.</p>
+    <p class="src">셀 수량은 K 단위(1K = 1,000개)로 입력합니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>공장 살펴보기 <span class="chip">나라를 눌러 보세요</span></h2>
+    <div class="grid" id="factoryPick"></div>
+    <div class="result" id="factoryInfo">위에서 나라를 눌러 보세요.</div>
+    <div class="row" style="margin-top:10px">
+      <div><label for="fQty">이 공장에 주문할 수량 (K)</label><input type="number" id="fQty" value="1000" min="1" step="100"></div>
+    </div>
+    <div class="result" id="fCalc"></div>
+    <p class="src">숫자는 앱을 처음 켤 때 들어가는 기본값입니다. 기준값 화면에서 바꾸면 달라집니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>항로: 나라 사이는 며칠 걸릴까? <span class="chip">직접 골라 보세요</span></h2>
+    <div class="row">
+      <div><label for="from">출발</label><select id="from"></select></div>
+      <div><label for="to">도착</label><select id="to"></select></div>
+    </div>
+    <div class="result" id="routeInfo"></div>
+    <details><summary>전체 항로표 보기</summary><div id="routeTable"></div></details>
+  </div>
+
+  <div class="card">
+    <h2>꼭 알아둘 규칙</h2>
+    <ol>
+      <li>주문이 들어오면 <b>모든 공장이 0일차에 동시에</b> 생산을 시작합니다.</li>
+      <li>하루 생산량은 <b>하루 최대 / 창고 남은 공간 / 남은 주문량</b> 중 가장 작은 값입니다.</li>
+      <li>창고가 가득 차면 배가 가져가기 전까지 <b>생산이 멈춥니다.</b></li>
+      <li>배는 도착하면 그때 쌓인 재고를 <b>전부</b> 싣습니다. <b>한 나라는 한 척</b>의 배만 방문합니다.</li>
+      <li>한국 항구에서 기다리는 동안은 <b>배 임차료가 들지 않습니다.</b></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 탭 2 ============ -->
+<section class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+  <div class="card">
+    <h2>사용자의 하루: 5단계 <span class="chip">단계를 눌러 보세요</span></h2>
+    <div class="steps" id="steps"></div>
+    <div class="result" id="stepInfo">위 단계를 눌러 보세요.</div>
+  </div>
+
+  <div class="card">
+    <h2>수량 게이지 체험 <span class="chip">슬라이더를 움직여 보세요</span></h2>
+    <p>주문 추가 화면의 게이지와 같은 규칙입니다. 한 나라를 움직이면 <b>바로 오른쪽 나라가 반대로</b> 조정되고(맨 오른쪽은 맨 왼쪽), <b>합계는 늘 총 수량과 같습니다.</b></p>
+    <div class="row"><div><label for="gTotal">총 생산 필요 수 (K)</label><input type="number" id="gTotal" value="12000" min="1" max="100000"></div></div>
+    <div class="grid" id="gauges" style="margin-top:10px"></div>
+    <div class="result" id="gaugeSum"></div>
+  </div>
+
+  <div class="card">
+    <h2>주문 상태 체험 <span class="chip">버튼을 눌러 보세요</span></h2>
+    <div class="states" id="states"></div>
+    <div class="row" id="stateBtns" style="margin-top:8px"></div>
+    <div class="result" id="stateMsg">처음 상태는 항상 '확정'입니다.</div>
+    <h3>변경 이력</h3>
+    <ol class="log" id="stateLog"></ol>
+    <p><button class="btn ghost" id="stateReset" type="button">처음부터 다시</button></p>
+  </div>
+
+  <div class="card">
+    <h2>두 사람이 동시에 바꾸면? <span class="chip">재현해 보세요</span></h2>
+    <p>김 담당과 박 담당이 같은 주문(확정 상태)을 동시에 열어 두었다고 해 봅시다. 화면에는 "내가 본 시점의 번호"가 숨어 있고, 저장할 때 현재 번호와 다르면 거절됩니다.</p>
+    <p><button class="btn" id="conflictBtn" type="button">충돌 상황 재현하기</button></p>
+    <div class="result" id="conflictMsg" hidden></div>
+  </div>
+
+  <div class="card warn">
+    <h2>확인이 필요한 점: 취소하면 주문이 사라진다</h2>
+    <p>코드에서 읽은 사실입니다. 주문을 <b>취소</b>로 바꾸면 상태 이력은 남지만 <b>주문 자체는 삭제</b>됩니다. 그런데 주문 목록에는 "취소" 필터가 있어 서로 어긋나 보입니다.</p>
+    <p>취소한 주문을 기록으로 남길지는 <b>아직 확정된 요구사항이 아닙니다.</b> 결정이 나오면 이 카드를 갱신하세요.</p>
+    <p class="src">취소 직후 상세 화면으로 돌아가는 동작은 코드상 오류가 날 것으로 보이지만 실행해서 확인하지는 못했습니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>기준값 화면은 무엇인가</h2>
+    <p>공장 생산 능력, 창고 용량, 셀당 원가, 나라 사이 항해 일수, 배 척수(1~4), 배 하루 운항비를 고치는 화면입니다. <b>하나라도 잘못되면 아무것도 저장되지 않고</b> 이유가 모아서 표시됩니다. 저장할 때마다 "기준값 번호"가 1씩 올라갑니다.</p>
+  </div>
+</section>
+
+<!-- ============ 탭 3 ============ -->
+<section class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+  <div class="card">
+    <h2>주문 수량 계산기 <span class="chip">수량을 바꿔 보세요</span></h2>
+    <div class="grid" id="calcInputs"></div>
+    <table id="calcTable" style="margin-top:12px"></table>
+    <div class="result" id="calcSummary"></div>
+    <p class="src">방문 횟수 = 올림(주문 ÷ 창고 상한). 생산 원가 = 수량 × 1,000 × 셀당 원가.</p>
+  </div>
+
+  <div class="card">
+    <h2>한 나라만 주문할 때 일정 보기 <span class="chip">숫자를 바꿔 보세요</span></h2>
+    <p>배 1척이 한 나라만 한 번 다녀오는 가장 단순한 경우입니다.</p>
+    <div class="row">
+      <div><label for="rtCountry">나라</label><select id="rtCountry"></select></div>
+      <div><label for="rtQty">주문 수량 (K)</label><input type="number" id="rtQty" value="2000" min="1" step="100"></div>
+      <div><label for="rtCost">배 하루 운항비 (억 원)</label><input type="number" id="rtCost" value="1" min="0.1" step="0.1"></div>
+    </div>
+    <div class="result" id="rtInfo"></div>
+  </div>
+
+  <div class="card">
+    <h2>3가지 안, 무엇이 다른가</h2>
+    <table>
+      <tr><th>안</th><th>고르는 기준</th><th>성격</th></tr>
+      <tr><td><b>운항비 최소</b></td><td>배 운항비가 가장 적은 조합 (같으면 더 빠른 쪽)</td><td>가능한 조합 중 최적</td></tr>
+      <tr><td><b>가장 빠르게</b></td><td>전체가 가장 빨리 끝나는 조합 (같으면 더 싼 쪽)</td><td>가능한 조합 중 최적</td></tr>
+      <tr><td><b>가까운 곳부터</b></td><td>한국에서 가까운 나라부터 배에 번갈아 맡김</td><td>단순한 규칙, 최적 아님</td></tr>
+    </table>
+    <p>그래서 <b>운항비는 "운항비 최소"가 가장 적고, 소요 일수는 "가장 빠르게"가 가장 짧습니다.</b> 총 비용 = 생산 원가 + 운항비입니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>주문 한 건의 여정 <span class="chip">시나리오를 고르고 "다음"을 눌러 보세요</span></h2>
+    <div class="row">
+      <div><label for="jScenario">시나리오</label>
+        <select id="jScenario">
+          <option value="ok">정상: 끝까지 성공</option>
+          <option value="nologin">로그인하지 않고 접속</option>
+          <option value="zero">수량을 모두 0으로 시뮬레이션</option>
+          <option value="master">시뮬레이션 뒤에 기준값이 바뀜</option>
+        </select></div>
+      <div style="flex:0 0 auto"><button class="btn" id="jNext" type="button">다음 ▶</button>
+        <button class="btn ghost" id="jReset" type="button">처음부터</button></div>
+    </div>
+    <ol class="log" id="jLog" style="margin-top:12px"></ol>
+    <div class="result" id="jEnd" hidden></div>
+    <details><summary>나중에 코드 리뷰할 때: 업무 규칙 ↔ 담당 파일</summary>
+      <table>
+        <tr><th>업무 규칙</th><th>담당 파일</th></tr>
+        <tr><td>경로 계산, 일정, 비용</td><td><code>simulation/Planner.java</code></td></tr>
+        <tr><td>확정 시 서버가 다시 계산, 기준값 번호 비교</td><td><code>service/BatteryService.java</code> (confirm)</td></tr>
+        <tr><td>상태 변경 규칙과 충돌 감지</td><td><code>entity/OrderStatus.java</code>, <code>BatteryService</code> (changeStatus)</td></tr>
+        <tr><td>기준값 검증과 저장</td><td><code>BatteryService</code> (updateMaster)</td></tr>
+        <tr><td>로그인 확인</td><td><code>config/LoginInterceptor.java</code></td></tr>
+        <tr><td>화면과 API 연결</td><td><code>controller/AppController.java</code></td></tr>
+        <tr><td>확정 때 저장되는 계획 스냅샷</td><td><code>simulation/StoredPlan.java</code>, <code>entity/Order.java</code></td></tr>
+      </table>
+    </details>
+  </div>
+
+  <div class="card quiz">
+    <h2>이해 확인 퀴즈</h2>
+    <div id="quiz"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ===== common: 테마, 탭, 퀴즈 도우미 (템플릿에도 그대로 들어갑니다) ===== */
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themebtn');
+  try{var s=localStorage.getItem('theme'); if(s) root.setAttribute('data-theme',s);}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var cur=root.getAttribute('data-theme')||(dark?'dark':'light');
+    var next=cur==='dark'?'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('theme',next);}catch(e){}
+  });
+})();
+
+var Tabs=(function(){
+  var tabs=[].slice.call(document.querySelectorAll('.tab'));
+  function show(i,focus){
+    tabs.forEach(function(t,k){
+      var on=k===i;
+      t.setAttribute('aria-selected',on);
+      t.tabIndex=on?0:-1;
+      var p=document.getElementById(t.getAttribute('aria-controls'));
+      p.classList.toggle('active',on); p.hidden=!on;
+    });
+    if(focus) tabs[i].focus();
+    try{localStorage.setItem('lastTab',String(i));}catch(e){}
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener('click',function(){show(i);});
+    t.addEventListener('keydown',function(e){
+      if(e.key==='ArrowRight'){e.preventDefault();show((i+1)%tabs.length,true);}
+      if(e.key==='ArrowLeft'){e.preventDefault();show((i+tabs.length-1)%tabs.length,true);}
+    });
+  });
+  var last=0; try{last=parseInt(localStorage.getItem('lastTab')||'0',10)||0;}catch(e){}
+  show(Math.min(Math.max(last,0),tabs.length-1));
+  return {show:show};
+})();
+
+function el(id){return document.getElementById(id);}
+function fmt(n){return Number(n).toLocaleString('ko-KR');}
+function eok(won){return (won/1e8).toFixed(2);}
+function ceilDiv(a,b){return Math.floor((a+b-1)/b);}
+
+/* 퀴즈: items=[{q, opts:[...], ans:index, why:'해설'}] */
+function renderQuiz(rootEl,items){
+  rootEl.innerHTML='';
+  items.forEach(function(it,qi){
+    var box=document.createElement('div'); box.className='q';
+    var h=document.createElement('div'); h.innerHTML='<b>Q'+(qi+1)+'.</b> '+it.q; box.appendChild(h);
+    var res=document.createElement('div'); res.className='src';
+    it.opts.forEach(function(o,oi){
+      var b=document.createElement('button'); b.type='button'; b.className='opt'; b.textContent=o;
+      b.addEventListener('click',function(){
+        [].forEach.call(box.querySelectorAll('.opt'),function(x){x.classList.remove('right','wrong');});
+        var ok=oi===it.ans; b.classList.add(ok?'right':'wrong');
+        res.textContent=(ok?'정답입니다. ':'다시 생각해 보세요. ')+(ok?it.why:'');
+      });
+      box.appendChild(b);
+    });
+    box.appendChild(res); rootEl.appendChild(box);
+  });
+}
+
+/* ===== content: 이 앱의 기본값과 규칙 (BatteryService.initDefaults, Planner 기준) ===== */
+var COUNTRY={KOREA:'한국',CHINA:'중국',JAPAN:'일본',VIETNAM:'베트남',INDONESIA:'인도네시아'};
+var FACT_ORDER=['CHINA','JAPAN','VIETNAM','INDONESIA'];
+var ALL_ORDER=['KOREA','CHINA','JAPAN','VIETNAM','INDONESIA'];
+var FACT={
+  CHINA:{maxDaily:400,stockLimit:4000,unitCost:700},
+  JAPAN:{maxDaily:800,stockLimit:2000,unitCost:900},
+  VIETNAM:{maxDaily:200,stockLimit:10000,unitCost:550},
+  INDONESIA:{maxDaily:300,stockLimit:7000,unitCost:450}
+};
+var ROUTE={'KOREA-CHINA':1,'KOREA-JAPAN':2,'KOREA-VIETNAM':5,'KOREA-INDONESIA':7,'CHINA-JAPAN':2,
+  'CHINA-VIETNAM':4,'CHINA-INDONESIA':6,'JAPAN-VIETNAM':5,'JAPAN-INDONESIA':7,'VIETNAM-INDONESIA':2};
+function days(a,b){
+  if(a===b) return 0;
+  var i=ALL_ORDER.indexOf(a), j=ALL_ORDER.indexOf(b);
+  return i<j?ROUTE[a+'-'+b]:ROUTE[b+'-'+a];
+}
+
+/* ---- 탭 1: 공장 ---- */
+var curFactory=null;
+(function(){
+  var box=el('factoryPick');
+  FACT_ORDER.forEach(function(c){
+    var b=document.createElement('button'); b.type='button'; b.className='pick'; b.textContent=COUNTRY[c];
+    b.setAttribute('aria-pressed','false');
+    b.addEventListener('click',function(){
+      curFactory=c;
+      [].forEach.call(box.children,function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true'); showFactory();
+    });
+    box.appendChild(b);
+  });
+})();
+function showFactory(){
+  if(!curFactory) return;
+  var f=FACT[curFactory];
+  el('factoryInfo').innerHTML='<b>'+COUNTRY[curFactory]+'</b> · 하루 최대 <b>'+fmt(f.maxDaily)+'K</b> · 창고 상한 <b>'+fmt(f.stockLimit)+'K</b> · 셀당 원가 <b>'+fmt(f.unitCost)+'원</b> · 한국까지 <b>'+days('KOREA',curFactory)+'일</b>';
+  var q=parseInt(el('fQty').value,10);
+  if(!(q>=1)){el('fCalc').textContent='수량을 1 이상으로 입력하세요.';return;}
+  var cost=q*1000*f.unitCost, visits=ceilDiv(q,f.stockLimit), msg='생산 원가 <b>'+eok(cost)+'억 원</b> · 배가 <b>'+visits+'번</b> 방문해야 합니다. ';
+  if(q<=f.stockLimit) msg+='생산에만 <b>'+ceilDiv(q,f.maxDaily)+'일</b>이 걸립니다.';
+  else msg+='창고 상한을 넘어 여러 번 나눠 수거하므로, 총 일수는 배의 일정에 따라 달라집니다.';
+  el('fCalc').innerHTML=msg;
+}
+el('fQty').addEventListener('input',showFactory);
+
+/* ---- 탭 1: 항로 ---- */
+(function(){
+  ['from','to'].forEach(function(id,k){
+    var s=el(id);
+    ALL_ORDER.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=COUNTRY[c];s.appendChild(o);});
+    s.value=k===0?'KOREA':'CHINA';
+    s.addEventListener('change',showRoute);
+  });
+  var t='<table><tr><th></th>'+ALL_ORDER.map(function(c){return '<th class="num">'+COUNTRY[c]+'</th>';}).join('')+'</tr>';
+  ALL_ORDER.forEach(function(a){
+    t+='<tr><th>'+COUNTRY[a]+'</th>'+ALL_ORDER.map(function(b){return '<td class="num">'+(a===b?'-':days(a,b))+'</td>';}).join('')+'</tr>';
+  });
+  el('routeTable').innerHTML=t+'</table>';
+  showRoute();
+})();
+function showRoute(){
+  var a=el('from').value,b=el('to').value;
+  el('routeInfo').innerHTML=a===b?'같은 나라입니다.':'<b>'+COUNTRY[a]+' ↔ '+COUNTRY[b]+'</b>: 배로 <b>'+days(a,b)+'일</b> (오가는 일수가 같습니다)';
+}
+
+/* ---- 탭 2: 5단계 ---- */
+var STEPS=[
+  ['로그인','아이디 admin / 비밀번호 admin 으로 들어갑니다. 로그인하지 않으면 로그인 화면만 볼 수 있습니다.'],
+  ['수량 입력','주문 추가 화면에서 공장별 수량(K)을 정합니다. 총 수량은 1K 이상 100,000K 이하입니다.'],
+  ['시뮬레이션','"시뮬레이션 실행"을 누르면 3가지 안과 비용, 소요 일수, 지도 애니메이션이 나옵니다. 몇 번을 해도 저장되지 않습니다.'],
+  ['주문 확정','안 하나와 메모를 정해 확정합니다. 이 순간의 계획과 기준값이 주문에 그대로 저장됩니다.'],
+  ['상태 관리','주문 목록에서 상태를 바꾸고 이력을 봅니다. 상태는 확정 → 진행 → 완료로 흘러갑니다.']
+];
+(function(){
+  var box=el('steps');
+  STEPS.forEach(function(s,i){
+    var b=document.createElement('button'); b.type='button'; b.className='pick'; b.setAttribute('aria-pressed','false');
+    b.textContent=(i+1)+'. '+s[0];
+    b.addEventListener('click',function(){
+      [].forEach.call(box.children,function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true'); el('stepInfo').innerHTML='<b>'+s[0]+'</b> — '+s[1];
+    });
+    box.appendChild(b);
+  });
+})();
+
+/* ---- 탭 2: 게이지 (order-new.js 의 move 규칙) ---- */
+var gv={};
+function gEven(sum){
+  var base=Math.floor(sum/4), rest=sum-base*4, v={};
+  FACT_ORDER.forEach(function(c){v[c]=base+(rest>0?1:0); if(rest>0) rest--;});
+  return v;
+}
+function gMove(c,wanted){
+  var i=FACT_ORDER.indexOf(c), n=FACT_ORDER[(i+1)%4];
+  var pair=gv[c]+gv[n], next=Math.max(0,Math.min(pair,wanted));
+  gv[c]=next; gv[n]=pair-next; gDraw();
+}
+function gBuild(){
+  var total=parseInt(el('gTotal').value,10);
+  if(!(total>=1)){total=12000; el('gTotal').value=total;}
+  gv=gEven(total);
+  var box=el('gauges'); box.innerHTML='';
+  FACT_ORDER.forEach(function(c){
+    var d=document.createElement('div'); d.className='card'; d.style.margin='0';
+    d.innerHTML='<b>'+COUNTRY[c]+'</b><input type="range" id="gr_'+c+'" min="0" max="'+total+'" step="1" aria-label="'+COUNTRY[c]+' 수량"><div id="gl_'+c+'"></div>';
+    box.appendChild(d);
+    d.querySelector('input').addEventListener('input',function(e){gMove(c,parseInt(e.target.value,10));});
+  });
+  gDraw();
+}
+function gDraw(){
+  var sum=0;
+  FACT_ORDER.forEach(function(c){
+    sum+=gv[c]; el('gr_'+c).value=gv[c];
+    el('gl_'+c).innerHTML='<b>'+fmt(gv[c])+'K</b> · 방문 '+(gv[c]>0?ceilDiv(gv[c],FACT[c].stockLimit):0)+'회';
+  });
+  el('gaugeSum').innerHTML='합계 <b>'+fmt(sum)+'K</b> (항상 총 수량과 같음)';
+}
+el('gTotal').addEventListener('change',gBuild);
+gBuild();
+
+/* ---- 탭 2: 상태 (OrderStatus.next) ---- */
+var SLABEL={CONFIRMED:'확정',IN_PROGRESS:'진행',COMPLETED:'완료',CANCELED:'취소'};
+var NEXT={CONFIRMED:['IN_PROGRESS','CANCELED'],IN_PROGRESS:['COMPLETED','CANCELED'],COMPLETED:[],CANCELED:[]};
+var sCur='CONFIRMED', sLog=[], sGone=false;
+function sDraw(){
+  el('states').innerHTML=['CONFIRMED','IN_PROGRESS','COMPLETED'].map(function(s,i){
+    return (i?'<span aria-hidden="true">→</span>':'')+'<span class="st'+(sCur===s?' on':'')+'">'+SLABEL[s]+'</span>';
+  }).join('')+'<span class="st'+(sGone?' gone':'')+'">취소'+(sGone?' (주문 삭제됨)':'')+'</span>';
+  var b=el('stateBtns'); b.innerHTML='';
+  if(sGone||NEXT[sCur].length===0){
+    b.innerHTML='<span class="src">'+(sGone?'취소하면 주문이 삭제되어 더 바꿀 수 없습니다.':'완료는 최종 상태라 더 바꿀 수 없습니다.')+'</span>';
+  } else NEXT[sCur].forEach(function(t){
+    var x=document.createElement('button'); x.type='button'; x.className='btn'+(t==='CANCELED'?' ghost':''); x.textContent=SLABEL[t]+'(으)로 변경';
+    x.addEventListener('click',function(){
+      sLog.push(SLABEL[sCur]+' → '+SLABEL[t]);
+      if(t==='CANCELED'){sGone=true; el('stateMsg').className='result bad'; el('stateMsg').textContent='취소했습니다. 이력은 남지만 주문은 삭제됩니다. (확인이 필요한 점 참고)';}
+      else {sCur=t; el('stateMsg').className='result ok'; el('stateMsg').textContent="'"+SLABEL[t]+"' 상태가 되었습니다.";}
+      sDraw();
+    });
+    b.appendChild(x);
+  });
+  el('stateLog').innerHTML=sLog.length?sLog.map(function(l,i){return '<li>'+(i+1)+'. '+l+'</li>';}).join(''):'<li class="src">아직 변경 이력이 없습니다.</li>';
+}
+el('stateReset').addEventListener('click',function(){sCur='CONFIRMED';sLog=[];sGone=false;el('stateMsg').className='result';el('stateMsg').textContent="처음 상태는 항상 '확정'입니다.";sDraw();});
+sDraw();
+
+/* ---- 탭 2: 동시 변경 ---- */
+el('conflictBtn').addEventListener('click',function(){
+  var m=el('conflictMsg'); m.hidden=false; m.className='result';
+  m.innerHTML='<ol class="log"><li>김 담당과 박 담당이 같은 주문을 엽니다. 둘 다 번호 <b>0</b>을 보고 있습니다.</li>'
+   +'<li>김 담당이 <b>확정 → 진행</b>으로 바꿉니다. 번호가 <b>1</b>이 됩니다.</li>'
+   +'<li>박 담당이 번호 0 기준으로 <b>확정 → 취소</b>를 시도합니다.</li></ol>'
+   +'<div class="result bad">거절됨: "다른 사용자가 먼저 이 주문을 변경했습니다. 화면을 새로 고쳐 현재 상태를 확인한 뒤 다시 시도해 주세요"</div>';
+});
+
+/* ---- 탭 3: 계산기 ---- */
+var cq={CHINA:3000,JAPAN:3000,VIETNAM:3000,INDONESIA:3000};
+(function(){
+  var box=el('calcInputs');
+  FACT_ORDER.forEach(function(c){
+    var d=document.createElement('div');
+    d.innerHTML='<label for="cq_'+c+'">'+COUNTRY[c]+' 수량 (K)</label><input type="number" id="cq_'+c+'" min="0" step="100" value="'+cq[c]+'">';
+    box.appendChild(d);
+    d.querySelector('input').addEventListener('input',function(e){var v=parseInt(e.target.value,10); cq[c]=v>=0?v:0; calcDraw();});
+  });
+  calcDraw();
+})();
+function calcDraw(){
+  var rows='<tr><th>나라</th><th class="num">수량(K)</th><th class="num">방문 횟수</th><th class="num">생산 원가(억 원)</th></tr>', total=0, won=0;
+  FACT_ORDER.forEach(function(c){
+    var q=cq[c]||0, v=q>0?ceilDiv(q,FACT[c].stockLimit):0, cost=q*1000*FACT[c].unitCost;
+    total+=q; won+=cost;
+    rows+='<tr><td>'+COUNTRY[c]+'</td><td class="num">'+fmt(q)+'</td><td class="num">'+v+'회</td><td class="num">'+eok(cost)+'</td></tr>';
+  });
+  el('calcTable').innerHTML=rows;
+  var s=el('calcSummary');
+  if(total<=0){s.className='result bad'; s.textContent='총 생산 필요 수는 1K 이상이어야 합니다. (앱도 같은 이유로 시뮬레이션을 거절합니다)';}
+  else if(total>100000){s.className='result bad'; s.textContent='총 생산 필요 수는 100,000K 이하여야 합니다. (앱도 거절합니다)';}
+  else {s.className='result'; s.innerHTML='총 <b>'+fmt(total)+'K</b> · 생산 원가 합계 <b>'+eok(won)+'억 원</b> (운항비는 선택한 안에 따라 더해집니다)';}
+}
+
+/* ---- 탭 3: 한 나라 일정 (Planner.schedule, 배 1척·방문 1회) ---- */
+(function(){
+  var s=el('rtCountry');
+  FACT_ORDER.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=COUNTRY[c];s.appendChild(o);});
+  s.value='VIETNAM';
+  ['rtCountry','rtQty','rtCost'].forEach(function(id){el(id).addEventListener('input',rtDraw);});
+  rtDraw();
+})();
+function rtDraw(){
+  var c=el('rtCountry').value, q=parseInt(el('rtQty').value,10), cost=parseFloat(el('rtCost').value), f=FACT[c], out=el('rtInfo');
+  if(!(q>=1)||!(cost>0)){out.className='result bad'; out.textContent='수량과 운항비를 올바르게 입력하세요.'; return;}
+  if(q>f.stockLimit){out.className='result'; out.innerHTML='창고 상한('+fmt(f.stockLimit)+'K)을 넘으면 여러 번 나눠 수거합니다. 이 계산기는 한 번 방문하는 경우만 보여 줍니다.'; return;}
+  var ready=ceilDiv(q,f.maxDaily), off=days('KOREA',c), depart=Math.max(0,ready-off), arrive=depart+off, back=arrive+off;
+  out.className='result ok';
+  out.innerHTML='생산 완료까지 <b>'+ready+'일</b> · 한국→'+COUNTRY[c]+' <b>'+off+'일</b><br>'
+   +'출항 <b>'+depart+'일차</b> (재고가 찰 때 맞춰 늦게 출항) → 도착 <b>'+arrive+'일차</b> → 한국 귀환 <b>'+back+'일차</b><br>'
+   +'배가 바다에 있는 날 <b>'+(2*off)+'일</b> × '+cost+'억 = 운항비 <b>'+(2*off*cost).toFixed(2)+'억 원</b>';
+}
+
+/* ---- 탭 3: 주문 한 건의 여정 ---- */
+var J={
+  ok:[['로그인','admin / admin 으로 로그인합니다.',true],['수량 입력','중국·일본·베트남·인도네시아 각 3,000K를 입력합니다.',true],
+      ['시뮬레이션','3가지 안이 나옵니다. 아직 저장되지 않습니다.',true],['주문 확정','안 하나를 골라 확정합니다. 주문이 생성되고 상태는 "확정"입니다.',true],
+      ['상태 변경','"진행"으로 바꾸면 이력이 한 줄 늘어납니다.',true]],
+  nologin:[['접속','로그인하지 않고 주문 목록 주소를 엽니다.',true],['결과','로그인 화면으로 보내집니다. (화면이 아닌 데이터 요청은 401 오류)',false]],
+  zero:[['로그인','로그인합니다.',true],['수량 입력','네 나라 수량을 모두 0으로 둡니다.',true],
+      ['시뮬레이션','"총 생산 필요 수는 1K 이상이어야 합니다"라는 이유로 거절됩니다.',false]],
+  master:[['로그인','로그인합니다.',true],['시뮬레이션','결과를 받습니다. 이때의 기준값 번호가 함께 기억됩니다.',true],
+      ['그 사이','다른 담당자가 기준값 화면에서 저장해 번호가 올라갑니다.',true],
+      ['주문 확정','"시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요"라며 거절됩니다.',false]]
+};
+var jPos=0;
+function jDraw(){
+  var steps=J[el('jScenario').value], shown=steps.slice(0,jPos);
+  el('jLog').innerHTML=shown.map(function(s,i){return '<li><b>'+s[0]+'</b> — '+s[1]+'</li>';}).join('');
+  var last=shown[shown.length-1], end=el('jEnd');
+  if(last&&!last[2]){end.hidden=false;end.className='result bad';end.textContent='여기서 멈춥니다. 이 경우 주문은 만들어지지 않습니다.';el('jNext').disabled=true;}
+  else if(jPos>=steps.length){end.hidden=false;end.className='result ok';end.textContent='끝까지 성공했습니다.';el('jNext').disabled=true;}
+  else {end.hidden=true;el('jNext').disabled=false;}
+}
+el('jNext').addEventListener('click',function(){jPos++;jDraw();});
+el('jReset').addEventListener('click',function(){jPos=0;jDraw();});
+el('jScenario').addEventListener('change',function(){jPos=0;jDraw();});
+jDraw();
+
+/* ---- 퀴즈 ---- */
+renderQuiz(el('quiz'),[
+  {q:'시뮬레이션을 5번 실행하면 주문이 몇 건 생길까요?',opts:['5건','1건','0건'],ans:2,why:'시뮬레이션은 저장하지 않습니다. 확정할 때 비로소 주문이 만들어집니다.'},
+  {q:'일본에 4,500K를 주문하면 배는 몇 번 방문할까요? (일본 창고 상한 2,000K)',opts:['1번','2번','3번'],ans:2,why:'올림(4,500÷2,000)=3번입니다. 2,000 / 2,000 / 500으로 나눠 싣습니다.'},
+  {q:'시뮬레이션을 본 뒤 기준값이 바뀌면 확정은 어떻게 될까요?',opts:['그대로 확정된다','거절되어 다시 시뮬레이션해야 한다','자동으로 새 값으로 다시 계산해 확정한다'],ans:1,why:'결과를 보고 판단한 값과 실제 저장되는 값이 어긋나지 않게 막습니다.'},
+  {q:'"확정" 상태에서 바로 "완료"로 바꿀 수 있을까요?',opts:['있다','없다. 진행을 거쳐야 한다'],ans:1,why:'확정은 진행 또는 취소로만, 진행은 완료 또는 취소로만 바뀝니다.'},
+  {q:'한국 항구에서 배가 기다리는 동안 임차료는?',opts:['든다','들지 않는다'],ans:1,why:'기다리는 날은 비용에 포함되지 않으므로 배는 필요한 날에 맞춰 늦게 출항합니다.'}
+]);
+</script>
+</body>
+</html>
