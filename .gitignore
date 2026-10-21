@@ -46,3 +46,6 @@ CLAUDE.md
 
 ### Playwright MCP captures ###
 .playwright-mcp/
+
+### impl-code 개인 로그 ###
+docs/logs/
