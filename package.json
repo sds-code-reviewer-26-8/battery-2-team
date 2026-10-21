@@ -1,0 +1,27 @@
+{
+  "name": "battery",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sds-code-reviewer-26-8/battery-2-team.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/sds-code-reviewer-26-8/battery-2-team/issues"
+  },
+  "homepage": "https://github.com/sds-code-reviewer-26-8/battery-2-team#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5"
+  }
+}
