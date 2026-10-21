@@ -43,3 +43,6 @@ data/
 CLAUDE.md
 .claude/
 .ua/
+
+### Playwright MCP captures ###
+.playwright-mcp/
