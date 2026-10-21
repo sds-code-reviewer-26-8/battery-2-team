@@ -56,12 +56,15 @@ export async function orderVersion(page: Page, id: number): Promise<number> {
 }
 
 /**
- * 테스트가 만든 주문을 정리한다. 이 앱은 "취소"하면 주문을 지우므로 취소로 정리한다.
+ * 테스트가 만든 주문을 정리한다. 취소해도 주문은 지워지지 않고 '취소' 상태로 남는다(목록 전체 건수는 줄지 않는다).
  * 이미 없거나 더 바꿀 수 없는 상태이면 조용히 넘어간다.
  */
 export async function removeOrder(page: Page, id: number): Promise<void> {
   try {
-    const version = await orderVersion(page, id);
+    await page.goto(`/orders/${id}`);
+    const versionInput = page.locator('form.status-form input[name="version"]').first();
+    if ((await versionInput.count()) === 0) return; // 이미 완료·취소된 주문은 더 바꿀 수 없다
+    const version = Number(await versionInput.inputValue());
     await page.request.post(`/orders/${id}/status`, {
       form: { status: 'CANCELED', version: String(version) },
       maxRedirects: 0,

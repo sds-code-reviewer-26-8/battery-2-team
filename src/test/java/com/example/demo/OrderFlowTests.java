@@ -129,6 +129,82 @@ class OrderFlowTests {
 	}
 
 	@Test
+	void cancelKeepsOrderWithReason() throws Exception {
+		long id = confirm(login());
+		var order = orderService.getOrder(id);
+		String planJson = order.getPlanJson();
+		long totalCost = order.getTotalCost();
+		orderService.changeStatus(id, OrderStatus.CANCELED, order.getVersion(), "admin", "  재고 부족 ");
+		var canceled = orderService.getOrder(id);
+		assertThat(canceled.getStatus()).isEqualTo(OrderStatus.CANCELED);
+		assertThat(canceled.getCancelReason()).isEqualTo("재고 부족");
+		assertThat(orderService.history(id)).hasSize(2); // 확정 + 취소
+		assertThat(canceled.getPlanJson()).isEqualTo(planJson);
+		assertThat(canceled.getTotalCost()).isEqualTo(totalCost);
+	}
+
+	@Test
+	void cancelFromInProgressCountsCanceled() throws Exception {
+		long id = confirm(login());
+		long before = orderService.countByStatus().getOrDefault(OrderStatus.CANCELED, 0L);
+		orderService.changeStatus(id, OrderStatus.IN_PROGRESS, orderService.getOrder(id).getVersion(), "admin");
+		orderService.changeStatus(id, OrderStatus.CANCELED, orderService.getOrder(id).getVersion(), "admin");
+		assertThat(orderService.getOrder(id).getStatus()).isEqualTo(OrderStatus.CANCELED);
+		assertThat(orderService.countByStatus().getOrDefault(OrderStatus.CANCELED, 0L)).isEqualTo(before + 1);
+	}
+
+	@Test
+	void cancelReasonLengthBoundary() throws Exception {
+		MockHttpSession s = login();
+		for (String reason : new String[] { null, "", "a", "a".repeat(200) }) {
+			long id = confirm(s);
+			orderService.changeStatus(id, OrderStatus.CANCELED, orderService.getOrder(id).getVersion(), "admin", reason);
+			assertThat(orderService.getOrder(id).getStatus()).isEqualTo(OrderStatus.CANCELED);
+			String expected = (reason == null || reason.isEmpty()) ? null : reason;
+			assertThat(orderService.getOrder(id).getCancelReason()).isEqualTo(expected);
+		}
+		long id = confirm(s);
+		var order = orderService.getOrder(id);
+		assertThatThrownBy(() -> orderService.changeStatus(id, OrderStatus.CANCELED, order.getVersion(), "admin",
+				"a".repeat(201))).isInstanceOf(BusinessException.class).hasMessageContaining("200자");
+		assertThat(orderService.getOrder(id).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+		assertThat(orderService.getOrder(id).getCancelReason()).isNull();
+		assertThat(orderService.history(id)).hasSize(1); // 확정 이력만
+	}
+
+	@Test
+	void canceledOrderCannotChangeAgain() throws Exception {
+		long id = confirm(login());
+		orderService.changeStatus(id, OrderStatus.CANCELED, orderService.getOrder(id).getVersion(), "admin");
+		var canceled = orderService.getOrder(id);
+		assertThatThrownBy(() -> orderService.changeStatus(id, OrderStatus.IN_PROGRESS, canceled.getVersion(), "admin"))
+				.isInstanceOf(BusinessException.class);
+	}
+
+	@Test
+	void staleVersionCancelIsConflict() throws Exception {
+		long id = confirm(login());
+		var order = orderService.getOrder(id);
+		assertThatThrownBy(() -> orderService.changeStatus(id, OrderStatus.CANCELED, order.getVersion() - 1, "admin",
+				"사유")).isInstanceOf(BusinessException.class).hasMessageContaining("먼저");
+		assertThat(orderService.getOrder(id).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+		assertThat(orderService.history(id)).hasSize(1); // 확정 이력만
+	}
+
+	@Test
+	void reasonIgnoredOnNonCancelTransition() throws Exception {
+		long id = confirm(login());
+		var order = orderService.getOrder(id);
+		String planJson = order.getPlanJson();
+		long totalCost = order.getTotalCost();
+		orderService.changeStatus(id, OrderStatus.IN_PROGRESS, order.getVersion(), "admin", "무시되어야 함");
+		var after = orderService.getOrder(id);
+		assertThat(after.getCancelReason()).isNull();
+		assertThat(after.getPlanJson()).isEqualTo(planJson);
+		assertThat(after.getTotalCost()).isEqualTo(totalCost);
+	}
+
+	@Test
 	void confirmFailsWhenMasterChangedAfterSimulation() throws Exception {
 		MockHttpSession s = login();
 		mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)

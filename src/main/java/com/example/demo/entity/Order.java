@@ -53,6 +53,10 @@ public class Order {
 	@Column(nullable = false)
 	private String planJson;
 
+	/** 취소 사유(선택, 최대 200자). 취소할 때만 채워진다. */
+	@Column(length = 200)
+	private String cancelReason;
+
 	@Version
 	private long version;
 
@@ -73,6 +77,14 @@ public class Order {
 		this.memo = memo;
 		this.planJson = planJson;
 		this.status = OrderStatus.CONFIRMED;
+	}
+
+	public String getCancelReason() {
+		return cancelReason;
+	}
+
+	public void setCancelReason(String cancelReason) {
+		this.cancelReason = cancelReason;
 	}
 
 	public Long getId() {

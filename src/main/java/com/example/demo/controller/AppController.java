@@ -107,9 +107,10 @@ public class AppController {
 
 	@PostMapping("/orders/{id}/status")
 	public String changeStatus(@PathVariable Long id, @RequestParam OrderStatus status, @RequestParam long version,
-			HttpSession session, RedirectAttributes redirect) {
+			@RequestParam(required = false) String reason, HttpSession session, RedirectAttributes redirect) {
 		try {
-			service.changeStatus(id, status, version, (String) session.getAttribute(LoginInterceptor.SESSION_USER));
+			service.changeStatus(id, status, version, (String) session.getAttribute(LoginInterceptor.SESSION_USER),
+					reason);
 			redirect.addFlashAttribute("message", "상태를 '" + status.getLabel() + "'(으)로 바꿨습니다");
 		} catch (BusinessException e) {
 			redirect.addFlashAttribute("error", e.getMessage());
