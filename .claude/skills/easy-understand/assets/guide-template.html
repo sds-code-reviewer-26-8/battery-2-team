@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배터리 주문 시스템 쉬운 이해</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#1d2433;--sub:#5b667a;--line:#e1e5ee;--accent:#2563eb;--accent-bg:#e8f0ff;--ok:#15803d;--warn:#b45309;--bad:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#11151d;--card:#1a2030;--ink:#e8ecf5;--sub:#9aa5bb;--line:#2b3347;--accent:#7aa2ff;--accent-bg:#1f2b4d;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+.wrap{max-width:920px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin:8px 0 4px}
+.lead{color:var(--sub);margin:0 0 16px}
+.tabs{display:flex;gap:6px;border-bottom:2px solid var(--line);flex-wrap:wrap}
+.tab{border:0;background:none;color:var(--sub);padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab[aria-selected=true]{color:var(--accent);border-color:var(--accent)}
+.panel{display:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:14px}
+.panel.on{display:block}
+h2{font-size:19px;margin:0 0 6px}
+.flow{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.step{flex:1 1 120px;border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:10px;font:inherit;cursor:pointer;text-align:center}
+.step .ic{font-size:24px;display:block}
+.step[aria-pressed=true]{border-color:var(--accent);background:var(--accent-bg)}
+.detail{background:var(--accent-bg);border-radius:10px;padding:12px 14px;min-height:72px}
+.sum{margin-top:16px;border-left:4px solid var(--accent);background:var(--bg);padding:10px 14px;border-radius:0 8px 8px 0}
+.row{display:grid;grid-template-columns:90px 1fr 80px;gap:10px;align-items:center;margin:8px 0}
+.row output{text-align:right;font-weight:700}
+input[type=range]{width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.stat{background:var(--bg);border-radius:10px;padding:10px 12px}
+.stat b{display:block;font-size:22px}
+.stat span{color:var(--sub);font-size:14px}
+table{border-collapse:collapse;width:100%;margin-top:8px;font-size:15px}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+.pill{display:inline-block;padding:3px 12px;border-radius:99px;font-weight:700;font-size:14px;border:1px solid currentColor}
+.states{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+button.act{padding:8px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;font:inherit;cursor:pointer}
+button.act.alt{background:none;color:var(--accent)}
+button.act:disabled{opacity:.35;cursor:not-allowed}
+.log{font-size:14px;color:var(--sub);margin:8px 0 0;padding-left:18px}
+.nav{display:flex;justify-content:space-between;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔋 배터리 주문 시스템, 쉽게 이해하기</h1>
+  <p class="lead">3단계로 나눠 설명합니다. 탭을 눌러 이동하고, 곳곳의 버튼과 슬라이더를 직접 만져 보세요. (← → 키도 됩니다)</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-i="0">① 무엇을 하는 시스템?</button>
+    <button class="tab" role="tab" aria-selected="false" data-i="1">② 어떤 규칙으로 계산?</button>
+    <button class="tab" role="tab" aria-selected="false" data-i="2">③ 주문은 어떻게 관리?</button>
+  </div>
+
+  <!-- 탭 1 -->
+  <section class="panel on">
+    <h2>한국 본사가 해외 공장에서 배터리를 가져오는 일을 도와줍니다</h2>
+    <p>한국 본사는 중국·일본·베트남·인도네시아 공장에서 배터리를 사 옵니다. 공장마다 하루에 만들 수 있는 양, 창고에 쌓아 둘 수 있는 양, 가격이 다르고, 배로 가는 데 걸리는 날수도 다릅니다.
+      이 시스템은 <b>"얼마나 주문하면, 어떤 순서로 배를 보내는 게 좋은지"</b>를 대신 계산해 주고, 담당자가 고른 안으로 <b>주문을 확정·관리</b>합니다.</p>
+    <p><b>아래 단계를 눌러 보세요.</b></p>
+    <div class="flow" id="flow"></div>
+    <div class="detail" id="flowDetail"></div>
+    <div class="sum"><b>한 줄 요약</b> · 주문 수량을 넣으면 배송 계획 3가지가 나오고, 하나를 골라 확정합니다.</div>
+  </section>
+
+  <!-- 탭 2 -->
+  <section class="panel">
+    <h2>공장 창고는 한 번에 한도만큼만 쌓입니다</h2>
+    <p>공장 창고에는 쌓아 둘 수 있는 <b>한도</b>가 있고, 공장은 <b>하루에 만들 수 있는 양</b>이 정해져 있습니다. 한도보다 많이 주문하면 배가 <b>여러 번</b> 왔다 갔다 해야 합니다.
+      나라를 고르고 주문량을 움직여 보세요. (단위: 천 개, 예시 수치)</p>
+    <div class="row"><label for="country">공장</label>
+      <select id="country"></select><span></span></div>
+    <div class="row"><label for="qty">주문량</label>
+      <input type="range" id="qty" min="0" max="20000" step="100" value="6000"><output id="qtyOut"></output></div>
+    <div class="grid">
+      <div class="stat"><b id="rLimit"></b><span>창고 한도</span></div>
+      <div class="stat"><b id="rDaily"></b><span>하루 생산량</span></div>
+      <div class="stat"><b id="rVisits"></b><span>배가 가야 하는 횟수</span></div>
+      <div class="stat"><b id="rMake"></b><span>첫 짐을 채우는 데 걸리는 날</span></div>
+      <div class="stat"><b id="rSail"></b><span>한국→공장 뱃길(편도)</span></div>
+    </div>
+    <p id="rText" class="detail" style="margin-top:12px"></p>
+    <h2 style="margin-top:20px">배송 계획 3가지</h2>
+    <table>
+      <tr><th>이름</th><th>어떤 계획?</th><th>이럴 때</th></tr>
+      <tr><td>💰 운항비 최소</td><td>배를 나누는 방법과 방문 순서를 모두 따져 보고, 배 운항비가 가장 적게 드는 안 (같으면 더 빠른 쪽)</td><td>급하지 않을 때</td></tr>
+      <tr><td>⚡ 가장 빠르게</td><td>모든 경우 중 전체 소요일이 가장 짧은 안 (같으면 운항비가 적은 쪽)</td><td>빨리 받아야 할 때</td></tr>
+      <tr><td>📍 가까운 곳부터</td><td>한국에서 가까운 나라부터 배에 차례로 맡기고, 한 번 나갈 때마다 가까운 나라부터 들름</td><td>단순하고 예측하기 쉬운 것을 원할 때</td></tr>
+    </table>
+    <p style="color:var(--sub);font-size:14px">핵심 규칙: 모든 공장이 첫날 동시에 생산을 시작 · 한 나라는 한 척의 배만 방문 · 배는 도착한 날의 재고를 전부 싣고 감 · 한국에서 기다리는 시간은 비용이 없음 · 총 비용 = 공장 생산비 + 배 운항비 · 배는 최대 4척, 총 주문량은 100,000(천 개) 이하.</p>
+    <div class="sum"><b>한 줄 요약</b> · 주문이 창고 한도를 넘으면 배가 여러 번 가야 해서, 시간과 비용이 함께 늘어납니다.</div>
+  </section>
+
+  <!-- 탭 3 -->
+  <section class="panel">
+    <h2>주문은 "확정 → 진행 → 완료"로 흘러가고, 중간에 취소할 수 있습니다</h2>
+    <p>버튼으로 주문 상태를 바꿔 보세요. 허용되지 않는 전환은 버튼이 눌리지 않습니다.</p>
+    <div class="states" id="states"></div>
+    <div class="btns" id="stateBtns"></div>
+    <ul class="log" id="stateLog"></ul>
+    <h2 style="margin-top:18px">담당자가 할 수 있는 일</h2>
+    <table>
+      <tr><td>🔐 로그인</td><td>아이디로 들어옵니다 (이 과제에서는 1개 계정)</td></tr>
+      <tr><td>📋 주문 목록</td><td>상태별로 걸러 보고, 건수를 확인</td></tr>
+      <tr><td>🆕 새 주문</td><td>수량 입력 → 계획 3가지 비교 → 하나 선택 → 메모와 함께 확정</td></tr>
+      <tr><td>⚙️ 기준 정보</td><td>공장별 생산량·한도·단가, 나라 간 뱃길 일수, 배 수와 비용 수정</td></tr>
+    </table>
+    <p><b>두 사람이 동시에 작업할 때</b>: 내가 보던 사이에 기준 정보나 주문이 바뀌었다면, 저장이 거절되고 "다시 확인하세요"라고 알려 줍니다. 오래된 정보로 잘못 확정되는 것을 막기 위해서입니다.</p>
+    <div class="sum"><b>한 줄 요약</b> · 완료된 주문은 더 이상 바꿀 수 없고, 상태 변경은 모두 기록으로 남습니다. 단, 취소하면 주문 자체가 목록에서 지워지고 변경 기록만 남습니다.</div>
+  </section>
+
+  <div class="nav"><button class="act alt" id="prev">← 이전</button><button class="act" id="next">다음 →</button></div>
+</div>
+
+<script>
+/* ---------- 탭 ---------- */
+const tabs=[...document.querySelectorAll('.tab')],panels=[...document.querySelectorAll('.panel')];
+let cur=0;
+function go(i){cur=Math.max(0,Math.min(2,i));
+  tabs.forEach((t,k)=>t.setAttribute('aria-selected',k===cur));
+  panels.forEach((p,k)=>p.classList.toggle('on',k===cur));
+  prev.disabled=cur===0;next.disabled=cur===2}
+tabs.forEach((t,k)=>t.onclick=()=>go(k));
+prev.onclick=()=>go(cur-1);next.onclick=()=>go(cur+1);
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  if(e.key==='ArrowLeft')go(cur-1);if(e.key==='ArrowRight')go(cur+1)});
+
+/* ---------- 탭1: 흐름도 ---------- */
+const FLOW=[
+ ['📝','주문 넣기','담당자가 나라별로 "몇 개가 필요한지" 입력합니다.'],
+ ['🧮','계획 계산','공장 생산 속도·창고 한도·뱃길 일수를 반영해 배송 계획 3가지를 계산합니다.'],
+ ['✅','하나 고르기','비용·소요일을 비교해 하나를 고르고 메모를 남겨 확정합니다.'],
+ ['🚢','배송 진행','확정한 뒤 담당자가 "진행"으로 바꾸면, 배가 공장들을 도는 단계에 들어갑니다.'],
+ ['🏁','완료','한국에 모두 도착하면 담당자가 "완료"로 바꿔 마무리합니다.']];
+const flow=document.getElementById('flow'),fd=document.getElementById('flowDetail');
+FLOW.forEach((f,i)=>{const b=document.createElement('button');b.className='step';
+  b.innerHTML=`<span class="ic">${f[0]}</span>${i+1}. ${f[1]}`;
+  b.onclick=()=>{[...flow.children].forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');fd.innerHTML=`<b>${f[1]}</b><br>${f[2]}`};
+  flow.appendChild(b)});
+flow.children[0].click();
+
+/* ---------- 탭2: 방문 횟수 체험 (예시 기본값) ---------- */
+const F={중국:{daily:400,limit:4000,days:1},일본:{daily:800,limit:2000,days:2},베트남:{daily:200,limit:10000,days:5},인도네시아:{daily:300,limit:7000,days:7}};
+const sel=document.getElementById('country');
+Object.keys(F).forEach(n=>sel.add(new Option(n,n)));
+function calc(){const c=F[sel.value],q=+qty.value;
+  qtyOut.textContent=q.toLocaleString();
+  const v=q<=0?0:Math.ceil(q/c.limit);
+  rLimit.textContent=c.limit.toLocaleString();rDaily.textContent=c.daily.toLocaleString();
+  rVisits.textContent=v+'번';rSail.textContent=c.days+'일';
+  rMake.textContent=q<=0?'-':Math.ceil(Math.min(q,c.limit)/c.daily)+'일';
+  rText.textContent=q<=0?'주문량을 올려 보세요.':
+   v===1?`${sel.value}는 창고 한도 안이라 배가 한 번만 다녀오면 됩니다.`:
+   `${sel.value}는 창고 한도(${c.limit.toLocaleString()})를 넘어서, 배가 ${v}번 다녀와야 합니다. 그만큼 시간과 운항비가 늘어납니다.`}
+sel.onchange=qty.oninput=calc;calc();
+
+/* ---------- 탭3: 상태 전환 체험 ---------- */
+const S={CONFIRMED:['확정','var(--accent)',['IN_PROGRESS','CANCELED']],IN_PROGRESS:['진행','var(--warn)',['COMPLETED','CANCELED']],COMPLETED:['완료','var(--ok)',[]],CANCELED:['취소','var(--bad)',[]]};
+let state='CONFIRMED';const logEl=document.getElementById('stateLog');
+function renderState(){
+  states.innerHTML='현재 상태: '+Object.entries(S).map(([k,v])=>`<span class="pill" style="color:${v[1]};${k===state?'background:var(--accent-bg)':'opacity:.35'}">${k===state?'● ':''}${v[0]}</span>`).join(' → ');
+  stateBtns.innerHTML='';
+  Object.entries(S).forEach(([k,v])=>{if(k==='CONFIRMED')return;
+    const b=document.createElement('button');b.className='act'+(k==='CANCELED'?' alt':'');
+    b.textContent=v[0]+'(으)로 바꾸기';b.disabled=!S[state][2].includes(k);
+    b.onclick=()=>{const li=document.createElement('li');li.textContent=`${S[state][0]} → ${v[0]} 로 변경됨 (기록 저장)`+(k==='CANCELED'?' · 주문은 목록에서 삭제됨':'');logEl.prepend(li);state=k;renderState()};
+    stateBtns.appendChild(b)});
+  const r=document.createElement('button');r.className='act alt';r.textContent='처음부터';
+  r.onclick=()=>{state='CONFIRMED';logEl.innerHTML='';renderState()};stateBtns.appendChild(r)}
+renderState();go(0);
+</script>
+</body>
+</html>
