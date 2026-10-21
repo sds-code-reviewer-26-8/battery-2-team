@@ -44,12 +44,24 @@ CLAUDE.md
 .claude/
 .ua/
 
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/package.json
+/package-lock.json
+/playwright.config.ts
+
 ### Playwright MCP captures ###
 .playwright-mcp/
 
-### Node / Playwright ###
+# Playwright
 node_modules/
-test-results/
-playwright-report/
-blob-report/
-playwright/.cache/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
