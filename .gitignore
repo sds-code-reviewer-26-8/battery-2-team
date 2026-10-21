@@ -38,3 +38,11 @@ out/
 
 ### H2 file database ###
 data/
+
+### Claude Code ###
+CLAUDE.md
+.claude/
+.ua/
+
+### Playwright MCP captures ###
+.playwright-mcp/
