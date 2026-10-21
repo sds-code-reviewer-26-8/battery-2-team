@@ -46,13 +46,6 @@ export async function changeStatus(page: Page, label: '진행' | '완료' | '취
   await page.getByRole('button', { name: `${label}(으)로 변경` }).click();
 }
 
-/** 주문 목록 칩("전체"·"확정"·"진행"·"완료"·"취소")의 건수. 목록 화면에 있어야 한다. */
-export async function chipCount(page: Page, label: string): Promise<number> {
-  const chip = page.locator('.filters a.chip', { hasText: label }).first();
-  const text = await chip.locator('.count').innerText();
-  return parseInt(text.replace(/,/g, ''), 10);
-}
-
 /**
  * 마스터 데이터 화면의 입력값 전체를 {입력칸 이름: 값} 으로 읽는다.
  * 기준값을 바꾸는 테스트가 끝에서 원래 값으로 되돌릴 때 쓴다.

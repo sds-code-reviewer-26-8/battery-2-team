@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
-import { changeStatus, chipCount, runSimulation } from './ui-helpers';
+import { chipCount, login } from './helpers';
+import { changeStatus, runSimulation } from './ui-helpers';
 
 /**
  * No.       22
