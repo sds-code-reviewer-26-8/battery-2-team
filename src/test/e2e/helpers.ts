@@ -22,6 +22,12 @@ export async function orderTotalCount(page: Page): Promise<number> {
   return parseInt(text.replace(/,/g, ''), 10);
 }
 
+/** 주문 목록 상단 필터 칩('확정', '진행' 등)의 건수를 읽는다. 목록 화면에 있는 상태에서 호출한다. */
+export async function chipCount(page: Page, label: string): Promise<number> {
+  const text = await page.locator('.filters a.chip', { hasText: label }).first().locator('.count').innerText();
+  return parseInt(text.replace(/,/g, ''), 10);
+}
+
 /** 현재 마스터(기준값) 번호. 확정 요청에 함께 보내야 한다. */
 export async function masterVersion(page: Page): Promise<number> {
   const res = await page.request.get('/api/master');
