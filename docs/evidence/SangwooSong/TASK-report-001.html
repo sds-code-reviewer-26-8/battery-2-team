@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 검증 리포트</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, #059669, #0891b2); color: #fff; padding: 28px 16px 64px; }
+  .hero.fail { background: linear-gradient(135deg, #dc2626, #9333ea); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; gap: 8px; padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.2);
+    font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.5rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .92; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; } .tile span { color: var(--muted); font-size: .82rem; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); } .pill.info { background: var(--info-soft); color: var(--info); }
+  .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; border-left-width: 4px; }
+  .item.ok { border-left-color: var(--ok); } .item.bad { border-left-color: var(--bad); } .item.warn { border-left-color: var(--warn); }
+  .item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .item p { margin: 6px 0 0; font-size: .9rem; white-space: pre-wrap; }
+  .bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0; }
+  .bar i { display: block; height: 100%; } .bar .p { background: var(--ok); } .bar .f { background: var(--bad); } .bar .s { background: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; } td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feedback { border: 2px dashed var(--bad); border-radius: 14px; padding: 14px 16px; background: var(--bad-soft); }
+  .feedback h3 { margin: 0 0 6px; color: var(--bad); font-size: 1rem; } .feedback ul { margin: 4px 0 8px; padding-left: 20px; }
+  pre { background: var(--bg); border-radius: 10px; padding: 10px 12px; overflow: auto; font-size: .82rem; margin: 6px 0 0; white-space: pre-wrap; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  a { color: var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero"><div class="wrap">
+  <span class="badge" id="badge"></span><h1 id="title"></h1><p id="sub"></p>
+</div></div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="feedbackBox"></div>
+  <section class="card"><h2>✅ 체크리스트 점검</h2><div id="checks"></div></section>
+  <section class="card"><h2>🧪 회귀 테스트</h2>
+    <div class="bar" id="bar"></div><div class="small muted" id="barTxt"></div>
+    <div class="chips" id="chips" style="margin-top:12px"></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>결과</th><th>테스트</th><th class="num">시간</th><th>메시지</th></tr></thead><tbody id="tests"></tbody></table></div>
+    <div class="small muted" id="e2e" style="margin-top:10px"></div>
+  </section>
+  <section class="card" id="issuesCard"><h2>🔎 발견한 문제</h2><div id="issues"></div></section>
+  <section class="card" id="cmdCard"><details><summary>실행한 명령</summary><div id="cmds"></div></details></section>
+  <section class="card" id="evCard" hidden><h2>🔗 관련 산출물</h2><div id="ev"></div></section>
+</main>
+<footer>impl-verify 검증 리포트 · 이 페이지는 검증 단계의 점검·피드백 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request": "주문 취소 시 주문을 삭제하지 않고 CANCELED 로 보존하고 취소 사유를 저장·조회", "round": 2, "verdict": "PASS", "loop_action": "END", "summary": "JUnit 28건 통과. 8080 서버 E2E 47건 중 43 통과, 4건 실패(S5, S10, No.36, T27)이며 모두 취소 보존과 무관한 기존 결함(오류 응답 trace 노출, 없는 주문 번호 500). 취소 보존 E2E 는 통과. 구 스키마 DB 로 새 jar 기동 성공.", "checklist": [{"title": "기준선 대비 E2E 실패 집합 비교", "detail": "변경 후 E2E 의 실패가 취소 보존 변경과 무관한지 확인", "result": "pass", "evidence": "8080 서버에서 npx playwright test: 43 통과 4 실패(robustness S5, S10, ssw60040 No.36, ctkim T27). S5/No.36 은 spec 주석에 known-issue(오류 응답 trace 노출)로 적혀 있고, S10/T27 은 없는 주문 번호 접근이 500. git diff 는 getOrder, 오류 처리, 인증을 건드리지 않았다. 기준선(HEAD) E2E 는 직접 재실행하지 않았고 구현 보고와 diff 분석에 근거한다. T03 은 통과."}, {"title": "E2E 대상이 새 코드인지와 취소 보존 화면", "detail": "order-cancel-keep, order-status-flow, No.21, T26 통과", "result": "pass", "evidence": "8080 전체 실행에서 order-cancel-keep, order-status-flow, ssw60040 No.21, ctkim T26 모두 실패 목록에 없음. 취소 보존 시 삭제 전제 코드라면 통과할 수 없으므로 8080 이 새 코드임이 간접 확인됨. order-detail.html 에 최종 상태 문구와 취소 사유 표시 확인."}, {"title": "구 스키마 DB 기동과 불변 규칙", "detail": "HEAD 로 만든 H2 에 새 jar 기동, JUnit 28건, OrderStatus/Planner diff 없음", "result": "pass", "evidence": "HEAD worktree jar 로 별도 H2 생성 후 새 jar 를 8092 에 기동: /login 200, ERROR 로그 0건(주문 상세 200 은 이 DB 에 주문이 없어 직접 재현하지 못함). ./gradlew.bat cleanTest test BUILD SUCCESSFUL, 28건 통과. git diff --name-only 에 OrderStatus, Planner 없음."}], "regression": {"command": "./gradlew.bat cleanTest test; BASE_URL=http://localhost:8080 npx playwright test", "total": 28, "passed": 28, "failed": 0, "skipped": 0, "duration": "22s", "tests": [{"suite": "com.example.demo.DemoApplicationTests", "name": "contextLoads()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "confirmFailsWhenMasterChangedAfterSimulation()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "pagesRender()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "confirmThenDetailAndStatusFlow()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "canceledOrderCannotChangeAgain()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "wrongPasswordIsRejected()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "simulateReturnsThreeOptions()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "cancelFromInProgressCountsCanceled()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "reasonIgnoredOnNonCancelTransition()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "cancelKeepsOrderWithReason()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "invalidMasterIsNotSaved()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "staleVersionCancelIsConflict()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "masterUpdateBumpsVersionAndKeepsConfirmedPlans()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "emptyOrderIsRejectedWithReason()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "cancelReasonLengthBoundary()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "anonymousUserIsSentToLogin()", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.simulation.PlannerTest", "name": "PlannerTest 12건", "result": "pass", "time": "0.058s", "message": ""}]}, "e2e": {"ran": true, "note": "8080 실행 중 서버로 47건 실행, 43 통과 4 실패. 실패 4건은 기존 결함(trace 노출 2건, 없는 주문 500 2건)으로 취소 보존과 무관하며 이번 판정에서 허용"}, "issues": [{"severity": "minor", "location": "robustness.spec.ts:149, team-ctkim1005.spec.ts:275", "problem": "기존 결함: 존재하지 않는 주문 번호 /orders/{id} 가 HTTP 500. 이번 변경 범위 밖이며 별도 처리 필요", "reproduce": "BASE_URL=http://localhost:8080 npx playwright test robustness.spec.ts -g S10"}, {"severity": "minor", "location": "robustness.spec.ts:71, ssw60040-prog.spec.ts:289", "problem": "기존 결함: 깨진 JSON 오류 응답에 trace 노출(spec 에 known-issue 표기)", "reproduce": "BASE_URL=http://localhost:8080 npx playwright test robustness.spec.ts -g S5"}, {"severity": "minor", "location": "검증 한계", "problem": "기준선 E2E 와 구 스키마 DB 의 주문 상세 200 은 이번 검증에서 직접 재현하지 못했다. 컬럼 추가 기동만 확인", "reproduce": "해당 없음"}], "plan_feedback": {"summary": "", "failed_checklist": [], "failed_tests": [], "suggested_focus": []}, "commands": [{"cmd": "./gradlew.bat cleanTest test", "result": "BUILD SUCCESSFUL, 28건 통과"}, {"cmd": "BASE_URL=http://localhost:8080 npx playwright test", "result": "43 통과, 4 실패(S5, S10, No.36, T27)"}, {"cmd": "HEAD worktree jar 로 H2 생성 후 새 jar 기동(8091, 8092)", "result": "/login 200, ERROR 0건"}], "precheck_link": "TASK-precheck-001.html"}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">리포트 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function pill(x, k) { return el('span', 'pill ' + k, x); }
+  var RES = { pass: ['통과', 'ok'], fail: ['실패', 'bad'], skipped: ['건너뜀', 'warn'], unverified: ['확인 못함', 'warn'] };
+
+  var pass = D.verdict === 'PASS';
+  $('hero').classList.toggle('fail', !pass);
+  $('badge').textContent = pass ? '✔ PASS — 루프를 종료합니다' : '✖ FAIL — 계획 단계로 되돌아갑니다';
+  $('title').textContent = D.request || '구현 검증 리포트';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (D.summary || '');
+  document.title = (pass ? '[PASS] ' : '[FAIL] ') + '구현 검증 리포트';
+
+  var cl = D.checklist || [], R = D.regression || {}, tests = R.tests || [];
+  var okCl = cl.filter(function (c) { return c.result === 'pass'; }).length;
+  [['판정', pass ? 'PASS' : 'FAIL'], ['체크리스트', okCl + ' / ' + cl.length], ['회귀 테스트', (R.passed || 0) + ' / ' + (R.total || 0)], ['실패', (R.failed || 0) + (cl.length - okCl)]]
+    .forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  var F = D.plan_feedback;
+  if (!pass && F) {
+    var fb = el('div', 'feedback'); fb.appendChild(el('h3', '', '↩ 계획 단계로 되돌아가기 위한 값'));
+    if (F.summary) fb.appendChild(el('p', '', F.summary));
+    [['실패한 체크리스트', F.failed_checklist], ['실패한 테스트', F.failed_tests], ['계획이 집중할 점', F.suggested_focus]].forEach(function (g) {
+      if (!(g[1] || []).length) return; fb.appendChild(el('b', 'small', g[0]));
+      var ul = el('ul'); g[1].forEach(function (x) { ul.appendChild(el('li', '', x)); }); fb.appendChild(ul);
+    });
+    var w = el('div', 'card'); w.style.borderColor = 'var(--bad)'; w.appendChild(fb); $('feedbackBox').appendChild(w);
+  }
+
+  cl.forEach(function (c, i) {
+    var r = RES[c.result] || RES.unverified, d = el('div', 'item ' + r[1]), h = el('header');
+    h.appendChild(pill(r[0], r[1])); h.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); d.appendChild(h);
+    if (c.detail) d.appendChild(el('p', 'muted', '확인 방법: ' + c.detail));
+    if (c.evidence) d.appendChild(el('p', '', '근거: ' + c.evidence));
+    $('checks').appendChild(d);
+  });
+  if (!cl.length) $('checks').appendChild(el('div', 'empty', '체크리스트가 전달되지 않았습니다.'));
+
+  var tot = R.total || 0;
+  function seg(c, n) { var i = el('i', c); i.style.width = (tot ? n / tot * 100 : 0) + '%'; $('bar').appendChild(i); }
+  seg('p', R.passed || 0); seg('f', R.failed || 0); seg('s', R.skipped || 0);
+  $('barTxt').textContent = '통과 ' + (R.passed || 0) + ' · 실패 ' + (R.failed || 0) + ' · 건너뜀 ' + (R.skipped || 0) + ' / 전체 ' + tot + (R.duration ? ' · ' + R.duration : '');
+  var filter = 'all', q = '', defs = [['all', '전체'], ['pass', '통과'], ['fail', '실패'], ['skipped', '건너뜀']];
+  function draw() {
+    var tb = $('tests'); tb.textContent = '';
+    var list = tests.filter(function (t) { return (filter === 'all' || t.result === filter) && (!q || ((t.suite || '') + ' ' + t.name + ' ' + (t.message || '')).toLowerCase().indexOf(q) >= 0); });
+    if (!list.length) { var tr = el('tr'), td = el('td', 'empty', '표시할 테스트가 없습니다.'); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr); return; }
+    list.forEach(function (t) {
+      var r = RES[t.result] || RES.skipped, tr = el('tr'), a = el('td'); a.appendChild(pill(r[0], r[1])); tr.appendChild(a);
+      var b = el('td'); b.appendChild(el('b', '', t.name || '')); if (t.suite) b.appendChild(el('div', 'small muted', t.suite)); tr.appendChild(b);
+      tr.appendChild(el('td', 'num', t.time || '')); tr.appendChild(el('td', 'small', t.message || '')); tb.appendChild(tr);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); draw(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 검색'; s.oninput = function () { q = s.value.toLowerCase(); draw(); }; $('chips').appendChild(s);
+  draw();
+  if (D.e2e) $('e2e').textContent = 'E2E(Playwright): ' + (D.e2e.ran ? '실행함' : '실행하지 않음') + (D.e2e.note ? ' — ' + D.e2e.note : '');
+  if (R.command) $('e2e').textContent = '실행: ' + R.command + (D.e2e ? ' · ' + $('e2e').textContent : '');
+
+  var iss = D.issues || [];
+  if (!iss.length) $('issues').appendChild(el('div', 'empty', '발견한 문제가 없습니다.'));
+  iss.forEach(function (x) {
+    var k = x.severity === 'blocker' ? 'bad' : x.severity === 'major' ? 'warn' : 'info', d = el('div', 'item ' + (k === 'info' ? 'ok' : k)), h = el('header');
+    h.appendChild(pill(x.severity || '', k)); h.appendChild(el('b', '', x.location || '')); d.appendChild(h);
+    d.appendChild(el('p', '', x.problem || '')); if (x.reproduce) d.appendChild(el('p', 'muted', '재현/확인: ' + x.reproduce)); $('issues').appendChild(d);
+  });
+
+  var cm = D.commands || [];
+  if (!cm.length) $('cmdCard').hidden = true;
+  cm.forEach(function (c) { $('cmds').appendChild(el('pre', '', '$ ' + c.cmd + '\n→ ' + (c.result || ''))); });
+
+  if (D.precheck_link) { $('evCard').hidden = false; var a = el('a', '', '계획 점검 보기 (' + D.precheck_link + ')'); a.href = D.precheck_link; $('ev').appendChild(a); }
+})();
+</script>
+</body>
+</html>

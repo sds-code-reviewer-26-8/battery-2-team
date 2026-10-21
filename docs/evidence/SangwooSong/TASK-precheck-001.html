@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 사전 점검</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; padding: 28px 16px 64px; }
+  .hero.hilp { background: linear-gradient(135deg, #d97706, #dc2626); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.2); font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.55rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .9; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: .82rem; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid2 .card { margin-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  ul.ev { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem; }
+  .meter { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .meter i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }
+  .meter i.on.low { background: var(--ok); } .meter i.on.medium { background: var(--warn); } .meter i.on.high { background: var(--bad); }
+  .risk { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; background: var(--bg); border-radius: 0 10px 10px 0; }
+  .risk.low { border-color: var(--ok); } .risk.medium { border-color: var(--warn); } .risk.high { border-color: var(--bad); }
+  .alert { border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  .tc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .tc header { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .tc code { font-size: .85rem; color: var(--muted); }
+  .tc dl { margin: 8px 0 0; display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; font-size: .88rem; }
+  .tc dt { color: var(--muted); } .tc dd { margin: 0; white-space: pre-wrap; }
+  .check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .check:first-of-type { border-top: 0; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .check b { display: block; } .check.done b { text-decoration: line-through; color: var(--muted); }
+  .progress { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .plan { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 14px; font-size: .9rem; }
+  details summary { cursor: pointer; font-weight: 700; }
+  ol.q { margin: 8px 0 0; padding-left: 20px; } ol.q li { margin-bottom: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero">
+  <div class="wrap">
+    <span class="badge" id="badge"></span>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="hilpBox"></div>
+  <div class="grid2">
+    <section class="card"><h2>🧭 배경 이해</h2><div id="bg"></div></section>
+    <section class="card"><h2>🎯 목적 이해</h2><div id="pu"></div></section>
+  </div>
+  <section class="card" style="margin-top:16px"><h2>⚠️ 변경 규모와 위험</h2><div id="risk"></div></section>
+  <section class="card"><h2>🧪 테스트 점검</h2>
+    <div class="chips" id="chips"></div>
+    <div id="tcs"></div>
+  </section>
+  <section class="card"><h2>✅ 구현 후 꼭 확인할 3가지</h2>
+    <div class="progress"><i id="bar"></i></div><div class="small muted" id="barTxt"></div>
+    <div id="checks"></div>
+  </section>
+  <section class="card" id="planCard"><h2>🗺️ 구현 계획</h2><div class="plan" id="plan"></div></section>
+</main>
+<footer>impl-plan 사전 점검 · 이 페이지는 계획 단계의 점검 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 < 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"주문 취소 시 삭제 대신 CANCELED 보존 + 취소 사유(200자) 저장·표시 (2회차: E2E 5건 실패 기준선 확인)","round":2,"status":"READY","reason":"","questions":[],"background":{"understood":true,"summary":"1회차 구현은 JUnit 28건 통과, 코드 diff는 계획과 일치. 검증이 E2E 5건 실패(robustness S5/S10, ssw60040 No.36, ctkim1005 T03/T27)를 이번 변경과 무관한지 입증하지 못해 실패 처리했다. 구현 보고는 4건이라 했으나 실제 5건(T03 누락)이었다.","evidence":["plan_feedback.suggested_focus: 변경 전 기준선 비교, 8080 서버가 새 코드인지 확인","robustness.spec.ts:71,149; ssw60040-prog.spec.ts:289; team-ctkim1005.spec.ts:87,275 (존재하지 않는 주문 500, 깨진 요청 trace 노출, 로그아웃 후 접근 통제)","실패 5건의 테스트명은 모두 주문 취소·삭제와 직접 관련이 없는 오류 처리·접근 통제 시나리오로 보인다(원인은 확인하지 못함)"]},"purpose":{"understood":true,"summary":"원인이 구현인지 기존 결함인지 기준선으로 판정한다. 기존 결함이면 이번 변경 범위 밖으로 분리해 합의 대상으로 기록하고, 구현 회귀이면 수정한다. 취소 보존 기능 자체는 다시 바꾸지 않는다.","evidence":["요청 [목적]: 취소한 주문도 기록으로 남겨 조회·추적","직전 검증: 체크리스트 2번 pass, 1번 unverified(8080 서버 코드 미확인), 3번 fail"]},"risk":{"size":"small","severity":"medium","userAware":true,"warning":"이번 회차 자체는 코드 변경이 거의 없는 검증 작업이다. 원 요청의 큰 변경(데이터 삭제 동작 변경)은 사용자가 인지한 것으로 요청문에 명시되어 있다. 기준선에서도 실패하면 무관한 기존 결함이므로 이번 PR에서 고치지 말고 알려진 결함으로 기록한다.","items":[{"title":"기준선 미확인으로 회귀 은폐 가능","detail":"변경 전 코드(HEAD)로 E2E를 돌려 같은 5건이 실패하는지 비교하지 않으면 무관 여부를 입증할 수 없다.","severity":"medium"},{"title":"8080 서버 코드 버전 불명","detail":"기존 8080 서버는 구 코드일 수 있어 E2E 결과가 오염될 수 있다. 이번 회차는 포트를 명시해 새 코드/구 코드를 각각 별도 DB로 띄운다.","severity":"medium"},{"title":"범위 확장 금지","detail":"기존 결함(500, trace 노출, 접근 통제)은 취소 변경과 무관하면 수정하지 않는다. 수정 시 PRD/INTENT 불변 요소를 건드릴 수 있다. T03 접근 통제는 인증 관련이라 특히 임의 수정 금지.","severity":"medium"},{"title":"확인하지 못함","detail":"실패 5건의 정확한 원인(상세 오류 로그)과 T03 실패 사유는 이번 계획 단계에서 실행해 보지 못해 확인하지 못했다.","severity":"low"}]},"testCases":[{"id":"TC-B1","origin":"new","kind":"regression","target":"기준선 E2E (변경 전 HEAD)","description":"변경 전 코드로 전체 E2E 실행 후 실패 목록 기록","input":"git worktree 로 HEAD(미수정) 체크아웃, 별도 포트(예 8082)와 별도 H2 파일 DB 로 기동, BASE_URL 지정하고 npx playwright test","expected":"실패 집합을 얻는다. 5건(S5, S10, No.36, T03, T27)이 모두 기준선에서도 실패하면 기존 결함으로 판정"},{"id":"TC-B2","origin":"new","kind":"regression","target":"변경 후 E2E","description":"변경 후 코드를 새 포트·새 DB 로 띄워 전체 E2E 실행, 실패 집합을 기준선과 비교","input":"작업 트리 코드, 포트 8081, 빈 H2 DB, npx playwright test","expected":"변경 후 실패 집합 = 기준선 실패 집합의 부분집합. 기준선에 없던 실패가 있으면 구현 회귀로 보고 수정"},{"id":"TC-B3","origin":"new","kind":"boundary","target":"서버 버전 확인","description":"E2E 실행 전 대상 서버가 새 코드인지 확인","input":"실행 중인 8080 의 PID·기동 시각 확인 또는 취소 동작 프로브(주문 생성 후 취소 → /orders/{id} 200 이고 목록에 남는지)","expected":"새 코드면 200과 보존, 구 코드면 500. 구 코드 서버는 E2E 대상으로 쓰지 않음"},{"id":"TC-B4","origin":"new","kind":"regression","target":"T03 접근 통제","description":"T03 실패 원인이 취소 변경과 무관한지 분리","input":"T03 단독 실행(기준선과 변경 후 각각) 후 실패 메시지 비교","expected":"양쪽 동일 메시지로 실패하면 기존 결함. 변경 후에만 실패하면 구현 영향으로 보고 수정"},{"id":"TC-2R","origin":"existing","kind":"regression","target":"OrderFlowTests (JUnit 28건)","description":"1회차 통과한 취소 보존·201자 거부·완료 취소 거부·충돌·planJson 불변","input":"./gradlew.bat cleanTest test","expected":"28건 통과, 재변경 없음"},{"id":"TC-9R","origin":"existing","kind":"regression","target":"order-cancel-keep.spec.ts, order-status-flow.spec.ts, ssw60040 No.21, ctkim T26","description":"취소 보존 관련 E2E가 새 서버에서 통과","input":"새 코드 서버(8081)에서 실행","expected":"전부 통과(상세 500 없음, 최종 상태 문구·사유, 취소 칩 +1)"},{"id":"TC-13R","origin":"existing","kind":"boundary","target":"수동: 구 스키마 파일 DB 기동","description":"컬럼 추가 전 DB 로 새 코드 기동을 이번 검증에서 직접 재현","input":"HEAD 코드로 주문 1건 생성한 H2 파일 사본으로 새 코드 기동","expected":"기동 성공, /orders/{id} 200, 취소 동작 가능"}],"checklist":[{"title":"기준선 대비 E2E 실패 집합 비교","detail":"HEAD 코드와 변경 후 코드를 각각 별도 포트·DB 로 띄워 npx playwright test 실행. 기준선에 없던 실패가 0건이어야 한다. 5건이 기준선에서도 실패하면 기존 결함으로 기록."},{"title":"E2E 대상 서버가 새 코드인지와 취소 보존 화면","detail":"8080 의존을 제거하고 8081 새 코드에서 주문 생성→사유 입력 취소→상세 200, '최종 상태라 더 바꿀 수 없습니다.'와 사유 표시, 취소 칩 +1, 확인창 문구 동일을 order-cancel-keep.spec.ts 로 확인."},{"title":"구 스키마 파일 DB 기동과 불변 규칙","detail":"컬럼 없는 H2 사본으로 새 코드 기동 확인. ./gradlew.bat cleanTest test 28건 통과, git diff 에 OrderStatus·Planner 없음, planJson 불변 테스트 통과."}],"plan":"[원인 판단] 1회차 계획은 타당했고 코드 diff 도 계획과 일치한다. 실패 원인은 구현이 아니라 검증 절차 부족(기준선 미확인, 8080 서버 버전 불명, 실패 건수 4건 오기재)이다. 따라서 소스 수정 없이 검증을 보강하고, 기준선 대비 회귀가 있을 때만 해당 부분을 수정한다.\n\n1. 서버 확인: 8080 에서 도는 프로세스의 코드 버전을 TC-B3 방식으로 확인한다. 불확실하면 E2E 대상에서 제외하고 새 포트를 쓴다.\n2. 기준선: git worktree(또는 git stash 없이 별도 clone)로 HEAD 의 미수정 코드를 스크래치 영역에 만들고, 별도 포트·H2 파일 DB 로 기동한다. playwright 의 BASE_URL(설정 방식은 playwright.config 에서 확인) 을 맞춰 npx playwright test 를 실행하고 실패 목록을 기록한다. 작업 트리는 건드리지 않는다.\n3. 변경 후: 작업 트리 코드를 8081 + 빈 DB 로 띄워 같은 방식으로 실행하고 실패 목록을 기록한다. 실패 5건 각각의 오류 메시지(상태 코드, trace 노출, 접근 통제)를 기준선과 대조한다(T03 포함).\n4. 판정: (a) 변경 후 실패 ⊆ 기준선 실패 이면 무관한 기존 결함. 소스·테스트를 고치지 않고 구현 보고 open_issues 에 '기준선에서도 실패, 알려진 결함'으로 정확한 5건 목록과 근거를 적는다. (b) 기준선에 없는 실패가 있으면 해당 건의 원인을 찾아 취소 보존 변경 범위 안에서만 수정하고 재실행한다.\n5. 구 스키마 DB 기동(TC-13R)을 이번 회차에서 직접 다시 재현하고 결과를 보고에 적는다.\n6. ./gradlew.bat cleanTest test 로 JUnit 28건 재확인. 변경이 없었다면 재통과만 확인한다.\n7. 보고 정정: 실패 건수를 실제 값으로 적고, 임시 서버·DB·worktree 는 정리하며 java.exe 일괄 종료는 하지 않는다. 기존 결함은 별도 이슈로 분리할 것을 사용자에게 제안한다(수정 여부는 사람이 결정)."}
+</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">점검 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pill(text, kind) { return el('span', 'pill ' + kind, text); }
+
+  var hilp = D.status === 'HILP';
+  $('hero').classList.toggle('hilp', hilp);
+  $('badge').textContent = hilp ? '⏸ HILP — 사람의 판단이 필요합니다' : '✔ READY — 구현을 진행할 수 있습니다';
+  $('title').textContent = D.request || '구현 사전 점검';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (hilp ? (D.reason || '') : '배경·목적·위험·테스트를 점검했습니다');
+  document.title = (hilp ? '[HILP] ' : '[READY] ') + '구현 사전 점검';
+
+  var tcs = D.testCases || [];
+  var tiles = [
+    ['점검 결과', hilp ? 'HILP' : 'READY'],
+    ['테스트 케이스', tcs.length],
+    ['신규 작성', tcs.filter(function (t) { return t.origin === 'new'; }).length],
+    ['위험도', ({ low: '낮음', medium: '보통', high: '높음' })[(D.risk || {}).severity] || '-']
+  ];
+  tiles.forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  if (hilp) {
+    var box = el('section', 'card'); box.style.borderColor = 'var(--bad)';
+    box.appendChild(el('h2', '', '🙋 사람이 답해야 할 질문'));
+    if (D.risk && D.risk.warning && !D.risk.userAware) box.appendChild(el('div', 'alert', '경고: ' + D.risk.warning));
+    var ol = el('ol', 'q'); (D.questions || []).forEach(function (q) { ol.appendChild(el('li', '', q)); });
+    box.appendChild(ol); $('hilpBox').appendChild(box);
+  }
+
+  function understanding(root, u) {
+    u = u || {};
+    root.appendChild(pill(u.understood ? '이해함' : '이해하지 못함', u.understood ? 'ok' : 'bad'));
+    root.appendChild(el('p', '', u.summary || '(내용 없음)'));
+    if ((u.evidence || []).length) { var ul = el('ul', 'ev'); u.evidence.forEach(function (x) { ul.appendChild(el('li', '', x)); }); root.appendChild(ul); }
+  }
+  understanding($('bg'), D.background); understanding($('pu'), D.purpose);
+
+  var R = D.risk || {}, lv = { low: 1, medium: 2, high: 3 }[R.severity] || 0;
+  var sz = ({ small: '작음', medium: '보통', large: '큼' })[R.size] || '-';
+  var rr = $('risk');
+  rr.appendChild(pill('변경 규모: ' + sz, 'info')); rr.appendChild(document.createTextNode(' '));
+  rr.appendChild(pill('위험도: ' + (({ low: '낮음', medium: '보통', high: '높음' })[R.severity] || '-'), R.severity === 'high' ? 'bad' : R.severity === 'medium' ? 'warn' : 'ok'));
+  rr.appendChild(document.createTextNode(' ')); rr.appendChild(pill(R.userAware ? '사용자가 인지함' : '사용자 인지 여부 불명', R.userAware ? 'ok' : 'warn'));
+  var m = el('div', 'meter'); for (var i = 1; i <= 3; i++) m.appendChild(el('i', i <= lv ? 'on ' + R.severity : '')); rr.appendChild(m);
+  if (R.warning) rr.appendChild(el('div', 'alert warn', R.warning));
+  (R.items || []).forEach(function (x) { var b = el('div', 'risk ' + (x.severity || '')); b.appendChild(el('b', '', x.title || '')); if (x.detail) b.appendChild(el('div', 'small muted', x.detail)); rr.appendChild(b); });
+  if (!R.warning && !(R.items || []).length) rr.appendChild(el('p', 'muted', '특별한 위험 요소를 찾지 못했습니다.'));
+
+  var filter = 'all', q = '';
+  var defs = [['all', '전체'], ['existing', '기존'], ['new', '신규'], ['regression', '회귀'], ['boundary', '경계값']];
+  function match(t) {
+    if (filter === 'existing' || filter === 'new') { if (t.origin !== filter) return false; }
+    else if (filter !== 'all' && t.kind !== filter) return false;
+    var s = (t.id + ' ' + t.target + ' ' + t.description + ' ' + t.input + ' ' + t.expected).toLowerCase();
+    return !q || s.indexOf(q) >= 0;
+  }
+  function drawTcs() {
+    var root = $('tcs'); root.textContent = '';
+    var list = tcs.filter(match);
+    if (!list.length) { root.appendChild(el('div', 'empty', '조건에 맞는 테스트 케이스가 없습니다.')); return; }
+    list.forEach(function (t) {
+      var c = el('div', 'tc'), h = el('header');
+      h.appendChild(pill(t.origin === 'new' ? '신규' : '기존', t.origin === 'new' ? 'acc' : 'info'));
+      h.appendChild(pill(({ regression: '회귀', boundary: '경계값', feature: '기능' })[t.kind] || t.kind || '', t.kind === 'boundary' ? 'warn' : t.kind === 'regression' ? 'ok' : 'info'));
+      h.appendChild(el('code', '', t.id || '')); c.appendChild(h);
+      c.appendChild(el('b', '', t.description || ''));
+      var dl = el('dl');
+      [['대상', t.target], ['입력', t.input], ['기대', t.expected]].forEach(function (p) { if (p[1]) { dl.appendChild(el('dt', '', p[0])); dl.appendChild(el('dd', '', p[1])); } });
+      c.appendChild(dl); root.appendChild(c);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); drawTcs(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 케이스 검색'; s.oninput = function () { q = s.value.toLowerCase(); drawTcs(); }; $('chips').appendChild(s);
+  drawTcs();
+
+  var key = 'precheck:' + (D.request || '') + ':' + (D.round || 0), saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  var cl = D.checklist || [];
+  function progress() {
+    var n = cl.filter(function (_, i) { return saved[i]; }).length;
+    $('bar').style.width = (cl.length ? n / cl.length * 100 : 0) + '%';
+    $('barTxt').textContent = n + ' / ' + cl.length + ' 확인함';
+  }
+  cl.forEach(function (c, i) {
+    var lab = el('label', 'check' + (saved[i] ? ' done' : '')), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!saved[i];
+    var box = el('div'); box.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); if (c.detail) box.appendChild(el('span', 'small muted', c.detail));
+    cb.onchange = function () { saved[i] = cb.checked; lab.classList.toggle('done', cb.checked); try { localStorage.setItem(key, JSON.stringify(saved)); } catch (e) {} progress(); };
+    lab.appendChild(cb); lab.appendChild(box); $('checks').appendChild(lab);
+  });
+  progress();
+
+  if (D.plan) $('plan').textContent = D.plan; else $('planCard').hidden = true;
+})();
+</script>
+</body>
+</html>
