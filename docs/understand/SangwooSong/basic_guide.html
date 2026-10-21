@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>배터리 운송 앱 기본 가이드</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1f2933; --muted: #6b7785; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #e3ecff; --ok: #15803d; --warn: #b45309; --bad: #b91c1c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171c; --card: #1d2229; --text: #e6e9ed; --muted: #94a0ad; --line: #323a44;
+      --accent: #7aa2ff; --accent-soft: #24324f; --ok: #5ccf86; --warn: #f0b35a; --bad: #ff8585; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  header { padding: 24px 16px 8px; max-width: 920px; margin: 0 auto; }
+  header h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  header p { margin: 0; color: var(--muted); }
+  main { max-width: 920px; margin: 0 auto; padding: 0 16px 48px; }
+  .tabs { display: flex; gap: 6px; margin: 16px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tab { border: 0; background: none; color: var(--muted); padding: 10px 16px; cursor: pointer;
+    font: inherit; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+  .tab:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .panel { display: none; } .panel.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 1.15rem; } .card h3 { margin: 16px 0 6px; font-size: 1rem; }
+  .muted { color: var(--muted); } .small { font-size: .875rem; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .8rem; }
+  button.pick { text-align: left; background: var(--card); color: var(--text); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px; cursor: pointer; font: inherit; }
+  button.pick:hover { border-color: var(--accent); }
+  button.pick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; font: inherit; }
+  .btn.ghost { background: none; color: var(--accent); border: 1px solid var(--accent); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .result { margin-top: 12px; padding: 12px; border-radius: 10px; background: var(--accent-soft); }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  label { display: block; font-size: .875rem; color: var(--muted); }
+  input[type=number], select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); color: var(--text); font: inherit; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .row > * { flex: 1 1 140px; }
+  /* 흐름 */
+  .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .step { flex: 1 1 120px; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 10px; padding: 10px; cursor: pointer; font: inherit; text-align: center; }
+  .step[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .step small { display: block; opacity: .8; }
+  /* 상태 */
+  .states { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .state { padding: 8px 14px; border-radius: 999px; border: 2px solid var(--line); color: var(--muted); }
+  .state.now { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+  .state.done { border-style: dashed; }
+  .log { margin: 8px 0 0; padding-left: 18px; }
+  .legend span { display: inline-block; margin-right: 12px; }
+  .bar { height: 14px; border-radius: 7px; background: var(--line); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .compare { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .compare .card { margin: 0; }
+  details summary { cursor: pointer; }
+  @media (max-width: 480px) { .tab { padding: 8px 10px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>배터리 운송 앱 기본 가이드</h1>
+  <p>코드를 몰라도 되는 3단계 안내입니다. 탭을 순서대로 눌러 보세요.</p>
+</header>
+<main>
+  <div class="tabs" role="tablist" aria-label="이해 단계">
+    <button class="tab" role="tab" id="t1" aria-controls="p1" aria-selected="true">1. 무엇을 하는 앱인가</button>
+    <button class="tab" role="tab" id="t2" aria-controls="p2" aria-selected="false">2. 사용자는 무엇을 하나</button>
+    <button class="tab" role="tab" id="t3" aria-controls="p3" aria-selected="false">3. 주문과 3가지 안</button>
+  </div>
+
+  <!-- ===================== 1 ===================== -->
+  <section class="panel active" id="p1" role="tabpanel" aria-labelledby="t1">
+    <div class="card">
+      <h2>한 문단 요약</h2>
+      <p>배터리 공장이 <b>중국·일본·베트남·인도네시아</b>에 하나씩 있습니다. 이 배터리를 <b>배로 한국에 모아 옵니다</b>.
+      나라별로 필요한 수량을 입력하면, 앱이 <b>어떤 배가 어떤 순서로 돌지</b> 3가지 안을 계산해 줍니다.
+      한 안을 고르면 주문이 확정되고, 이후에는 주문의 진행 상태를 관리합니다.</p>
+      <p class="muted small">수량 단위 K = 1,000개(셀). 예: 3,000K = 300만 개.</p>
+    </div>
+
+    <div class="card">
+      <h2>공장 살펴보기 <span class="chip">눌러 보세요</span></h2>
+      <div class="grid" id="factoryPick"></div>
+      <div class="result" id="factoryInfo">위에서 나라를 눌러 보세요.</div>
+    </div>
+
+    <div class="card">
+      <h2>항로: 나라 사이는 며칠 걸릴까? <span class="chip">직접 골라 보세요</span></h2>
+      <div class="row">
+        <div><label for="from">출발</label><select id="from"></select></div>
+        <div><label for="to">도착</label><select id="to"></select></div>
+      </div>
+      <div class="result" id="routeInfo"></div>
+      <details style="margin-top:10px"><summary>전체 항로표 보기</summary><div id="routeTable"></div></details>
+    </div>
+
+    <div class="card">
+      <h2>꼭 알아둘 규칙</h2>
+      <ul>
+        <li><b>생산:</b> 모든 공장이 주문 첫날(0일차)에 동시에 생산을 시작합니다. 하루에 만들 수 있는 양이 정해져 있습니다.</li>
+        <li><b>창고 한도:</b> 공장 창고가 가득 차면 생산이 멈춥니다. 배가 실어 가야 다시 만들 수 있습니다.</li>
+        <li><b>배:</b> 기본 3척, 최대 4척. 배가 운항하는 날마다 비용이 듭니다. 한국 항구에서 기다리는 것은 공짜입니다.</li>
+        <li><b>방문:</b> 한 나라는 한 척의 배만 방문합니다. 도착하면 그 시점의 재고를 전부 싣습니다.</li>
+        <li><b>여러 번 나눠 싣기:</b> 주문이 창고 한도보다 크면 여러 번 방문해야 합니다. 이때 배는 한국에 내려놓고 다시 출항합니다.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===================== 2 ===================== -->
+  <section class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+    <div class="card">
+      <h2>사용자의 하루: 5단계 <span class="chip">단계를 눌러 보세요</span></h2>
+      <div class="steps" id="steps"></div>
+      <div class="result" id="stepInfo"></div>
+    </div>
+
+    <div class="card">
+      <h2>화면은 5개 <span class="chip">눌러 보세요</span></h2>
+      <div class="steps" id="screens"></div>
+      <div class="result" id="screenInfo"></div>
+    </div>
+
+    <div class="card">
+      <h2>수량 게이지 체험 <span class="chip">슬라이더를 움직여 보세요</span></h2>
+      <p class="muted small">주문 추가 화면의 게이지 규칙입니다. 한 나라를 움직이면 <b>바로 오른쪽 나라가 반대로 조정</b>되고(맨 오른쪽은 맨 왼쪽), 합계는 항상 총 수량과 같습니다.</p>
+      <div class="row"><div><label for="gTotal">총 생산 필요 수 (K)</label><input type="number" id="gTotal" value="12000" min="1" max="100000"></div></div>
+      <div class="grid" id="gauges" style="margin-top:10px"></div>
+      <div class="result" id="gaugeSum"></div>
+    </div>
+
+    <div class="card">
+      <h2>주문 상태 체험 <span class="chip">버튼을 눌러 보세요</span></h2>
+      <p class="muted small">확정된 주문의 상태는 정해진 순서로만 바뀝니다. 건너뛰기나 되돌리기는 안 됩니다.</p>
+      <div class="states" id="states"></div>
+      <div class="row" id="stateBtns" style="margin-top:6px"></div>
+      <div class="result" id="stateMsg">처음 상태는 항상 '확정'입니다.</div>
+      <h3>변경 이력</h3>
+      <ol class="log" id="stateLog"></ol>
+      <p><button class="btn ghost" id="stateReset">처음부터 다시</button></p>
+    </div>
+
+    <div class="card">
+      <h2>여러 사람이 동시에 쓰면?</h2>
+      <p>두 사람이 같은 주문을 동시에 보고 있다가 한 명이 먼저 상태를 바꾸면, 늦게 누른 사람은
+      <b>"다른 사용자가 먼저 변경했습니다. 화면을 새로 고쳐 주세요"</b> 안내를 받고 변경이 거부됩니다.
+      마스터(공장·항로·배 정보)가 바뀐 경우도 같습니다. 시뮬레이션 이후 정보가 바뀌었다면 확정되지 않고 다시 계산해야 합니다.</p>
+      <p><button class="btn" id="conflictBtn">충돌 상황 재현하기</button></p>
+      <div class="result" id="conflictMsg" hidden></div>
+    </div>
+
+    <div class="card" style="border-color: var(--warn)">
+      <h2>확인이 필요한 점: 취소하면 주문이 사라진다</h2>
+      <p>주문을 <b>취소</b>하면 주문 자체가 삭제되어 목록·상세에서 볼 수 없습니다. 이력에는 "→ 취소"가 남지만 어느 주문의 이력인지 확인할 화면이 없습니다.
+      반면 목록에는 "취소 N건" 필터가 있어 서로 어긋나 보입니다.</p>
+      <ul>
+        <li>취소한 주문도 기록으로 남겨야 하는가?</li>
+        <li>아니면 삭제가 의도인가? (그렇다면 "취소" 필터는 필요한가?)</li>
+      </ul>
+      <p class="muted small">※ 코드에서 읽은 사실이며, 아직 요구사항으로 확정된 내용이 아닙니다.</p>
+    </div>
+
+    <div class="card">
+      <h2>마스터 화면은 무엇인가</h2>
+      <p>계산에 쓰이는 <b>기준 정보</b>를 고치는 화면입니다: 배 척수(1~4), 척당 하루 운항비, 공장별 하루 최대 생산량·창고 한도·개당 원가, 나라 사이 항해 일수.
+      값을 저장하면 이후 시뮬레이션부터 새 값이 적용되며, <b>이미 확정된 주문은 확정 당시의 값으로 보존</b>됩니다.</p>
+    </div>
+  </section>
+
+  <!-- ===================== 3 ===================== -->
+  <section class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+    <div class="card">
+      <h2>주문 수량 계산기 <span class="chip">수량을 바꿔 보세요</span></h2>
+      <p class="muted small">나라별 필요 수량(K)을 입력하면 몇 번 나눠 실어야 하는지, 비용은 얼마인지 바로 보여 줍니다. (마스터 기본값 기준)</p>
+      <div class="grid" id="calcInputs"></div>
+      <div style="overflow-x:auto; margin-top:12px">
+        <table id="calcTable"></table>
+      </div>
+      <div class="result" id="calcSummary"></div>
+      <p class="small muted">※ 이 계산기는 개념 이해용입니다. 실제 앱은 여기에 배 배정, 출항 시점, 운항비까지 더해 최적 경로를 계산합니다.</p>
+    </div>
+
+    <div class="card">
+      <h2>한 나라 왕복 체험 <span class="chip">슬라이더를 움직여 보세요</span></h2>
+      <div class="row">
+        <div><label for="rtCountry">나라</label><select id="rtCountry"></select></div>
+        <div><label for="rtCost">운항비 (척당 하루, 억 원)</label><input type="number" id="rtCost" value="1" min="0.1" step="0.1"></div>
+      </div>
+      <div class="result" id="rtInfo"></div>
+    </div>
+
+    <div class="card">
+      <h2>3가지 안, 무엇이 다른가</h2>
+      <div class="compare">
+        <div class="card"><b>① 운항비 최소</b><p class="small">배를 이용하는 총 일수가 가장 적은 안. 돈을 아끼는 선택입니다. 비용이 같으면 더 빠른 쪽을 고릅니다.</p></div>
+        <div class="card"><b>② 가장 빠르게</b><p class="small">모든 배가 한국에 돌아오는 날이 가장 이른 안. 급할 때의 선택입니다. 날수가 같으면 더 저렴한 쪽을 고릅니다.</p></div>
+        <div class="card"><b>③ 가까운 곳부터</b><p class="small">한국에서 가까운 나라부터 배에 차례로 나누어 배정하는 단순한 안. 비교 기준용입니다.</p></div>
+      </div>
+      <h3>각 안에 표시되는 것</h3>
+      <ul>
+        <li>총 소요일 (주문일부터 마지막 배가 돌아오는 날까지)</li>
+        <li>생산비 + 운항비 = 합계 비용</li>
+        <li>배별 일정: 언제 출항해서 어느 나라에 며칠에 도착하고 몇 K를 싣는지</li>
+        <li>나라별 일별 재고·생산량 그래프</li>
+      </ul>
+      <p class="muted small">생산비는 어느 안을 골라도 같고(수량 × 개당 원가), 안마다 달라지는 것은 운항비와 소요일입니다.</p>
+    </div>
+
+    <div class="card">
+      <h2>주문 한 건의 여정 <span class="chip">시나리오를 고르고 "다음"을 눌러 보세요</span></h2>
+      <p class="muted small">버튼 하나를 눌렀을 때 내부에서 누가 무엇을 하는지, 식당에 비유해 따라가 봅니다.</p>
+      <div class="legend small" style="margin-bottom:8px">
+        <span>🛎 <b>접수 창구</b>: 요청을 받음</span>
+        <span>🧑‍💼 <b>담당자</b>: 업무 규칙 확인·기록</span>
+        <span>🧮 <b>계산 전문가</b>: 3가지 안 계산</span>
+        <span>📒 <b>장부</b>: 기준 정보·주문 보관</span>
+      </div>
+      <div class="row">
+        <div><label for="jScenario">시나리오</label>
+          <select id="jScenario">
+            <option value="ok">정상: 시뮬레이션 → 확정</option>
+            <option value="nologin">로그인하지 않고 요청</option>
+            <option value="zero">수량을 0으로 입력</option>
+            <option value="stale">시뮬레이션 후 마스터가 바뀜</option>
+          </select></div>
+        <div style="flex:0 0 auto"><button class="btn" id="jNext">다음 ▶</button>
+          <button class="btn ghost" id="jReset">처음부터</button></div>
+      </div>
+      <ol class="log" id="jLog" style="margin-top:12px; list-style:none; padding:0"></ol>
+      <div class="result" id="jEnd" hidden></div>
+      <details style="margin-top:12px"><summary>나중에 코드 리뷰할 때: 업무 규칙 ↔ 담당 파일</summary>
+        <table>
+          <tr><th>업무 규칙</th><th>담당 파일 (<code>src/main/java/com/example/demo/…</code>)</th></tr>
+          <tr><td>로그인 안 하면 막기</td><td>config/LoginInterceptor</td></tr>
+          <tr><td>화면·요청 접수 (접수 창구)</td><td>controller/AppController</td></tr>
+          <tr><td>수량 점검, 확정, 상태 변경, 마스터 저장 (담당자)</td><td>service/BatteryService</td></tr>
+          <tr><td>3가지 안 계산 (계산 전문가)</td><td>simulation/Planner</td></tr>
+          <tr><td>계산에 쓴 기준 정보 묶음 (확정 시 통째로 보관)</td><td>simulation/Master</td></tr>
+          <tr><td>상태 변경 규칙 (확정→진행→완료)</td><td>entity/OrderStatus</td></tr>
+        </table>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>이해 확인 퀴즈</h2>
+      <div id="quiz"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------- 기준 정보 (앱의 기본 마스터 값) ---------- */
+const FAC = {
+  CHINA:     { name: '중국',       maxDaily: 400, limit: 4000,  unit: 700 },
+  JAPAN:     { name: '일본',       maxDaily: 800, limit: 2000,  unit: 900 },
+  VIETNAM:   { name: '베트남',     maxDaily: 200, limit: 10000, unit: 550 },
+  INDONESIA: { name: '인도네시아', maxDaily: 300, limit: 7000,  unit: 450 },
+};
+const NAME = { KOREA: '한국', ...Object.fromEntries(Object.entries(FAC).map(([k, v]) => [k, v.name])) };
+const DAYS = {
+  'KOREA-CHINA': 1, 'KOREA-JAPAN': 2, 'KOREA-VIETNAM': 5, 'KOREA-INDONESIA': 7,
+  'CHINA-JAPAN': 2, 'CHINA-VIETNAM': 4, 'CHINA-INDONESIA': 6,
+  'JAPAN-VIETNAM': 5, 'JAPAN-INDONESIA': 7, 'VIETNAM-INDONESIA': 2,
+};
+const days = (a, b) => a === b ? 0 : (DAYS[a + '-' + b] ?? DAYS[b + '-' + a]);
+const fmt = n => n.toLocaleString('ko-KR');
+const $ = id => document.getElementById(id);
+const ceil = (a, b) => Math.ceil(a / b);
+
+/* ---------- 탭 ---------- */
+const tabs = [...document.querySelectorAll('.tab')];
+function openTab(t) {
+  tabs.forEach(x => {
+    const on = x === t;
+    x.setAttribute('aria-selected', on);
+    const p = $(x.getAttribute('aria-controls'));
+    p.classList.toggle('active', on); p.hidden = !on;
+  });
+  try { localStorage.setItem('guideTab', t.id); } catch (e) {}
+}
+tabs.forEach(t => t.addEventListener('click', () => openTab(t)));
+tabs.forEach((t, i) => t.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    n.focus(); openTab(n);
+  }
+}));
+try { const s = localStorage.getItem('guideTab'); if (s && $(s)) openTab($(s)); } catch (e) {}
+
+/* ---------- 탭1: 공장 ---------- */
+const fp = $('factoryPick');
+Object.entries(FAC).forEach(([k, f]) => {
+  const b = document.createElement('button');
+  b.className = 'pick'; b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = `<b>${f.name}</b><br><span class="muted small">한국까지 ${days('KOREA', k)}일</span>`;
+  b.onclick = () => {
+    fp.querySelectorAll('.pick').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', 'true');
+    const fill = ceil(f.limit, f.maxDaily);
+    $('factoryInfo').innerHTML =
+      `<b>${f.name} 공장</b><ul style="margin:6px 0 0">
+       <li>하루 최대 생산: <b>${fmt(f.maxDaily)}K</b></li>
+       <li>창고 한도: <b>${fmt(f.limit)}K</b> → 쉬지 않고 만들면 창고가 <b>${fill}일</b>이면 가득 찹니다</li>
+       <li>개당 원가: <b>${fmt(f.unit)}원</b></li>
+       <li>한국까지 편도 <b>${days('KOREA', k)}일</b></li></ul>`;
+  };
+  fp.appendChild(b);
+});
+
+/* ---------- 탭1: 항로 ---------- */
+const sel = (id, def) => {
+  const s = $(id);
+  Object.entries(NAME).forEach(([k, v]) => s.add(new Option(v, k)));
+  s.value = def; s.onchange = showRoute;
+};
+sel('from', 'KOREA'); sel('to', 'INDONESIA');
+function showRoute() {
+  const a = $('from').value, b = $('to').value;
+  $('routeInfo').innerHTML = a === b
+    ? '같은 나라입니다. 이동 0일.'
+    : `<b>${NAME[a]} ↔ ${NAME[b]}</b>: 편도 <b>${days(a, b)}일</b> (왕복 ${days(a, b) * 2}일)`;
+}
+showRoute();
+(function () {
+  const keys = Object.keys(NAME);
+  let h = '<table><tr><th></th>' + keys.map(k => `<th class="num">${NAME[k]}</th>`).join('') + '</tr>';
+  keys.forEach(a => {
+    h += `<tr><th>${NAME[a]}</th>` + keys.map(b => `<td class="num">${a === b ? '-' : days(a, b)}</td>`).join('') + '</tr>';
+  });
+  $('routeTable').innerHTML = h + '</table>';
+})();
+
+/* ---------- 탭2: 5단계 ---------- */
+const STEPS = [
+  ['로그인', '입장', '아이디와 비밀번호로 들어갑니다. 로그인하지 않으면 로그인 화면만 볼 수 있습니다.'],
+  ['주문 입력', '수량 입력', '나라별 필요 수량(K)을 입력합니다. 합계는 1K 이상 100,000K 이하여야 합니다. 비어 있거나 음수면 이유와 함께 거부됩니다.'],
+  ['시뮬레이션', '3가지 안', '입력한 수량으로 ①운항비 최소 ②가장 빠르게 ③가까운 곳부터 3가지 안을 계산해 비교해 보여 줍니다. 아직 아무것도 확정되지 않은 "미리보기" 단계입니다.'],
+  ['확정', '안 선택·메모', '마음에 드는 안을 골라 확정하면 주문이 만들어집니다. 메모(1,000자 이하)를 남길 수 있고, 확정 당시의 수량·기준 정보·경로가 그대로 보관됩니다.'],
+  ['상태 관리', '목록·상세', '주문 목록에서 상태별로 걸러 보고, 상세 화면에서 상태를 바꿉니다. 누가 언제 어떻게 바꿨는지 이력이 남습니다.'],
+];
+const stepsEl = $('steps');
+STEPS.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.className = 'step'; b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = `${i + 1}. ${s[0]}<small>${s[1]}</small>`;
+  b.onclick = () => {
+    stepsEl.querySelectorAll('.step').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', 'true');
+    $('stepInfo').innerHTML = `<b>${i + 1}단계 · ${s[0]}</b><br>${s[2]}`;
+  };
+  stepsEl.appendChild(b);
+});
+stepsEl.firstChild.click();
+
+/* ---------- 탭2: 화면 5개 ---------- */
+const SCREENS = [
+  ['로그인', '입장', '<ul><li>아이디·비밀번호를 입력합니다. (둘 다 admin)</li><li>로그인하지 않으면 다른 화면은 열리지 않고 로그인 화면으로 돌아갑니다.</li></ul>'],
+  ['주문 목록', '첫 화면', '<ul><li>확정된 주문이 최신순으로 나옵니다: 주문번호, 확정 일시, 총 수량, 경로, 소요 일수, 총 비용(억 원), 상태, 작성자.</li><li>위쪽 필터로 전체/확정/진행/완료/취소별 건수를 보고 걸러 봅니다.</li><li>행을 누르면 상세로, <b>주문 추가</b> 버튼으로 새 주문을 시작합니다.</li></ul>'],
+  ['주문 추가', '3단계 한 화면', '<ol><li><b>주문 수량:</b> 총 수량 입력 → 나라별 게이지로 배분 → 시뮬레이션 실행</li><li><b>결과 확인:</b> 3가지 안의 요약, 지도 위 배 이동 애니메이션, 배별 일정, 일별 재고·생산</li><li><b>주문 확정:</b> 안 선택 + 메모 → 확정. 서버가 같은 입력으로 <b>다시 계산</b>해서 저장하며, 그 사이 마스터가 바뀌었다면 확정되지 않습니다.</li></ol><p class="small muted">수량을 바꾸면 이전 시뮬레이션 결과는 사라지고 다시 실행해야 합니다.</p>'],
+  ['주문 상세', '상태 변경', '<ul><li>확정 일시, 작성자, 경로, 메모와 확정 당시의 계획(지도 애니메이션 포함)을 봅니다.</li><li>가능한 변경 버튼만 나옵니다. 확정: 진행·취소 / 진행: 완료·취소 / 완료·취소: 버튼 없음.</li><li>누르면 "계속할까요?" 확인창이 뜹니다.</li><li>아래에 상태 이력(일시, 이전 상태, 새 상태, 변경한 사람)이 쌓입니다.</li></ul>'],
+  ['마스터 데이터', '기준 정보', '<ul><li>공장(하루 생산량, 창고 한도, 개당 원가), 배(척수 1~4, 하루 운항비), 항로(항해 일수)를 한 화면에서 고칩니다.</li><li>값 하나라도 잘못되면 이유 목록을 보여 주고 <b>아무것도 저장하지 않습니다.</b></li><li>이미 확정한 주문은 영향받지 않습니다.</li></ul>'],
+];
+const scEl = $('screens');
+SCREENS.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.className = 'step'; b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = `${s[0]}<small>${s[1]}</small>`;
+  b.onclick = () => {
+    scEl.querySelectorAll('.step').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', 'true');
+    $('screenInfo').innerHTML = `<b>${s[0]}</b>${s[2]}`;
+  };
+  scEl.appendChild(b);
+});
+scEl.firstChild.click();
+
+/* ---------- 탭2: 게이지 체험 ---------- */
+const GK = ['CHINA', 'JAPAN', 'VIETNAM', 'INDONESIA'];
+let gTotal = 12000, gVal = {};
+function gEven(sum) {
+  const base = Math.floor(sum / GK.length); let rest = sum - base * GK.length; const v = {};
+  GK.forEach(c => { v[c] = base + (rest > 0 ? 1 : 0); if (rest > 0) rest--; });
+  return v;
+}
+function gMove(c, wanted) {
+  const n = GK[(GK.indexOf(c) + 1) % GK.length], pair = gVal[c] + gVal[n];
+  const next = Math.max(0, Math.min(pair, wanted));
+  gVal[c] = next; gVal[n] = pair - next; gDraw();
+}
+function gDraw() {
+  GK.forEach(c => {
+    const g = $('g_' + c);
+    g.querySelector('input').max = gTotal; g.querySelector('input').value = gVal[c];
+    g.querySelector('b').textContent = fmt(gVal[c]) + 'K';
+    g.querySelector('.v').textContent = gVal[c] > 0 ? `방문 ${ceil(gVal[c], FAC[c].limit)}회` : '방문 0회';
+  });
+  const sum = GK.reduce((a, c) => a + gVal[c], 0);
+  $('gaugeSum').innerHTML = `합계 <b>${fmt(sum)}K</b> = 총 생산 필요 수 <b>${fmt(gTotal)}K</b> (항상 같습니다)`;
+}
+GK.forEach((c, i) => {
+  const d = document.createElement('div'); d.id = 'g_' + c;
+  d.innerHTML = `<label>${FAC[c].name} → 조정되는 나라: ${FAC[GK[(i + 1) % GK.length]].name}</label>`
+    + `<b></b><input type="range" min="0" step="50" style="width:100%"><div class="small muted v"></div>`;
+  d.querySelector('input').oninput = e => gMove(c, parseInt(e.target.value, 10));
+  $('gauges').appendChild(d);
+});
+$('gTotal').onchange = e => {
+  const v = parseInt(e.target.value, 10);
+  if (!(v >= 1)) { e.target.value = gTotal; return; }
+  gTotal = Math.min(v, 100000); e.target.value = gTotal; gVal = gEven(gTotal); gDraw();
+};
+gVal = gEven(gTotal); gDraw();
+
+/* ---------- 탭2: 상태 체험 ---------- */
+const ST = { CONFIRMED: '확정', IN_PROGRESS: '진행', COMPLETED: '완료', CANCELED: '취소' };
+const NEXT = { CONFIRMED: ['IN_PROGRESS', 'CANCELED'], IN_PROGRESS: ['COMPLETED', 'CANCELED'], COMPLETED: [], CANCELED: [] };
+let cur, history;
+function renderState() {
+  $('states').innerHTML = Object.entries(ST).map(([k, v]) =>
+    `<span class="state ${k === cur ? 'now' : ''}">${v}</span>`).join('');
+  const nx = NEXT[cur];
+  $('stateBtns').innerHTML = '';
+  Object.keys(ST).forEach(k => {
+    if (k === 'CONFIRMED') return;
+    const b = document.createElement('button');
+    b.className = 'btn' + (nx.includes(k) ? '' : ' ghost');
+    b.textContent = ST[k] + '(으)로 변경';
+    b.onclick = () => change(k);
+    $('stateBtns').appendChild(b);
+  });
+  $('stateLog').innerHTML = history.map(h => `<li>${h}</li>`).join('');
+}
+function change(to) {
+  if (!NEXT[cur].includes(to)) {
+    $('stateMsg').innerHTML = `<b style="color:var(--bad)">거부됨:</b> ${ST[cur]} 상태에서는 ${ST[to]}(으)로 바꿀 수 없습니다.`
+      + (NEXT[cur].length ? ` 가능한 변경: ${NEXT[cur].map(x => ST[x]).join(', ')}` : ' 이미 마지막 상태입니다.');
+    return;
+  }
+  history.push(`${ST[cur]} → ${ST[to]}`);
+  cur = to;
+  $('stateMsg').innerHTML = `<b style="color:var(--ok)">변경됨:</b> 이제 '${ST[cur]}' 상태입니다.`
+    + (cur === 'CANCELED' ? ' (현재 앱은 취소하면 주문 자체가 삭제됩니다. 아래 "확인이 필요한 점" 참고)' : '');
+  renderState();
+}
+function resetState() { cur = 'CONFIRMED'; history = ['(처음) → 확정']; $('stateMsg').textContent = '처음 상태는 항상 \'확정\'입니다.'; renderState(); }
+$('stateReset').onclick = resetState; resetState();
+
+/* ---------- 탭2: 충돌 ---------- */
+$('conflictBtn').onclick = () => {
+  const m = $('conflictMsg'); m.hidden = false;
+  m.innerHTML = '<ol class="log">'
+    + '<li>A와 B가 같은 주문(상태: 확정)을 화면에 띄움</li>'
+    + '<li>A가 먼저 "진행"으로 변경 → 성공</li>'
+    + '<li>B가 (오래된 화면에서) "취소"를 누름 → <b style="color:var(--bad)">거부</b>: 다른 사용자가 먼저 변경했습니다. 화면을 새로 고쳐 현재 상태를 확인하세요</li>'
+    + '</ol>';
+};
+
+/* ---------- 탭3: 계산기 ---------- */
+const qty = { CHINA: 3000, JAPAN: 3000, VIETNAM: 3000, INDONESIA: 3000 };
+const ci = $('calcInputs');
+Object.entries(FAC).forEach(([k, f]) => {
+  const d = document.createElement('div');
+  d.innerHTML = `<label for="q_${k}">${f.name} 수량 (K)</label><input type="number" id="q_${k}" min="0" step="100" value="${qty[k]}">`;
+  d.querySelector('input').oninput = e => { qty[k] = Math.max(0, parseInt(e.target.value) || 0); calc(); };
+  ci.appendChild(d);
+});
+function calc() {
+  let h = '<tr><th>나라</th><th class="num">수량</th><th class="num">방문 횟수</th><th class="num">1회 최대 적재</th><th class="num">1회분 생산 일수</th><th class="num">왕복 일수</th><th class="num">생산비(억 원)</th></tr>';
+  let total = 0, prod = 0, trips = 0;
+  Object.entries(FAC).forEach(([k, f]) => {
+    const q = qty[k]; total += q;
+    const v = q > 0 ? ceil(q, f.limit) : 0;
+    const first = q > 0 ? Math.min(q, f.limit) : 0;
+    const cost = q * 1000 * f.unit / 1e8; prod += cost; trips += v;
+    h += `<tr><td>${f.name}</td><td class="num">${fmt(q)}K</td><td class="num">${v}회</td>`
+      + `<td class="num">${fmt(first)}K</td><td class="num">${q > 0 ? ceil(first, f.maxDaily) + '일' : '-'}</td>`
+      + `<td class="num">${days('KOREA', k) * 2}일</td><td class="num">${cost.toFixed(2)}</td></tr>`;
+  });
+  $('calcTable').innerHTML = h;
+  const over = total > 100000, none = total <= 0;
+  $('calcSummary').innerHTML = none
+    ? '<b style="color:var(--bad)">총 수량이 0입니다.</b> 앱은 이 경우 "1K 이상이어야 합니다"라며 거부합니다.'
+    : over
+      ? '<b style="color:var(--bad)">총 100,000K를 넘었습니다.</b> 앱은 이 경우 주문을 거부합니다.'
+      : `총 <b>${fmt(total)}K</b> · 필요한 방문 총 <b>${trips}회</b> · 생산비 합계 <b>${prod.toFixed(2)}억 원</b>`
+        + `<br><span class="muted small">방문 횟수 = 수량 ÷ 창고 한도를 올림한 값. 방문이 2회 이상인 나라는 배가 한국을 오가며 나눠 싣습니다.</span>`;
+}
+calc();
+
+/* ---------- 탭3: 왕복 체험 ---------- */
+const rs = $('rtCountry');
+Object.entries(FAC).forEach(([k, f]) => rs.add(new Option(f.name, k)));
+function rt() {
+  const k = rs.value, d = days('KOREA', k), cost = parseFloat($('rtCost').value) || 0;
+  $('rtInfo').innerHTML = `한국 → ${NAME[k]} → 한국 <b>왕복 ${d * 2}일</b>`
+    + `<br>배 한 척이 이 왕복만 하면 운항비 <b>${(d * 2 * cost).toFixed(2)}억 원</b>`
+    + `<div class="bar" style="margin:8px 0"><i style="width:${Math.min(100, d * 2 / 14 * 100)}%"></i></div>`
+    + `<span class="muted small">막대는 가장 먼 나라(인도네시아, 14일)를 100%로 한 상대 길이입니다. 먼 나라일수록 배가 오래 묶입니다.</span>`;
+}
+rs.onchange = rt; $('rtCost').oninput = rt; rt();
+
+/* ---------- 탭3: 주문 한 건의 여정 ---------- */
+const JOURNEY = [
+  { who: '🛎 접수 창구', phase: '시뮬레이션', text: '"시뮬레이션 실행" 요청을 받고, 로그인한 사용자인지 확인합니다.', fail: 'nologin',
+    failText: '로그인 정보가 없어 로그인 화면으로 돌려보냅니다. (화면 요청은 로그인 화면으로, 데이터 요청은 "권한 없음"으로 거절)' },
+  { who: '🧑‍💼 담당자', phase: '시뮬레이션', text: '나라별 수량을 점검합니다: 음수 불가, 합계는 1K 이상 100,000K 이하.', fail: 'zero',
+    failText: '"총 생산 필요 수는 1K 이상이어야 합니다"라는 이유와 함께 거절합니다. 계산은 시작하지 않습니다.' },
+  { who: '📒 장부', phase: '시뮬레이션', text: '지금 시점의 기준 정보(공장·항로·배)를 꺼냅니다. 이 묶음에는 "버전 번호"가 붙어 있습니다.' },
+  { who: '🧮 계산 전문가', phase: '시뮬레이션', text: '배 배정과 방문 순서를 모두 따져 3가지 안을 만들고, 각 안의 일별 재고·생산이 주문량과 정확히 맞는지 검산합니다.' },
+  { who: '🛎 접수 창구', phase: '시뮬레이션', text: '3가지 안을 화면에 돌려줍니다. 아직 <b>아무것도 저장되지 않은 미리보기</b>입니다.' },
+  { who: '🛎 접수 창구', phase: '확정', text: '사용자가 안을 고르고 "주문 확정"을 누릅니다. 로그인 확인 후 요청(수량, 고른 안, 시뮬레이션 때의 기준 정보 버전, 메모)을 받습니다.' },
+  { who: '🧑‍💼 담당자', phase: '확정', text: '화면이 보내 준 계산 결과는 쓰지 않고, <b>같은 수량으로 다시 계산</b>합니다. 그리고 기준 정보 버전이 시뮬레이션 때와 같은지 비교합니다.', fail: 'stale',
+    failText: '"시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요" 안내와 함께 확정을 거절합니다. (충돌)' },
+  { who: '🧑‍💼 담당자', phase: '확정', text: '고른 안이 실제로 있는지, 메모가 1,000자 이하인지 확인합니다.' },
+  { who: '📒 장부', phase: '확정', text: '주문을 저장합니다. 수량·기준 정보·경로·일별 생산을 <b>확정 당시 모습 그대로</b> 통째로 보관하고, 상태 이력 첫 줄("→ 확정")을 남깁니다.' },
+  { who: '🛎 접수 창구', phase: '확정', text: '주문번호를 화면에 알려 줍니다. 이제 주문 목록에서 볼 수 있고 상태를 관리할 수 있습니다.' },
+];
+let jPos = 0, jStopped = false;
+function jDraw(upto) {
+  const sc = $('jScenario').value;
+  $('jLog').innerHTML = JOURNEY.slice(0, upto).map((s, i) =>
+    `<li style="padding:6px 0; border-bottom:1px solid var(--line)"><span class="chip">${i + 1}</span> <span class="chip" style="background:none;border:1px solid var(--line);color:var(--muted)">${s.phase}</span> <b>${s.who}</b><br>${s.text}</li>`).join('');
+  $('jEnd').hidden = true;
+}
+function jNext() {
+  if (jStopped || jPos >= JOURNEY.length) return;
+  const sc = $('jScenario').value, s = JOURNEY[jPos];
+  jPos++; jDraw(jPos);
+  if (s.fail && s.fail === sc) {
+    jStopped = true;
+    $('jEnd').hidden = false;
+    $('jEnd').innerHTML = `<b style="color:var(--bad)">여기서 멈춥니다.</b> ${s.failText}`;
+  } else if (jPos === JOURNEY.length) {
+    jStopped = true;
+    $('jEnd').hidden = false;
+    $('jEnd').innerHTML = '<b style="color:var(--ok)">완료.</b> 한 건의 주문이 확정되었습니다.';
+  } else if (jPos === 5 && sc === 'stale') {
+    $('jEnd').hidden = false;
+    $('jEnd').innerHTML = '이 사이에 다른 사람이 마스터 화면에서 값을 저장했다고 가정합니다. 계속 진행해 보세요.';
+  }
+  $('jNext').disabled = jStopped;
+}
+function jReset() { jPos = 0; jStopped = false; $('jNext').disabled = false; jDraw(0); }
+$('jNext').onclick = jNext; $('jReset').onclick = jReset; $('jScenario').onchange = jReset;
+jReset();
+
+/* ---------- 탭3: 퀴즈 ---------- */
+const QUIZ = [
+  { q: '일본 공장은 창고 한도가 2,000K입니다. 주문이 5,000K라면 배는 일본을 몇 번 방문할까요?', o: ['1번', '2번', '3번'], a: 2, e: '5,000 ÷ 2,000 = 2.5 → 올림해서 3번입니다.' },
+  { q: '배가 한국 항구에서 출항을 기다리는 동안 비용은?', o: ['하루마다 발생', '발생하지 않음'], a: 1, e: '한국에서 대기는 무료입니다. 그래서 배는 재고가 찰 때까지 기다렸다가 늦게 출항할 수 있습니다.' },
+  { q: '확정한 주문이 "완료" 상태입니다. "취소"로 바꿀 수 있나요?', o: ['가능', '불가능'], a: 1, e: '완료와 취소는 마지막 상태라 더 바꿀 수 없습니다.' },
+  { q: '시뮬레이션 화면에 보이는 3가지 안은 이미 저장된 상태일까요?', o: ['저장됨', '저장되지 않은 미리보기'], a: 1, e: '확정을 눌러야 저장됩니다. 그것도 화면의 값이 아니라 서버가 같은 수량으로 다시 계산한 결과로 저장합니다.' },
+  { q: '확정 후 마스터(항해 일수 등)를 수정하면 이미 확정된 주문은?', o: ['새 값으로 바뀜', '확정 당시 값 그대로'], a: 1, e: '확정된 주문은 확정 당시의 값으로 보존됩니다.' },
+];
+const qz = $('quiz');
+QUIZ.forEach((item, i) => {
+  const d = document.createElement('div'); d.style.marginBottom = '14px';
+  d.innerHTML = `<p><b>Q${i + 1}.</b> ${item.q}</p><div class="row" style="align-items:stretch"></div><div class="small" style="margin-top:6px"></div>`;
+  const box = d.children[1], out = d.children[2];
+  item.o.forEach((t, j) => {
+    const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = t;
+    b.onclick = () => {
+      out.innerHTML = j === item.a ? `<span style="color:var(--ok)">정답!</span> ${item.e}`
+        : `<span style="color:var(--bad)">아쉬워요.</span> ${item.e}`;
+    };
+    box.appendChild(b);
+  });
+  qz.appendChild(d);
+});
+</script>
+</body>
+</html>
