@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 사전 점검</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; padding: 28px 16px 64px; }
+  .hero.hilp { background: linear-gradient(135deg, #d97706, #dc2626); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.2); font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.55rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .9; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: .82rem; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid2 .card { margin-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  ul.ev { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem; }
+  .meter { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .meter i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }
+  .meter i.on.low { background: var(--ok); } .meter i.on.medium { background: var(--warn); } .meter i.on.high { background: var(--bad); }
+  .risk { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; background: var(--bg); border-radius: 0 10px 10px 0; }
+  .risk.low { border-color: var(--ok); } .risk.medium { border-color: var(--warn); } .risk.high { border-color: var(--bad); }
+  .alert { border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  .tc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .tc header { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .tc code { font-size: .85rem; color: var(--muted); }
+  .tc dl { margin: 8px 0 0; display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; font-size: .88rem; }
+  .tc dt { color: var(--muted); } .tc dd { margin: 0; white-space: pre-wrap; }
+  .check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .check:first-of-type { border-top: 0; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .check b { display: block; } .check.done b { text-decoration: line-through; color: var(--muted); }
+  .progress { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .plan { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 14px; font-size: .9rem; }
+  details summary { cursor: pointer; font-weight: 700; }
+  ol.q { margin: 8px 0 0; padding-left: 20px; } ol.q li { margin-bottom: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero">
+  <div class="wrap">
+    <span class="badge" id="badge"></span>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="hilpBox"></div>
+  <div class="grid2">
+    <section class="card"><h2>🧭 배경 이해</h2><div id="bg"></div></section>
+    <section class="card"><h2>🎯 목적 이해</h2><div id="pu"></div></section>
+  </div>
+  <section class="card" style="margin-top:16px"><h2>⚠️ 변경 규모와 위험</h2><div id="risk"></div></section>
+  <section class="card"><h2>🧪 테스트 점검</h2>
+    <div class="chips" id="chips"></div>
+    <div id="tcs"></div>
+  </section>
+  <section class="card"><h2>✅ 구현 후 꼭 확인할 3가지</h2>
+    <div class="progress"><i id="bar"></i></div><div class="small muted" id="barTxt"></div>
+    <div id="checks"></div>
+  </section>
+  <section class="card" id="planCard"><h2>🗺️ 구현 계획</h2><div class="plan" id="plan"></div></section>
+</main>
+<footer>impl-plan 사전 점검 · 이 페이지는 계획 단계의 점검 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"존재하지 않는 주문 번호로 주문 상세 화면에 접속하면 오류 화면 대신 사용자가 이해할 수 있는 안내를 보여 준다","round":1,"status":"READY","reason":"","questions":[],"background":{"understood":true,"summary":"GET /orders/{id} 는 service.getOrder(id) 가 BusinessException(\"주문을 찾을 수 없습니다\")을 던지는데 detail() 이 잡지 않아 HTTP 500 오류 화면이 뜬다. 같은 컨트롤러의 다른 메서드는 BusinessException 을 잡아 메시지로 안내한다. 취소는 주문을 지우므로 취소 직후에도 같은 오류가 난다(PRD §10-1).","evidence":["src/main/java/com/example/demo/controller/AppController.java:100-106 (detail, 예외 미처리)","src/main/java/com/example/demo/service/BatteryService.java:266 (getOrder)","docs/PRD-INTENT/team/PRD.md:141","docs/PRD-INTENT/team/INTENT.md:76"]},"purpose":{"understood":true,"summary":"INTENT G7: 없는 주문 같은 뜻밖의 상황도 오류 화면이 아니라 안내 메시지로 알린다. 안내 문구는 '주문을 찾을 수 없습니다' 이고 주문 목록으로 돌아갈 링크가 있어야 한다. 취소 방식(삭제 vs 상태 유지, INTENT §7-1)은 이번 범위 밖이다.","evidence":["docs/PRD-INTENT/team/INTENT.md:52 (G7)","src/test/e2e/robustness.spec.ts:149-162 (S10 기대 동작)","src/test/e2e/team-ctkim1005.spec.ts:275-289 (T27 기대 동작)"]},"risk":{"size":"small","severity":"low","userAware":true,"warning":"","items":[{"title":"범위 한정","detail":"취소 시 주문 삭제 여부(INTENT §7-1 미결)는 건드리지 않는다. 상세 화면의 없는 주문 안내만 고친다.","severity":"low"},{"title":"HTTP 상태 코드","detail":"안내 화면은 404 로 응답한다. 기존 E2E 는 500 이 아님과 문구/링크 표시만 확인하므로 호환된다.","severity":"low"},{"title":"공용 파일 미수정","detail":"AppController, order-detail 또는 새 템플릿, JUnit 만 수정한다. 팀 공용 파일은 건드리지 않는다.","severity":"low"}]},"testCases":[{"id":"TC-1","origin":"new","kind":"feature","target":"GET /orders/{id}","description":"없는 번호(999999)는 500 이 아니라 안내 화면(404)","input":"로그인 후 GET /orders/999999","expected":"상태 404, 본문에 '주문을 찾을 수 없습니다'와 주문 목록 링크, 스택트레이스 없음"},{"id":"TC-2","origin":"new","kind":"boundary","target":"GET /orders/{id}","description":"경계값 id 0, 음수, Long 최대값","input":"GET /orders/0, /orders/-1, /orders/9223372036854775807","expected":"모두 안내 화면, 500 아님"},{"id":"TC-3","origin":"new","kind":"boundary","target":"GET /orders/{id}","description":"숫자가 아닌 id","input":"GET /orders/abc","expected":"500 이 아님(400 또는 안내), 내부 정보 노출 없음"},{"id":"TC-4","origin":"new","kind":"regression","target":"취소 직후 상세","description":"주문 취소 후 리다이렉트된 상세 화면도 안내로 표시","input":"주문 확정 → 취소 → 상세","expected":"안내 화면, 500 아님"},{"id":"TC-5","origin":"existing","kind":"regression","target":"OrderFlowTests.confirmThenDetailAndStatusFlow","description":"존재하는 주문 상세와 상태 변경 흐름 유지","input":"확정 → 상세 → 상태 변경","expected":"기존과 동일하게 통과"},{"id":"TC-6","origin":"existing","kind":"regression","target":"OrderFlowTests.pagesRender","description":"주요 화면 렌더링 유지","input":"각 화면 GET","expected":"200"},{"id":"TC-7","origin":"existing","kind":"regression","target":"robustness.spec.ts S10 / team-ctkim1005.spec.ts T27","description":"없는 주문 접근 E2E (known-issue)","input":"/orders/999999","expected":"not 500, 문구와 주문 목록 링크 표시, /orders 이동 정상"}],"checklist":[{"title":"없는 주문은 안내 화면","detail":"/orders/999999 가 500 이 아닌 404 로 '주문을 찾을 수 없습니다'와 주문 목록 링크를 보여 주고 스택트레이스가 없다."},{"title":"정상 주문 상세·상태 변경 불변","detail":"존재하는 주문의 상세, 상태 전이, 낙관적 충돌(409/메시지) 동작이 그대로이고 OrderFlowTests 가 통과한다."},{"title":"경계 입력과 E2E 확인","detail":"id 0·음수·최대값·문자열에서 500 이 없고, robustness S10 과 team-ctkim1005 T27 이 통과한다."}],"plan":"테스트 먼저: OrderFlowTests 에 없는 주문 상세(999999, 0, -1) 404+안내 문구 테스트 추가(실패 확인). 구현: AppController.detail() 에서 BusinessException 을 잡아 model 에 error 를 담고 응답 상태를 404 로 설정한 뒤 안내 화면(order-detail 에 order null 분기 또는 order-missing 템플릿, 주문 목록 링크 포함)을 렌더링. 숫자가 아닌 id 는 현재 동작 확인 후 500 이면 처리. 마지막으로 ./gradlew test 와 관련 E2E(robustness, team-ctkim1005) 실행."}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">점검 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pill(text, kind) { return el('span', 'pill ' + kind, text); }
+
+  var hilp = D.status === 'HILP';
+  $('hero').classList.toggle('hilp', hilp);
+  $('badge').textContent = hilp ? '⏸ HILP — 사람의 판단이 필요합니다' : '✔ READY — 구현을 진행할 수 있습니다';
+  $('title').textContent = D.request || '구현 사전 점검';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (hilp ? (D.reason || '') : '배경·목적·위험·테스트를 점검했습니다');
+  document.title = (hilp ? '[HILP] ' : '[READY] ') + '구현 사전 점검';
+
+  var tcs = D.testCases || [];
+  var tiles = [
+    ['점검 결과', hilp ? 'HILP' : 'READY'],
+    ['테스트 케이스', tcs.length],
+    ['신규 작성', tcs.filter(function (t) { return t.origin === 'new'; }).length],
+    ['위험도', ({ low: '낮음', medium: '보통', high: '높음' })[(D.risk || {}).severity] || '-']
+  ];
+  tiles.forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  if (hilp) {
+    var box = el('section', 'card'); box.style.borderColor = 'var(--bad)';
+    box.appendChild(el('h2', '', '🙋 사람이 답해야 할 질문'));
+    if (D.risk && D.risk.warning && !D.risk.userAware) box.appendChild(el('div', 'alert', '경고: ' + D.risk.warning));
+    var ol = el('ol', 'q'); (D.questions || []).forEach(function (q) { ol.appendChild(el('li', '', q)); });
+    box.appendChild(ol); $('hilpBox').appendChild(box);
+  }
+
+  function understanding(root, u) {
+    u = u || {};
+    root.appendChild(pill(u.understood ? '이해함' : '이해하지 못함', u.understood ? 'ok' : 'bad'));
+    root.appendChild(el('p', '', u.summary || '(내용 없음)'));
+    if ((u.evidence || []).length) { var ul = el('ul', 'ev'); u.evidence.forEach(function (x) { ul.appendChild(el('li', '', x)); }); root.appendChild(ul); }
+  }
+  understanding($('bg'), D.background); understanding($('pu'), D.purpose);
+
+  var R = D.risk || {}, lv = { low: 1, medium: 2, high: 3 }[R.severity] || 0;
+  var sz = ({ small: '작음', medium: '보통', large: '큼' })[R.size] || '-';
+  var rr = $('risk');
+  rr.appendChild(pill('변경 규모: ' + sz, 'info')); rr.appendChild(document.createTextNode(' '));
+  rr.appendChild(pill('위험도: ' + (({ low: '낮음', medium: '보통', high: '높음' })[R.severity] || '-'), R.severity === 'high' ? 'bad' : R.severity === 'medium' ? 'warn' : 'ok'));
+  rr.appendChild(document.createTextNode(' ')); rr.appendChild(pill(R.userAware ? '사용자가 인지함' : '사용자 인지 여부 불명', R.userAware ? 'ok' : 'warn'));
+  var m = el('div', 'meter'); for (var i = 1; i <= 3; i++) m.appendChild(el('i', i <= lv ? 'on ' + R.severity : '')); rr.appendChild(m);
+  if (R.warning) rr.appendChild(el('div', 'alert warn', R.warning));
+  (R.items || []).forEach(function (x) { var b = el('div', 'risk ' + (x.severity || '')); b.appendChild(el('b', '', x.title || '')); if (x.detail) b.appendChild(el('div', 'small muted', x.detail)); rr.appendChild(b); });
+  if (!R.warning && !(R.items || []).length) rr.appendChild(el('p', 'muted', '특별한 위험 요소를 찾지 못했습니다.'));
+
+  var filter = 'all', q = '';
+  var defs = [['all', '전체'], ['existing', '기존'], ['new', '신규'], ['regression', '회귀'], ['boundary', '경계값']];
+  function match(t) {
+    if (filter === 'existing' || filter === 'new') { if (t.origin !== filter) return false; }
+    else if (filter !== 'all' && t.kind !== filter) return false;
+    var s = (t.id + ' ' + t.target + ' ' + t.description + ' ' + t.input + ' ' + t.expected).toLowerCase();
+    return !q || s.indexOf(q) >= 0;
+  }
+  function drawTcs() {
+    var root = $('tcs'); root.textContent = '';
+    var list = tcs.filter(match);
+    if (!list.length) { root.appendChild(el('div', 'empty', '조건에 맞는 테스트 케이스가 없습니다.')); return; }
+    list.forEach(function (t) {
+      var c = el('div', 'tc'), h = el('header');
+      h.appendChild(pill(t.origin === 'new' ? '신규' : '기존', t.origin === 'new' ? 'acc' : 'info'));
+      h.appendChild(pill(({ regression: '회귀', boundary: '경계값', feature: '기능' })[t.kind] || t.kind || '', t.kind === 'boundary' ? 'warn' : t.kind === 'regression' ? 'ok' : 'info'));
+      h.appendChild(el('code', '', t.id || '')); c.appendChild(h);
+      c.appendChild(el('b', '', t.description || ''));
+      var dl = el('dl');
+      [['대상', t.target], ['입력', t.input], ['기대', t.expected]].forEach(function (p) { if (p[1]) { dl.appendChild(el('dt', '', p[0])); dl.appendChild(el('dd', '', p[1])); } });
+      c.appendChild(dl); root.appendChild(c);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); drawTcs(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 케이스 검색'; s.oninput = function () { q = s.value.toLowerCase(); drawTcs(); }; $('chips').appendChild(s);
+  drawTcs();
+
+  var key = 'precheck:' + (D.request || '') + ':' + (D.round || 0), saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  var cl = D.checklist || [];
+  function progress() {
+    var n = cl.filter(function (_, i) { return saved[i]; }).length;
+    $('bar').style.width = (cl.length ? n / cl.length * 100 : 0) + '%';
+    $('barTxt').textContent = n + ' / ' + cl.length + ' 확인함';
+  }
+  cl.forEach(function (c, i) {
+    var lab = el('label', 'check' + (saved[i] ? ' done' : '')), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!saved[i];
+    var box = el('div'); box.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); if (c.detail) box.appendChild(el('span', 'small muted', c.detail));
+    cb.onchange = function () { saved[i] = cb.checked; lab.classList.toggle('done', cb.checked); try { localStorage.setItem(key, JSON.stringify(saved)); } catch (e) {} progress(); };
+    lab.appendChild(cb); lab.appendChild(box); $('checks').appendChild(lab);
+  });
+  progress();
+
+  if (D.plan) $('plan').textContent = D.plan; else $('planCard').hidden = true;
+})();
+</script>
+</body>
+</html>
