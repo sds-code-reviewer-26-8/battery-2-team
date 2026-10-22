@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>주문 상세 - 배터리 주문 관리</title>
+	<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar" id="topbar"></header>
+<main>
+	<div id="pageAlerts"></div>
+
+	<div id="content" hidden>
+		<div class="page-head">
+			<h1 id="title"></h1>
+			<a class="button" href="/orders">목록으로</a>
+		</div>
+
+		<div id="flash"></div>
+
+		<section class="card">
+			<dl class="meta" id="meta"></dl>
+			<div id="actions"></div>
+		</section>
+
+		<section class="card">
+			<h2>상태 이력</h2>
+			<table class="grid">
+				<thead><tr><th>일시</th><th>이전 상태</th><th>새 상태</th><th>변경한 사람</th></tr></thead>
+				<tbody id="history"></tbody>
+			</table>
+		</section>
+
+		<div id="summary"></div>
+
+		<section class="card">
+			<h2>지도 애니메이션 (저장된 계획)</h2>
+			<div id="anim"></div>
+		</section>
+
+		<section class="card" id="details"></section>
+	</div>
+</main>
+
+<script src="/js/common.js"></script>
+<script src="/js/anim.js"></script>
+<script src="/js/planview.js"></script>
+<script src="/js/order-detail.js"></script>
+</body>
+</html>

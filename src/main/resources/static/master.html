@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>마스터 데이터 - 배터리 주문 관리</title>
+	<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar" id="topbar"></header>
+<main>
+	<div class="page-head"><h1>마스터 데이터</h1></div>
+	<p class="muted">모든 사용자가 같은 값을 봅니다. 값을 바꿔도 이미 확정한 주문의 계획은 바뀌지 않습니다.</p>
+
+	<div id="alerts"></div>
+
+	<form id="masterForm" action="/api/master" method="post">
+		<div id="masterBody"></div>
+		<button type="submit" class="primary">저장</button>
+	</form>
+</main>
+<script src="/js/common.js"></script>
+<script src="/js/master.js"></script>
+</body>
+</html>

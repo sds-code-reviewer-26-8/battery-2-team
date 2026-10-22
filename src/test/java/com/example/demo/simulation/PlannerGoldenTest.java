@@ -1,6 +1,7 @@
 package com.example.demo.simulation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.example.demo.entity.Country;
 import com.example.demo.simulation.Master.FactoryParam;
@@ -143,9 +144,11 @@ class PlannerGoldenTest {
 	void resultsMatchTheRecordedGolden() throws IOException {
 		String actual = render();
 		if ("true".equals(System.getenv("GOLDEN_UPDATE"))) {
+			// 기준 파일을 다시 만드는 모드에서는 비교가 의미 없으므로 통과시키지 않는다(CI 에서는 실패, 로컬에서는 건너뜀)
+			assertThat(System.getenv("CI")).as("CI 에서는 GOLDEN_UPDATE 를 쓸 수 없습니다").isNull();
 			Files.createDirectories(GOLDEN_SOURCE.getParent());
 			Files.writeString(GOLDEN_SOURCE, actual, StandardCharsets.UTF_8);
-			return;
+			assumeTrue(false, "기준 파일을 다시 만들었습니다. git diff 로 바뀐 내용을 확인하세요");
 		}
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream(GOLDEN)) {
 			assertThat(in).as("기준 파일 %s 이 없습니다. 환경변수 GOLDEN_UPDATE=true 로 한 번 만드세요", GOLDEN).isNotNull();

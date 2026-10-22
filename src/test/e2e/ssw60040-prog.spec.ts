@@ -34,7 +34,7 @@ async function gaugeValues(page: Page): Promise<number[]> {
 /** 상태를 화면 버튼 대신 폼 요청으로 바꾼다. (확인 창 처리와 화면 이동 시간을 아끼기 위함) */
 async function changeStatus(page: Page, id: number, status: 'IN_PROGRESS' | 'COMPLETED'): Promise<void> {
   const version = await orderVersion(page, id);
-  const res = await page.request.post(`/orders/${id}/status`, { form: { status, version: String(version) } });
+  const res = await page.request.post(`/api/orders/${id}/status`, { data: { status, version } });
   expect(res.ok()).toBeTruthy();
 }
 
@@ -202,10 +202,10 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
     try {
       // 2. 주문 상세의 변경 번호(version)를 읽어, 화면 버튼 없이 POST /orders/{id}/status 로 status=COMPLETED 전송
       const version = await orderVersion(page, id);
-      const res = await page.request.post(`/orders/${id}/status`, {
-        form: { status: 'COMPLETED', version: String(version) },
+      const res = await page.request.post(`/api/orders/${id}/status`, {
+        data: { status: 'COMPLETED', version },
       });
-      // 요청은 주문 상세로 돌아오고(리다이렉트), 거절 이유가 화면에 실린다
+      // 요청은 400 으로 거절되고, 거절 이유가 응답에 실린다
       expect(await res.text()).toContain('확정 상태에서는 완료(으)로 바꿀 수 없습니다');
 
       // 3. 주문 상세 다시 확인 → 상태는 여전히 '확정', 변경 이력은 1건
@@ -248,7 +248,7 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
       expect(posts, '서버로 전송된 저장 요청이 없어야 한다').toHaveLength(0);
 
       // 3. 화면 제한을 우회해 shipCount=9 로 POST /master 전송 → 오류 안내, 값 저장되지 않음
-      const bypass = await page.request.post('/master', { form: { shipCount: '9', shipDailyCost: '1' } });
+      const bypass = await page.request.post('/api/master', { data: { shipCount: '9', shipDailyCost: '1' } });
       expect(await bypass.text()).toContain('배 척수은(는) 1 이상 4 이하의 정수여야 합니다');
       await page.goto('/master');
       await expect(ship).toHaveValue('4');

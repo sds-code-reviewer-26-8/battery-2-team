@@ -87,6 +87,11 @@ public class OrderService {
 		return orders.findById(id).orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다"));
 	}
 
+	/** 확정 때 저장해 둔 계획(주문 당시의 마스터 값 포함) */
+	public StoredPlan storedPlan(Order order) {
+		return json.readValue(order.getPlanJson(), StoredPlan.class);
+	}
+
 	@Transactional(readOnly = true)
 	public List<OrderStatusHistory> history(Long orderId) {
 		return histories.findByOrderIdOrderByIdAsc(orderId);

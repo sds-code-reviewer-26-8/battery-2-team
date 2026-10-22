@@ -129,10 +129,10 @@ test.describe('견고성', () => {
     try {
       // 화면 버튼은 허용된 전이만 보여 주므로, 폼 요청으로 건너뛰기를 시도한다
       const version = await orderVersion(page, id);
-      const res = await page.request.post(`/orders/${id}/status`, {
-        form: { status: 'COMPLETED', version: String(version) },
+      const res = await page.request.post(`/api/orders/${id}/status`, {
+        data: { status: 'COMPLETED', version },
       });
-      // 요청은 주문 상세로 돌아오고(리다이렉트), 거절 이유가 화면에 실린다
+      // 요청은 400 으로 거절되고, 거절 이유가 응답에 실린다
       expect(await res.text()).toContain('확정 상태에서는 완료(으)로 바꿀 수 없습니다');
 
       await page.goto(`/orders/${id}`);

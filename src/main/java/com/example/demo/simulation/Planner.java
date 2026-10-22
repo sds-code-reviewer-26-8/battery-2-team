@@ -6,8 +6,8 @@ import com.example.demo.simulation.Plan.ShipPlan;
 import com.example.demo.simulation.Plan.Stop;
 import com.example.demo.simulation.Plan.Trip;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -301,7 +301,9 @@ public final class Planner {
 		for (List<List<Country>> trips : shipTrips) {
 			ShipPlan ship = scheduleShip(master, amounts, trips, ships.size() + 1);
 			ships.add(ship);
-			totalDays = Math.max(totalDays, ship.trips().isEmpty() ? 0 : ship.trips().get(ship.trips().size() - 1).returnDay());
+			List<Trip> planned = ship.trips();
+			int shipEnd = planned.isEmpty() ? 0 : planned.get(planned.size() - 1).returnDay();
+			totalDays = Math.max(totalDays, shipEnd);
 			shipping += (long) ship.sailDays() * master.shipDailyCostWon();
 		}
 		return new Candidate(ships, totalDays, shipping);

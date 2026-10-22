@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.demo.entity.OrderStatus;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.OrderService;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +21,7 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -36,8 +39,9 @@ class OrderFlowTests {
 
 	private MockHttpSession login() throws Exception {
 		MockHttpSession session = new MockHttpSession();
-		mvc.perform(post("/login").param("username", "admin").param("password", "admin").session(session))
-				.andExpect(redirectedUrl("/orders"));
+		mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"username\":\"admin\",\"password\":\"admin\"}").session(session))
+				.andExpect(status().isOk());
 		return session;
 	}
 
@@ -51,10 +55,12 @@ class OrderFlowTests {
 
 	@Test
 	void wrongPasswordIsRejected() throws Exception {
-		mvc.perform(post("/login").param("username", "admin").param("password", "x"))
-				.andExpect(status().isOk());
-		mvc.perform(post("/login").param("username", "other").param("password", "admin"))
-				.andExpect(status().isOk());
+		mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"username\":\"admin\",\"password\":\"x\"}"))
+				.andExpect(status().isUnauthorized());
+		mvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"username\":\"other\",\"password\":\"admin\"}"))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -144,18 +150,23 @@ class OrderFlowTests {
 		long id = confirm(s);
 		String before = orderService.getOrder(id).getPlanJson();
 
-		var form = post("/master").session(s)
-				.param("shipCount", "3").param("shipDailyCost", "1.5");
+		Map<String, String> form = new HashMap<>();
+		form.put("shipCount", "3");
+		form.put("shipDailyCost", "1.5");
 		for (String c : new String[] {"CHINA", "JAPAN", "VIETNAM", "INDONESIA"}) {
-			form.param("maxDaily_" + c, "500").param("stockLimit_" + c, "5000").param("unitCost_" + c, "600");
+			form.put("maxDaily_" + c, "500");
+			form.put("stockLimit_" + c, "5000");
+			form.put("unitCost_" + c, "600");
 		}
 		String[] all = {"KOREA", "CHINA", "JAPAN", "VIETNAM", "INDONESIA"};
 		for (int i = 0; i < all.length; i++) {
 			for (int j = i + 1; j < all.length; j++) {
-				form.param("days_" + all[i] + "_" + all[j], "3");
+				form.put("days_" + all[i] + "_" + all[j], "3");
 			}
 		}
-		mvc.perform(form).andExpect(redirectedUrl("/master"));
+		mvc.perform(post("/api/master").session(s).contentType(MediaType.APPLICATION_JSON)
+						.content(new ObjectMapper().writeValueAsString(form)))
+				.andExpect(status().isOk());
 
 		assertThat(orderService.getOrder(id).getPlanJson()).isEqualTo(before);
 		mvc.perform(get("/api/master").session(s))
@@ -165,8 +176,9 @@ class OrderFlowTests {
 	@Test
 	void invalidMasterIsNotSaved() throws Exception {
 		MockHttpSession s = login();
-		mvc.perform(post("/master").session(s).param("shipCount", "9").param("shipDailyCost", "abc"))
-				.andExpect(status().isOk());
+		mvc.perform(post("/api/master").session(s).contentType(MediaType.APPLICATION_JSON)
+						.content("{\"shipCount\":\"9\",\"shipDailyCost\":\"abc\"}"))
+				.andExpect(status().isBadRequest());
 		mvc.perform(get("/api/master").session(s)).andExpect(jsonPath("$.shipCount").value(3));
 	}
 }
