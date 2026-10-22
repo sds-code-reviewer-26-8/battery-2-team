@@ -77,7 +77,7 @@ async function saveMasterField(page: Page, name: string, value: string): Promise
 
 /** 주문이 아직 있을 때만 취소(=삭제)로 정리한다. 이미 삭제된 주문의 상세를 열면 오류 화면에서 기다리게 되므로 먼저 확인한다. */
 async function removeIfExists(page: Page, id: number): Promise<void> {
-  const res = await page.request.get(`/orders/${id}`, { maxRedirects: 0 });
+  const res = await page.request.get(`/api/orders/${id}`);
   if (res.status() === 200) await removeOrder(page, id);
 }
 

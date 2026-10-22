@@ -52,6 +52,8 @@ export async function changeStatus(page: Page, label: '진행' | '완료' | '취
  */
 export async function readMasterForm(page: Page): Promise<Record<string, string>> {
   await page.goto('/master');
+  // 화면은 입력칸을 /api/master/form 응답으로 그리므로, 그려질 때까지 기다린 뒤 읽는다
+  await page.locator('form[action$="/master"] input[name="shipCount"]').waitFor();
   return page.locator('form[action$="/master"] input[name]').evaluateAll(inputs =>
     Object.fromEntries((inputs as HTMLInputElement[]).map(input => [input.name, input.value])),
   );
@@ -59,6 +61,6 @@ export async function readMasterForm(page: Page): Promise<Record<string, string>
 
 /** 마스터 데이터를 저장한다. form 은 readMasterForm 결과에 바꿀 값만 덮어쓴 것이다. */
 export async function saveMasterForm(page: Page, form: Record<string, string>): Promise<void> {
-  const res = await page.request.post('/master', { form });
+  const res = await page.request.post('/api/master', { data: form });
   expect(res.ok(), '마스터 데이터 저장 요청이 성공해야 함').toBeTruthy();
 }

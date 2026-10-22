@@ -62,9 +62,8 @@ export async function orderVersion(page: Page, id: number): Promise<number> {
 export async function removeOrder(page: Page, id: number): Promise<void> {
   try {
     const version = await orderVersion(page, id);
-    await page.request.post(`/orders/${id}/status`, {
-      form: { status: 'CANCELED', version: String(version) },
-      maxRedirects: 0,
+    await page.request.post(`/api/orders/${id}/status`, {
+      data: { status: 'CANCELED', version },
     });
   } catch {
     /* 정리 실패는 테스트 결과에 영향을 주지 않는다 */
