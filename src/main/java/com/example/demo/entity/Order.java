@@ -71,6 +71,14 @@ public class Order {
 
 	public Order(LocalDateTime confirmedAt, String createdBy, int totalK, String routeType, String routeLabel,
 			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String planJson) {
+		this(confirmedAt, createdBy, totalK, routeType, routeLabel, totalDays, productionCost, shippingCost, totalCost,
+				memo, planJson, null, null, null);
+	}
+
+	/** 필요 납기(dueAsap, dueDate, dueExceeded)는 확정 때 한 번만 정하므로 생성자로만 받는다. 납기가 없으면 모두 null. */
+	public Order(LocalDateTime confirmedAt, String createdBy, int totalK, String routeType, String routeLabel,
+			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String planJson,
+			Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
 		this.confirmedAt = confirmedAt;
 		this.createdBy = createdBy;
 		this.totalK = totalK;
@@ -82,6 +90,9 @@ public class Order {
 		this.totalCost = totalCost;
 		this.memo = memo;
 		this.planJson = planJson;
+		this.dueAsap = dueAsap;
+		this.dueDate = dueDate;
+		this.dueExceeded = dueExceeded;
 		this.status = OrderStatus.CONFIRMED;
 	}
 
@@ -143,13 +154,6 @@ public class Order {
 
 	public long getVersion() {
 		return version;
-	}
-
-	/** 확정 때 한 번만 정한다 */
-	public void setDue(Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
-		this.dueAsap = dueAsap;
-		this.dueDate = dueDate;
-		this.dueExceeded = dueExceeded;
 	}
 
 	public Boolean getDueAsap() {

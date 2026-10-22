@@ -12,8 +12,7 @@
 	const dueAsap = document.getElementById('dueAsap');
 	const dueDate = document.getElementById('dueDate');
 
-	const MIN_DUE_DAYS = 5;            // 서버(OrderService)와 같은 범위
-	const MAX_DUE_DAYS = 50;
+	let dueRules = null;               // 서버가 알려 주는 납기 규칙({minDays, maxDays, today}). 범위와 '오늘'을 서버와 같게 쓴다
 
 	let master = null;                 // 게이지 옆 방문 횟수 표시용
 	let values = {};                   // 나라별 주문 수량(K)
@@ -100,22 +99,22 @@
 
 	// ---- 필요 납기
 
-	/** 브라우저 로컬 날짜 기준 오늘 + days 를 yyyy-MM-dd 로 (UTC 로 바꾸지 않는다) */
-	function localDate(days) {
-		const d = new Date();
-		d.setHours(0, 0, 0, 0);
-		d.setDate(d.getDate() + days);
-		const p = n => String(n).padStart(2, '0');
-		return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+	/** yyyy-MM-dd 두 날짜 사이의 일수. 시간대와 무관하게 날짜만 계산한다(UTC 자정끼리 뺀다) */
+	function daysBetween(from, to) {
+		const utc = s => Date.UTC(...s.split('-').map((n, i) => i === 1 ? n - 1 : Number(n)));
+		return Math.round((utc(to) - utc(from)) / 86400000);
 	}
 
-	/** 오늘부터 납기일까지의 일수. '가능한 빨리'이거나 날짜가 비었으면 null */
+	/** 서버 기준 오늘 + days 를 yyyy-MM-dd 로 */
+	function dateAfterToday(days) {
+		const [y, m, d] = dueRules.today.split('-').map(Number);
+		return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+	}
+
+	/** 서버 기준 오늘부터 납기일까지의 일수. '가능한 빨리'이거나 날짜가 비었거나 규칙이 없으면 null */
 	function dueDays() {
-		if (dueAsap.checked || !dueDate.value) return null;
-		const [y, m, d] = dueDate.value.split('-').map(Number);
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		return Math.round((new Date(y, m - 1, d) - today) / 86400000);
+		if (!dueRules || dueAsap.checked || !dueDate.value) return null;
+		return daysBetween(dueRules.today, dueDate.value);
 	}
 
 	/** 화면에서 먼저 확인한다. 문제가 없으면 null, 있으면 이유 */
@@ -123,22 +122,31 @@
 		if (dueAsap.checked) return null;
 		if (!dueDate.value) return "필요 납기일을 선택하거나 '가능한 빨리'를 체크하세요";
 		const days = dueDays();
-		if (days < MIN_DUE_DAYS || days > MAX_DUE_DAYS) {
-			return `필요 납기일은 오늘부터 ${MIN_DUE_DAYS}~${MAX_DUE_DAYS}일 사이로 선택하세요`;
+		if (days < dueRules.minDays || days > dueRules.maxDays) {
+			return `필요 납기일은 오늘부터 ${dueRules.minDays}~${dueRules.maxDays}일 사이로 선택하세요`;
 		}
 		return null;
 	}
 
 	/** 납기 조건이 바뀌면 시뮬레이션은 그대로 두고 결과 표시(납기 초과)만 다시 그린다 */
 	function onDueChange() {
+		// 날짜를 고르기 전에는 빈 칸으로 둔다(자동으로 가장 이른 날짜를 채우면 경로안이 모두 빨갛게 보인다)
 		dueDate.disabled = dueAsap.checked;
-		if (!dueAsap.checked && !dueDate.value) dueDate.value = dueDate.min;
 		confirmError.hidden = true;
 		if (result) renderOptions();
 	}
 
-	dueDate.min = localDate(MIN_DUE_DAYS);
-	dueDate.max = localDate(MAX_DUE_DAYS);
+	/** 서버가 알려 준 규칙으로 날짜 선택 범위와 안내를 정하고, 그 뒤에 '가능한 빨리' 체크를 풀 수 있게 한다 */
+	getJson('/api/orders/due-rules').then(rules => {
+		dueRules = rules;
+		dueDate.min = dateAfterToday(rules.minDays);
+		dueDate.max = dateAfterToday(rules.maxDays);
+		document.getElementById('dueHint').textContent = `'가능한 빨리'를 해제하면 오늘부터 ${rules.minDays}~${rules.maxDays}일 사이의 `
+			+ '납기일을 고를 수 있습니다. 납기일까지의 일수보다 총 소요일이 긴 경로안은 빨간색으로 표시됩니다(확정은 가능).';
+		dueAsap.disabled = false;
+	}).catch(() => {
+		document.getElementById('dueHint').textContent = "납기 규칙을 불러오지 못해 '가능한 빨리'로만 주문할 수 있습니다.";
+	});
 	dueAsap.addEventListener('change', onDueChange);
 	dueDate.addEventListener('input', onDueChange);
 	dueDate.addEventListener('change', onDueChange);
@@ -230,7 +238,7 @@
 				routeType: selected,
 				masterVersion: result.master.version,
 				memo: document.getElementById('memo').value,
-				asap: dueAsap.checked,
+				dueAsap: dueAsap.checked,
 				dueDate: dueAsap.checked ? null : dueDate.value
 			});
 			location.href = '/orders/' + res.id;

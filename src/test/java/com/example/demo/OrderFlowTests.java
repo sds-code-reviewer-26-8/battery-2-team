@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,8 +11,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.demo.entity.OrderStatus;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.OrderService;
+import com.jayway.jsonpath.JsonPath;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +26,9 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.ObjectMapper;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -95,12 +99,12 @@ class OrderFlowTests {
 	private long confirm(MockHttpSession s) throws Exception {
 		MvcResult sim = mvc.perform(post("/api/simulate").session(s).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"orders\":" + ORDERS + "}")).andReturn();
-		int version = com.jayway.jsonpath.JsonPath.read(sim.getResponse().getContentAsString(), "$.master.version");
+		int version = JsonPath.read(sim.getResponse().getContentAsString(), "$.master.version");
 		MvcResult res = mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)
 						.content("{\"orders\":" + ORDERS + ",\"routeType\":\"FAST\",\"masterVersion\":" + version
 								+ ",\"memo\":\"테스트\"}"))
 				.andExpect(status().isOk()).andReturn();
-		Integer id = com.jayway.jsonpath.JsonPath.read(res.getResponse().getContentAsString(), "$.id");
+		Integer id = JsonPath.read(res.getResponse().getContentAsString(), "$.id");
 		return id;
 	}
 
@@ -191,18 +195,18 @@ class OrderFlowTests {
 	private Sim simulate(MockHttpSession s) throws Exception {
 		String body = mvc.perform(post("/api/simulate").session(s).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"orders\":" + ORDERS + "}")).andReturn().getResponse().getContentAsString();
-		int version = com.jayway.jsonpath.JsonPath.read(body, "$.master.version");
+		int version = JsonPath.read(body, "$.master.version");
 		return new Sim(version, days(body, "COST"), days(body, "FAST"));
 	}
 
 	private static int days(String body, String type) {
-		java.util.List<Integer> found = com.jayway.jsonpath.JsonPath.read(body,
+		List<Integer> found = JsonPath.read(body,
 				"$.options[?(@.type=='" + type + "')].totalDays");
 		return found.get(0);
 	}
 
-	/** 납기 필드를 덧붙인 확정 요청. extra 는 ',"asap":false,"dueDate":"..."' 처럼 JSON 조각이다 */
-	private org.springframework.test.web.servlet.ResultActions confirmWith(MockHttpSession s, int version,
+	/** 납기 필드를 덧붙인 확정 요청. extra 는 ',"dueAsap":false,"dueDate":"..."' 처럼 JSON 조각이다 */
+	private ResultActions confirmWith(MockHttpSession s, int version,
 			String routeType, String extra) throws Exception {
 		return mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"orders\":" + ORDERS + ",\"routeType\":\"" + routeType + "\",\"masterVersion\":"
@@ -210,11 +214,11 @@ class OrderFlowTests {
 	}
 
 	private static String due(LocalDate date) {
-		return ",\"asap\":false,\"dueDate\":\"" + date + "\"";
+		return ",\"dueAsap\":false,\"dueDate\":\"" + date + "\"";
 	}
 
-	private long idOf(org.springframework.test.web.servlet.ResultActions r) throws Exception {
-		Integer id = com.jayway.jsonpath.JsonPath.read(r.andReturn().getResponse().getContentAsString(), "$.id");
+	private long idOf(ResultActions r) throws Exception {
+		Integer id = JsonPath.read(r.andReturn().getResponse().getContentAsString(), "$.id");
 		return id;
 	}
 
@@ -239,14 +243,14 @@ class OrderFlowTests {
 		Sim sim = simulate(s);
 		int before = orderService.listOrders(null).size();
 		String range = "필요 납기일은 오늘부터 5~50일 사이로 선택하세요";
-		Map<String, String> cases = new java.util.LinkedHashMap<>();
+		Map<String, String> cases = new LinkedHashMap<>();
 		cases.put(due(LocalDate.now().plusDays(4)), range);
 		cases.put(due(LocalDate.now().plusDays(51)), range);
 		cases.put(due(LocalDate.now().minusDays(1)), range);
-		cases.put(",\"asap\":false,\"dueDate\":\"2026/13/40\"", "필요 납기일 형식이 올바르지 않습니다(yyyy-MM-dd)");
-		cases.put(",\"asap\":false,\"dueDate\":\"abc\"", "필요 납기일 형식이 올바르지 않습니다(yyyy-MM-dd)");
-		cases.put(",\"asap\":false", "필요 납기일을 선택하거나 '가능한 빨리'를 체크하세요");
-		cases.put(",\"asap\":false,\"dueDate\":\"\"", "필요 납기일을 선택하거나 '가능한 빨리'를 체크하세요");
+		cases.put(",\"dueAsap\":false,\"dueDate\":\"2026/13/40\"", "필요 납기일 형식이 올바르지 않습니다(yyyy-MM-dd)");
+		cases.put(",\"dueAsap\":false,\"dueDate\":\"abc\"", "필요 납기일 형식이 올바르지 않습니다(yyyy-MM-dd)");
+		cases.put(",\"dueAsap\":false", "필요 납기일을 선택하거나 '가능한 빨리'를 체크하세요");
+		cases.put(",\"dueAsap\":false,\"dueDate\":\"\"", "필요 납기일을 선택하거나 '가능한 빨리'를 체크하세요");
 		for (var c : cases.entrySet()) {
 			confirmWith(s, sim.version(), "COST", c.getKey())
 					.andExpect(status().isBadRequest())
@@ -262,7 +266,7 @@ class OrderFlowTests {
 		MockHttpSession s = login();
 		Sim sim = simulate(s);
 		// '가능한 빨리'이면 날짜가 범위 밖이어도 보지 않는다
-		long id = idOf(confirmWith(s, sim.version(), "COST", ",\"asap\":true,\"dueDate\":\"1999-01-01\"")
+		long id = idOf(confirmWith(s, sim.version(), "COST", ",\"dueAsap\":true,\"dueDate\":\"1999-01-01\"")
 				.andExpect(status().isOk()));
 		mvc.perform(get("/api/orders/" + id).session(s))
 				.andExpect(status().isOk())

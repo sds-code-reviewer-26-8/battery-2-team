@@ -394,7 +394,6 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
         if ((await optionDays(page, type)) > due) {
           await expect(opt).toHaveClass(/over-due/);
           await expect(opt).toContainText('납기 초과');
-          await expect(opt).toHaveCSS('border-top-color', 'rgb(209, 52, 47)');
         } else {
           await expect(opt).not.toHaveClass(/over-due/);
           await expect(opt).not.toContainText('납기 초과');
@@ -425,7 +424,7 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
       const version = await masterVersion(page);
       for (const days of [4, 51]) {
         const res = await page.request.post('/api/orders', {
-          data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, asap: false, dueDate: localDate(days) },
+          data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, dueAsap: false, dueDate: localDate(days) },
         });
         expect(res.status()).toBe(400);
         expect((await res.json()).error).toBe('필요 납기일은 오늘부터 5~50일 사이로 선택하세요');

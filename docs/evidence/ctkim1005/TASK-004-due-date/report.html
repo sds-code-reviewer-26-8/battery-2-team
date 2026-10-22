@@ -89,7 +89,7 @@
   "round": 1,
   "verdict": "PASS",
   "loop_action": "END",
-  "summary": "체크리스트 3개가 모두 pass 입니다. JUnit 98건이 모두 통과했고, E2E 48건도 모두 통과했습니다(known-issue 실패 0). 대상 테스트 T-DUE, T-DUE2, T06, T15, T17, No.12 가 통과했습니다. 보안 finding 은 0건이고, 아키텍처는 minor 2건뿐이라 layersOk 입니다. 납기 4일, 51일, 과거 날짜, 형식 오류, 날짜 없음은 curl 로 보내 400 과 이유 문구를 직접 확인했고, 이때 주문 건수는 늘지 않았습니다. 5일과 50일은 200 입니다. 기존 API 키와 시뮬레이션 결과(26/20/21일)는 바뀌지 않았습니다. 리뷰 로그: D:/work/battery-2-team/docs/logs/verify/review_20261022_160651.log",
+  "summary": "체크리스트 3개가 모두 pass 입니다. JUnit 98건이 모두 통과했고, E2E 48건도 모두 통과했습니다(known-issue 실패 0). 대상 테스트 T-DUE, T-DUE2, T06, T15, T17, No.12 가 통과했습니다. 보안 finding 은 0건이고, 아키텍처는 minor 2건뿐이라 layersOk 입니다. 납기 4일, 51일, 과거 날짜, 형식 오류, 날짜 없음은 curl 로 보내 400 과 이유 문구를 직접 확인했고, 이때 주문 건수는 늘지 않았습니다. 5일과 50일은 200 입니다. 기존 API 키와 시뮬레이션 결과(26/20/21일)는 바뀌지 않았습니다. 리뷰 로그: docs/logs/verify/review_20261022_160651.log",
   "checklist": [
     {
       "title": "① 납기 입력·빨간 표시·저장이 실제로 동작한다",
@@ -834,6 +834,12 @@
       "location": "docs/PRD-INTENT/team/PRD.md F4·§9·§10-4, INTENT.md §6·§7-4",
       "problem": "팀 문서를 갱신하지 않았습니다. PR 본문에 문서 갱신이 필요하다고 알려야 합니다(참고).",
       "reproduce": "PRD.md:52 의 F4 가 '[미구현]' 으로 남아 있음"
+    },
+    {
+      "severity": "minor",
+      "location": "검증 방식 (verify 단계)",
+      "problem": "curl 과 E2E 를 개발 DB(8080, 파일 DB data/battery)에서 실행해 확인용 주문 227~231 이 '확정' 상태로 남았습니다. PR #28 이후 팀 규칙은 E2E 를 인메모리 DB 서버(jdbc:h2:mem:...)에서 돌리는 것입니다. (PR #33 리뷰 E3)",
+      "reproduce": "후속 조치: impl-loop 의 verify 단계가 인메모리 DB 서버를 따로 띄워 curl·E2E 를 실행하도록 수정함. 이미 남은 주문은 삭제 경로가 없어 그대로 둠(코드 영향 없음)."
     }
   ],
   "plan_feedback": {
@@ -873,7 +879,7 @@
     },
     {
       "cmd": "리뷰 로그 저장",
-      "result": "D:/work/battery-2-team/docs/logs/verify/review_20261022_160651.log"
+      "result": "docs/logs/verify/review_20261022_160651.log"
     }
   ],
   "precheck_link": "./precheck.html"

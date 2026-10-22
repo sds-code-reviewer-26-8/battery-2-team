@@ -31,6 +31,13 @@ public class OrderService {
 	public static final int MIN_DUE_DAYS = 5;
 	public static final int MAX_DUE_DAYS = 50;
 
+	/**
+	 * 납기 규칙. 화면이 같은 범위, 같은 '오늘'로 날짜 선택 범위를 정하도록 서버가 알려 준다.
+	 * 브라우저와 서버의 시계·시간대가 달라도(자정 무렵) 화면이 허용한 날짜를 서버가 거절하지 않게 하려는 것이다.
+	 */
+	public record DueRules(int minDays, int maxDays, String today) {
+	}
+
 	private final SimulationService simulations;
 	private final OrderRepository orders;
 	private final OrderStatusHistoryRepository histories;
@@ -55,7 +62,7 @@ public class OrderService {
 	}
 
 	/**
-	 * 필요 납기와 함께 확정한다. asap 과 dueDate 가 모두 없으면 납기 기능 전 형식의 요청으로 보고 납기를 저장하지 않는다.
+	 * 필요 납기와 함께 확정한다. dueAsap 과 dueDate 가 모두 없으면 납기 기능 전 형식의 요청으로 보고 납기를 저장하지 않는다.
 	 * 납기 초과 여부는 화면 값을 받지 않고 서버가 다시 계산한 소요일로 정한다. 초과해도 확정은 막지 않는다.
 	 */
 	@Transactional
@@ -81,11 +88,20 @@ public class OrderService {
 		int totalK = result.orders().values().stream().mapToInt(Integer::intValue).sum();
 		LocalDateTime now = LocalDateTime.now();
 		Order created = new Order(now, user, totalK, plan.type(), plan.label(), plan.totalDays(),
-				plan.productionCost(), plan.shippingCost(), plan.totalCost(), note, json.writeValueAsString(stored));
-		created.setDue(due.asap(), due.date(), due.exceeded());
+				plan.productionCost(), plan.shippingCost(), plan.totalCost(), note, json.writeValueAsString(stored),
+				due.asap(), due.date(), due.exceeded());
 		Order order = orders.save(created);
 		histories.save(new OrderStatusHistory(order.getId(), null, OrderStatus.CONFIRMED, user, now));
 		return order;
+	}
+
+	public DueRules dueRules() {
+		return new DueRules(MIN_DUE_DAYS, MAX_DUE_DAYS, today().toString());
+	}
+
+	/** 오늘. 납기 검증과 화면에 알려 주는 규칙이 같은 값을 쓰도록 한 곳에서 정한다. */
+	private static LocalDate today() {
+		return LocalDate.now();
 	}
 
 	private record Due(Boolean asap, LocalDate date, Boolean exceeded) {
@@ -109,7 +125,7 @@ public class OrderService {
 		} catch (DateTimeParseException e) {
 			throw new BusinessException("필요 납기일 형식이 올바르지 않습니다(yyyy-MM-dd)");
 		}
-		long days = ChronoUnit.DAYS.between(LocalDate.now(), date);
+		long days = ChronoUnit.DAYS.between(today(), date);
 		if (days < MIN_DUE_DAYS || days > MAX_DUE_DAYS) {
 			throw new BusinessException(
 					"필요 납기일은 오늘부터 %d~%d일 사이로 선택하세요".formatted(MIN_DUE_DAYS, MAX_DUE_DAYS));
