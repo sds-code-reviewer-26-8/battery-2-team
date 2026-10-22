@@ -14,7 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.demo.entity.Country;
 import com.example.demo.entity.Order;
 import com.example.demo.entity.OrderStatus;
-import com.example.demo.service.BatteryService;
+import com.example.demo.service.MasterService;
+import com.example.demo.service.OrderService;
 import com.example.demo.simulation.Master;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +55,9 @@ class AppControllerBehaviorTest {
 	@Autowired
 	MockMvc mvc;
 	@Autowired
-	BatteryService service;
+	MasterService masters;
+	@Autowired
+	OrderService orderService;
 	@Autowired
 	ObjectMapper json;
 
@@ -62,12 +65,12 @@ class AppControllerBehaviorTest {
 
 	@BeforeEach
 	void rememberMaster() {
-		originalForm = BatteryServiceBehaviorTest.formOf(service.currentMaster());
+		originalForm = ServiceBehaviorTest.formOf(masters.currentMaster());
 	}
 
 	@AfterEach
 	void restoreMaster() {
-		service.updateMaster(originalForm);
+		masters.updateMaster(originalForm);
 	}
 
 	private MockHttpSession login() throws Exception {
@@ -82,8 +85,8 @@ class AppControllerBehaviorTest {
 	}
 
 	private Order confirm(String memo) {
-		return service.confirm(BatteryServiceBehaviorTest.orders(3000, 3000, 3000, 3000), "COST",
-				service.currentMaster().version(), memo, "admin");
+		return orderService.confirm(ServiceBehaviorTest.orders(3000, 3000, 3000, 3000), "COST",
+				masters.currentMaster().version(), memo, "admin");
 	}
 
 	// ---------------------------------------------------------------- 로그인
@@ -140,23 +143,23 @@ class AppControllerBehaviorTest {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("/orders/" + order.getId())))
 				.andReturn();
 		Map<String, Object> model = res.getModelAndView().getModel();
-		assertThat((List<?>) model.get("orders")).hasSize(service.listOrders(null).size());
-		assertThat(model.get("total")).isEqualTo(service.listOrders(null).size());
+		assertThat((List<?>) model.get("orders")).hasSize(orderService.listOrders(null).size());
+		assertThat(model.get("total")).isEqualTo(orderService.listOrders(null).size());
 		assertThat((OrderStatus[]) model.get("statuses")).containsExactly(OrderStatus.values());
-		assertThat(model.get("counts")).isEqualTo(service.countByStatus());
+		assertThat(model.get("counts")).isEqualTo(orderService.countByStatus());
 	}
 
 	@Test
 	void listCanBeFilteredByStatusButTotalStaysAll() throws Exception {
 		Order running = confirm(null);
-		service.changeStatus(running.getId(), OrderStatus.IN_PROGRESS, running.getVersion(), "admin");
+		orderService.changeStatus(running.getId(), OrderStatus.IN_PROGRESS, running.getVersion(), "admin");
 		confirm(null);
 		MvcResult res = mvc.perform(get("/orders").param("status", "IN_PROGRESS").session(login()))
 				.andExpect(status().isOk()).andExpect(model().attribute("status", OrderStatus.IN_PROGRESS)).andReturn();
 		Map<String, Object> model = res.getModelAndView().getModel();
 		List<?> shown = (List<?>) model.get("orders");
 		assertThat(shown).isNotEmpty().allMatch(o -> ((Order) o).getStatus() == OrderStatus.IN_PROGRESS);
-		assertThat(model.get("total")).isEqualTo(service.listOrders(null).size());
+		assertThat(model.get("total")).isEqualTo(orderService.listOrders(null).size());
 		assertThat((int) model.get("total")).isGreaterThan(shown.size());
 	}
 
@@ -168,13 +171,13 @@ class AppControllerBehaviorTest {
 	@Test
 	void newOrderPageHasMasterInModel() throws Exception {
 		mvc.perform(get("/orders/new").session(login())).andExpect(status().isOk())
-				.andExpect(view().name("order-new")).andExpect(model().attribute("master", service.currentMaster()));
+				.andExpect(view().name("order-new")).andExpect(model().attribute("master", masters.currentMaster()));
 	}
 
 	@Test
 	void detailShowsOrderHistoryAndMemo() throws Exception {
 		Order order = confirm("상세 확인용 메모");
-		service.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "admin");
+		orderService.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "admin");
 		MvcResult res = mvc.perform(get("/orders/" + order.getId()).session(login()))
 				.andExpect(status().isOk()).andExpect(view().name("order-detail"))
 				.andExpect(model().attributeExists("order", "history"))
@@ -202,7 +205,7 @@ class AppControllerBehaviorTest {
 				.andExpect(redirectedUrl("/orders/" + order.getId()))
 				.andExpect(flash().attribute("message", "상태를 '진행'(으)로 바꿨습니다"))
 				.andExpect(flash().attributeCount(1));
-		assertThat(service.getOrder(order.getId()).getStatus()).isEqualTo(OrderStatus.IN_PROGRESS);
+		assertThat(orderService.getOrder(order.getId()).getStatus()).isEqualTo(OrderStatus.IN_PROGRESS);
 	}
 
 	@Test
@@ -218,7 +221,7 @@ class AppControllerBehaviorTest {
 	@Test
 	void staleVersionShowsConflictMessageOnDetail() throws Exception {
 		Order order = confirm(null);
-		service.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "other");
+		orderService.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "other");
 		MvcResult res = mvc.perform(post("/orders/" + order.getId() + "/status").session(login())
 						.param("status", "CANCELED").param("version", String.valueOf(order.getVersion())))
 				.andExpect(redirectedUrl("/orders/" + order.getId())).andReturn();
@@ -230,7 +233,7 @@ class AppControllerBehaviorTest {
 		Order order = confirm(null);
 		mvc.perform(post("/orders/" + order.getId() + "/status").session(login()).param("status", "CANCELED")
 				.param("version", String.valueOf(order.getVersion())));
-		assertThat(service.history(order.getId()).get(1).getChangedBy()).isEqualTo("admin");
+		assertThat(orderService.history(order.getId()).get(1).getChangedBy()).isEqualTo("admin");
 	}
 
 	// ---------------------------------------------------------------- 마스터 화면
@@ -256,13 +259,13 @@ class AppControllerBehaviorTest {
 	void masterFormShowsEokWithoutTrailingZeros() throws Exception {
 		Map<String, String> changed = new java.util.HashMap<>(originalForm);
 		changed.put("shipDailyCost", "1.25");
-		service.updateMaster(changed);
+		masters.updateMaster(changed);
 		MvcResult res = mvc.perform(get("/master").session(login())).andReturn();
 		@SuppressWarnings("unchecked")
 		Map<String, String> form = (Map<String, String>) res.getModelAndView().getModel().get("form");
 		assertThat(form.get("shipDailyCost")).isEqualTo("1.25");
 		changed.put("shipDailyCost", "10");
-		service.updateMaster(changed);
+		masters.updateMaster(changed);
 		res = mvc.perform(get("/master").session(login())).andReturn();
 		@SuppressWarnings("unchecked")
 		Map<String, String> form2 = (Map<String, String>) res.getModelAndView().getModel().get("form");
@@ -271,7 +274,7 @@ class AppControllerBehaviorTest {
 
 	@Test
 	void invalidMasterRedisplaysFormWithAllErrorsAndSavesNothing() throws Exception {
-		long before = service.currentMaster().version();
+		long before = masters.currentMaster().version();
 		MvcResult res = mvc.perform(post("/master").session(login()).param("shipCount", "9").param("shipDailyCost", "abc"))
 				.andExpect(status().isOk()).andExpect(view().name("master"))
 				.andExpect(model().attributeExists("errors", "form", "factories", "countries")).andReturn();
@@ -281,7 +284,7 @@ class AppControllerBehaviorTest {
 		@SuppressWarnings("unchecked")
 		Map<String, String> echoed = (Map<String, String>) model.get("form");
 		assertThat(echoed).containsEntry("shipCount", "9").containsEntry("shipDailyCost", "abc");
-		assertThat(service.currentMaster().version()).isEqualTo(before);
+		assertThat(masters.currentMaster().version()).isEqualTo(before);
 	}
 
 	@Test
@@ -292,7 +295,7 @@ class AppControllerBehaviorTest {
 		form.forEach(req::param);
 		mvc.perform(req).andExpect(redirectedUrl("/master"))
 				.andExpect(flash().attribute("message", "마스터 데이터를 저장했습니다"));
-		assertThat(service.currentMaster().shipCount()).isEqualTo(2);
+		assertThat(masters.currentMaster().shipCount()).isEqualTo(2);
 	}
 
 	// ---------------------------------------------------------------- JSON API
@@ -319,12 +322,12 @@ class AppControllerBehaviorTest {
 	@Test
 	void confirmReturnsIdAndSavesOrder() throws Exception {
 		MockHttpSession s = login();
-		long version = service.currentMaster().version();
+		long version = masters.currentMaster().version();
 		MvcResult res = mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"NEAR\",\"masterVersion\":"
 						+ version + ",\"memo\":\"api\"}"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.id").isNumber()).andReturn();
 		long id = json.readTree(res.getResponse().getContentAsString()).get("id").asLong();
-		Order saved = service.getOrder(id);
+		Order saved = orderService.getOrder(id);
 		assertThat(saved.getRouteType()).isEqualTo("NEAR");
 		assertThat(saved.getCreatedBy()).isEqualTo("admin");
 		assertThat(saved.getMemo()).isEqualTo("api");
@@ -333,7 +336,7 @@ class AppControllerBehaviorTest {
 	@Test
 	void confirmErrorsMapToStatusCodes() throws Exception {
 		MockHttpSession s = login();
-		long version = service.currentMaster().version();
+		long version = masters.currentMaster().version();
 		mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"SLOW\",\"masterVersion\":" + version + "}"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("선택한 경로를 찾을 수 없습니다"))
 				.andExpect(jsonPath("$.conflict").value(false));
@@ -376,7 +379,7 @@ class AppControllerBehaviorTest {
 		assertThat(stored.propertyNames()).containsExactlyInAnyOrder("master", "orders", "visits", "plan");
 		assertThat(stored.get("plan").propertyNames()).containsExactlyInAnyOrder("type", "label", "totalDays",
 				"productionCost", "shippingCost", "totalCost", "ships", "stock", "production");
-		Master master = service.currentMaster();
+		Master master = masters.currentMaster();
 		assertThat(stored.get("master").get("version").asLong()).isEqualTo(master.version());
 	}
 }

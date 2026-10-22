@@ -3,15 +3,15 @@ package com.example.demo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.demo.config.LoginInterceptor;
-import com.example.demo.controller.AppController;
+import com.example.demo.controller.AuthController;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.ui.ExtendedModelMap;
 
 /** 로그인 계정이 설정으로 바뀌는지 확인한다(서버를 띄우지 않고 컨트롤러만 만들어서 본다). */
-class AppControllerAccountTest {
+class AuthControllerAccountTest {
 
-	private final AppController controller = new AppController(null, "boss", "s3cret");
+	private final AuthController controller = new AuthController("boss", "s3cret");
 
 	@Test
 	void configuredAccountCanLogIn() {

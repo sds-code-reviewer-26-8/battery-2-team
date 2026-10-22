@@ -3,9 +3,11 @@ package com.example.demo.controller;
 import com.example.demo.config.LoginInterceptor;
 import com.example.demo.entity.Country;
 import com.example.demo.entity.Order;
-import com.example.demo.service.BatteryService;
-import com.example.demo.service.BatteryService.SimulationResult;
 import com.example.demo.service.BusinessException;
+import com.example.demo.service.MasterService;
+import com.example.demo.service.OrderService;
+import com.example.demo.service.SimulationService;
+import com.example.demo.service.SimulationService.SimulationResult;
 import com.example.demo.simulation.Master;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -29,26 +31,30 @@ public class ApiController {
 	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo) {
 	}
 
-	private final BatteryService service;
+	private final MasterService masters;
+	private final SimulationService simulations;
+	private final OrderService orders;
 
-	public ApiController(BatteryService service) {
-		this.service = service;
+	public ApiController(MasterService masters, SimulationService simulations, OrderService orders) {
+		this.masters = masters;
+		this.simulations = simulations;
+		this.orders = orders;
 	}
 
 	@GetMapping("/master")
 	public Master master() {
-		return service.currentMaster();
+		return masters.currentMaster();
 	}
 
 	@PostMapping("/simulate")
 	public SimulationResult simulate(@RequestBody SimulateRequest request) {
-		return service.simulate(request.orders());
+		return simulations.simulate(request.orders());
 	}
 
 	@PostMapping("/orders")
 	public Map<String, Long> confirm(@RequestBody ConfirmRequest request,
 			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
-		Order order = service.confirm(request.orders(), request.routeType(), request.masterVersion(), request.memo(),
+		Order order = orders.confirm(request.orders(), request.routeType(), request.masterVersion(), request.memo(),
 				user);
 		return Map.of("id", order.getId());
 	}

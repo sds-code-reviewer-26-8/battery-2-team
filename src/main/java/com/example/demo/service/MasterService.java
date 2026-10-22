@@ -2,63 +2,38 @@ package com.example.demo.service;
 
 import com.example.demo.entity.Country;
 import com.example.demo.entity.Factory;
-import com.example.demo.entity.Order;
-import com.example.demo.entity.OrderStatus;
-import com.example.demo.entity.OrderStatusHistory;
 import com.example.demo.entity.Route;
 import com.example.demo.entity.Setting;
-import com.example.demo.repository.MasterRepositories.FactoryRepository;
-import com.example.demo.repository.MasterRepositories.RouteRepository;
-import com.example.demo.repository.MasterRepositories.SettingRepository;
-import com.example.demo.repository.OrderRepositories.OrderRepository;
-import com.example.demo.repository.OrderRepositories.OrderStatusHistoryRepository;
+import com.example.demo.repository.FactoryRepository;
+import com.example.demo.repository.RouteRepository;
+import com.example.demo.repository.SettingRepository;
 import com.example.demo.simulation.Master;
-import com.example.demo.simulation.Plan;
-import com.example.demo.simulation.Planner;
-import com.example.demo.simulation.StoredPlan;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
+/** 마스터 데이터(공장·항로·선박 설정)의 초기화, 조회, 검증과 저장 */
 @Service
-public class BatteryService {
+public class MasterService {
 
 	public static final long WON_PER_EOK = 100_000_000L;
 	private static final int MAX_SHIPS = 4;
-	private static final int MAX_MEMO = 1000;
-
-	/** 시뮬레이션 결과. master 는 이 계산에 쓴 마스터 값(확정 시 비교·저장에 쓴다). */
-	public record SimulationResult(Master master, Map<Country, Integer> orders, Map<Country, Integer> visits,
-			List<Plan> options) {
-	}
 
 	private final FactoryRepository factories;
 	private final RouteRepository routes;
 	private final SettingRepository settings;
-	private final OrderRepository orders;
-	private final OrderStatusHistoryRepository histories;
-	private final ObjectMapper json;
 
-	public BatteryService(FactoryRepository factories, RouteRepository routes, SettingRepository settings,
-			OrderRepository orders, OrderStatusHistoryRepository histories, ObjectMapper json) {
+	public MasterService(FactoryRepository factories, RouteRepository routes, SettingRepository settings) {
 		this.factories = factories;
 		this.routes = routes;
 		this.settings = settings;
-		this.orders = orders;
-		this.histories = histories;
-		this.json = json;
 	}
-
-	// ---------------------------------------------------------------- 마스터 데이터
 
 	/** 마스터 데이터가 비어 있으면 초기값을 넣는다. */
 	@Transactional
@@ -202,122 +177,5 @@ public class BatteryService {
 			errors.add("%s은(는) 정수로 입력하세요".formatted(label));
 			return min;
 		}
-	}
-
-	// ---------------------------------------------------------------- 시뮬레이션
-
-	public SimulationResult simulate(Map<Country, Integer> rawOrders) {
-		Map<Country, Integer> validated = validateOrders(rawOrders);
-		Master master = currentMaster();
-		return new SimulationResult(master, validated, Planner.visits(master, validated),
-				Planner.plan(master, validated));
-	}
-
-	private static Map<Country, Integer> validateOrders(Map<Country, Integer> raw) {
-		Map<Country, Integer> validated = new EnumMap<>(Country.class);
-		long total = 0;
-		for (Country c : Country.factories()) {
-			Integer q = raw == null ? null : raw.get(c);
-			int v = q == null ? 0 : q;
-			if (v < 0) {
-				throw new BusinessException(c.getLabel() + " 주문 수량은 0 이상이어야 합니다");
-			}
-			validated.put(c, v);
-			total += v;
-		}
-		if (total <= 0) {
-			throw new BusinessException("총 생산 필요 수는 1K 이상이어야 합니다");
-		}
-		if (total > Planner.MAX_TOTAL_K) {
-			throw new BusinessException("총 생산 필요 수는 %,dK 이하여야 합니다".formatted(Planner.MAX_TOTAL_K));
-		}
-		return validated;
-	}
-
-	// ---------------------------------------------------------------- 주문
-
-	/**
-	 * 주문을 확정한다. 서버가 같은 입력으로 다시 계산해 계획을 만들고(클라이언트 값은 믿지 않는다),
-	 * 시뮬레이션 이후 마스터 데이터가 바뀌었으면 확정을 거부한다.
-	 */
-	@Transactional
-	public Order confirm(Map<Country, Integer> requested, String routeType, long masterVersion, String memo,
-			String user) {
-		SimulationResult result = simulate(requested);
-		if (result.master().version() != masterVersion) {
-			throw new BusinessException("시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요", true);
-		}
-		Plan plan = result.options().stream().filter(p -> p.type().equals(routeType)).findFirst()
-				.orElseThrow(() -> new BusinessException("선택한 경로를 찾을 수 없습니다"));
-		String note = memo == null ? null : memo.strip();
-		if (note != null && note.length() > MAX_MEMO) {
-			throw new BusinessException("메모는 %d자 이하로 입력하세요".formatted(MAX_MEMO));
-		}
-		if (note != null && note.isEmpty()) {
-			note = null;
-		}
-
-		StoredPlan stored = new StoredPlan(result.master(), result.orders(), result.visits(), plan);
-		int totalK = result.orders().values().stream().mapToInt(Integer::intValue).sum();
-		LocalDateTime now = LocalDateTime.now();
-		Order order = orders.save(new Order(now, user, totalK, plan.type(), plan.label(), plan.totalDays(),
-				plan.productionCost(), plan.shippingCost(), plan.totalCost(), note, json.writeValueAsString(stored)));
-		histories.save(new OrderStatusHistory(order.getId(), null, OrderStatus.CONFIRMED, user, now));
-		return order;
-	}
-
-	@Transactional(readOnly = true)
-	public List<Order> listOrders(OrderStatus status) {
-		return status == null ? orders.findAllByOrderByIdDesc() : orders.findByStatusOrderByIdDesc(status);
-	}
-
-	@Transactional(readOnly = true)
-	public Map<OrderStatus, Long> countByStatus() {
-		Map<OrderStatus, Long> counts = new EnumMap<>(OrderStatus.class);
-		for (OrderStatus s : OrderStatus.values()) {
-			counts.put(s, 0L);
-		}
-		orders.countGroupedByStatus().forEach(row -> counts.put(row.getStatus(), row.getTotal()));
-		return counts;
-	}
-
-	@Transactional(readOnly = true)
-	public Order getOrder(Long id) {
-		return orders.findById(id).orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다"));
-	}
-
-	@Transactional(readOnly = true)
-	public List<OrderStatusHistory> history(Long orderId) {
-		return histories.findByOrderIdOrderByIdAsc(orderId);
-	}
-
-	/**
-	 * 상태를 바꾼다. 화면에서 본 시점의 version 과 다르면(= 그 사이 다른 사람이 바꿈) 거부한다.
-	 */
-	@Transactional
-	public void changeStatus(Long id, OrderStatus target, long expectedVersion, String user) {
-		Order order = getOrder(id);
-		if (order.getVersion() != expectedVersion) {
-			throw conflict();
-		}
-		if (!order.getStatus().canChangeTo(target)) {
-			throw new BusinessException("%s 상태에서는 %s(으)로 바꿀 수 없습니다"
-					.formatted(order.getStatus().getLabel(), target.getLabel()));
-		}
-		OrderStatus from = order.getStatus();
-		order.setStatus(target);
-		try {
-			orders.saveAndFlush(order);
-		} catch (ObjectOptimisticLockingFailureException e) {
-			throw conflict();
-		}
-		histories.save(new OrderStatusHistory(id, from, target, user, LocalDateTime.now()));
-		if (target == OrderStatus.CANCELED) {
-			orders.delete(order);
-		}
-	}
-
-	private static BusinessException conflict() {
-		return new BusinessException("다른 사용자가 먼저 이 주문을 변경했습니다. 화면을 새로 고쳐 현재 상태를 확인한 뒤 다시 시도해 주세요", true);
 	}
 }
