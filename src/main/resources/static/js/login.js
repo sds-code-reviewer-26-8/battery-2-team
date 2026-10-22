@@ -2,6 +2,11 @@
 	const form = document.getElementById('loginForm');
 	const alerts = document.getElementById('alerts');
 
+	// 가입을 마치고 넘어왔으면 안내를 보여 준다
+	if (new URLSearchParams(location.search).get('signedUp') === '1') {
+		setAlert(alerts, okAlert('가입했습니다. 로그인해 주세요'));
+	}
+
 	form.addEventListener('submit', async e => {
 		e.preventDefault();
 		setAlert(alerts, null);
