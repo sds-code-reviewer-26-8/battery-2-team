@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.SessionAttribute;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -107,9 +108,9 @@ public class AppController {
 
 	@PostMapping("/orders/{id}/status")
 	public String changeStatus(@PathVariable Long id, @RequestParam OrderStatus status, @RequestParam long version,
-			HttpSession session, RedirectAttributes redirect) {
+			@SessionAttribute(LoginInterceptor.SESSION_USER) String user, RedirectAttributes redirect) {
 		try {
-			service.changeStatus(id, status, version, (String) session.getAttribute(LoginInterceptor.SESSION_USER));
+			service.changeStatus(id, status, version, user);
 			redirect.addFlashAttribute("message", "상태를 '" + status.getLabel() + "'(으)로 바꿨습니다");
 		} catch (BusinessException e) {
 			redirect.addFlashAttribute("error", e.getMessage());
@@ -181,10 +182,11 @@ public class AppController {
 
 	@PostMapping("/api/orders")
 	@ResponseBody
-	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request, HttpSession session) {
+	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request,
+			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		try {
 			Order order = service.confirm(request.orders(), request.routeType(), request.masterVersion(),
-					request.memo(), (String) session.getAttribute(LoginInterceptor.SESSION_USER));
+					request.memo(), user);
 			return ResponseEntity.ok(Map.of("id", order.getId()));
 		} catch (BusinessException e) {
 			return apiError(e);
