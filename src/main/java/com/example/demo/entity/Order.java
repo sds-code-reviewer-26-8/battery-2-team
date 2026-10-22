@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -57,15 +58,25 @@ public class Order {
 	@Column(nullable = false)
 	private String planJson;
 
+	/** 필요 납기: '가능한 빨리'이면 true. 납기 기능 전에 확정된 주문은 세 값 모두 NULL 이다(G1). */
+	private Boolean dueAsap;
+
+	/** 필요 납기일('가능한 빨리'이면 NULL) */
+	private LocalDate dueDate;
+
+	/** 확정한 경로의 총 소요일이 납기 일수를 넘는지(서버 계산). '가능한 빨리'이면 NULL */
+	private Boolean dueExceeded;
+
 	@Version
 	private long version;
 
 	protected Order() {
 	}
 
+	/** 고객사와 필요 납기(dueAsap, dueDate, dueExceeded)는 확정 때 한 번만 정하므로 생성자로 받는다. 납기가 없으면 모두 null. */
 	public Order(LocalDateTime confirmedAt, String createdBy, int totalK, String routeType, String routeLabel,
 			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String customerName,
-			String planJson) {
+			String planJson, Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
 		this.confirmedAt = confirmedAt;
 		this.createdBy = createdBy;
 		this.totalK = totalK;
@@ -78,6 +89,9 @@ public class Order {
 		this.memo = memo;
 		this.customerName = customerName;
 		this.planJson = planJson;
+		this.dueAsap = dueAsap;
+		this.dueDate = dueDate;
+		this.dueExceeded = dueExceeded;
 		this.status = OrderStatus.CONFIRMED;
 	}
 
@@ -148,6 +162,18 @@ public class Order {
 
 	public long getVersion() {
 		return version;
+	}
+
+	public Boolean getDueAsap() {
+		return dueAsap;
+	}
+
+	public LocalDate getDueDate() {
+		return dueDate;
+	}
+
+	public Boolean getDueExceeded() {
+		return dueExceeded;
 	}
 
 	/** 억 원 단위, 소수 2자리 */

@@ -207,7 +207,7 @@ class WebBehaviorTest {
 		mvc.perform(postJson("/api/login", session, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
 				.andExpect(status().isOk());
 		MvcResult res = mvc.perform(postJson("/api/orders", session, "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":"
-				+ masters.currentMaster().version() + "}")).andExpect(status().isOk()).andReturn();
+				+ masters.currentMaster().version() + ",\"customerName\":\"가입고객\"}")).andExpect(status().isOk()).andReturn();
 		long id = json.readTree(res.getResponse().getContentAsString()).get("id").asLong();
 		mvc.perform(get("/api/orders/" + id).session(session)).andExpect(status().isOk())
 				.andExpect(jsonPath("$.createdBy").value(name)).andExpect(jsonPath("$.history[0].changedBy").value(name));

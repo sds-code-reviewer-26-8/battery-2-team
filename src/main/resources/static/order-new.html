@@ -20,6 +20,13 @@
 				합계는 항상 총 생산 필요 수와 같습니다.</p>
 		</div>
 		<div id="gauges" class="gauges"></div>
+		<div class="due" id="dueBox">
+			<strong>필요 납기</strong>
+			<!-- 납기 규칙(허용 범위, 서버 기준 오늘)을 서버에서 받은 뒤에 켠다 -->
+			<label class="inline"><input type="checkbox" id="dueAsap" checked disabled> 가능한 빨리</label>
+			<label class="inline">납기일 <input type="date" id="dueDate" disabled></label>
+			<p class="muted hint" id="dueHint">납기 규칙을 불러오는 중입니다…</p>
+		</div>
 		<p id="inputError" class="alert error" hidden></p>
 		<button type="button" id="runBtn" class="primary">시뮬레이션 실행</button>
 	</section>

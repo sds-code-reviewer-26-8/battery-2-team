@@ -23,6 +23,16 @@
 		})));
 	}
 
+	/** '가능한 빨리', 또는 날짜 + 확정한 경로의 납기 초과 여부. 납기 기능 전에 확정된 주문은 '-' */
+	function dueText(order) {
+		if (order.dueAsap) return '가능한 빨리';
+		if (!order.dueDate) return '-';
+		if (order.dueExceeded == null) return order.dueDate;
+		return [order.dueDate, ' ', order.dueExceeded
+			? h('span', {class: 'due-tag'}, '납기 초과')
+			: h('span', {class: 'due-ok'}, '납기 내')];
+	}
+
 	function renderCustomer(order) {
 		if (!order.customerEditable) {
 			$('customer').replaceChildren(h('p', {class: 'muted'}, '완료 또는 취소된 주문은 고객사를 수정할 수 없습니다.'));
@@ -52,7 +62,8 @@
 		$('title').replaceChildren('주문 ', h('span', null, '#' + order.id), ' ',
 			h('span', {class: 'badge badge-' + order.status.name}, order.status.label));
 		$('meta').replaceChildren(
-			...[['확정 일시', order.confirmedAt], ['작성자', order.createdBy], ['경로', order.routeLabel], ['고객사', order.customerName != null ? order.customerName : '-'],
+			...[['확정 일시', order.confirmedAt], ['작성자', order.createdBy], ['경로', order.routeLabel],
+				['고객사', order.customerName != null ? order.customerName : '-'], ['필요 납기', dueText(order)],
 				['메모', order.memo != null ? order.memo : '-']].map(([k, v]) => h('div', null, h('dt', null, k), h('dd', null, v))));
 		renderCustomer(order);
 		renderActions(order);
