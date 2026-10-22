@@ -6,11 +6,9 @@ import com.example.demo.entity.Order;
 import com.example.demo.entity.OrderStatus;
 import com.example.demo.service.BatteryService;
 import com.example.demo.service.BusinessException;
-import com.example.demo.simulation.Master;
 import jakarta.servlet.http.HttpSession;
-import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,12 +22,16 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller
 public class AppController {
 
-	private static final String ACCOUNT = "admin";
-
 	private final BatteryService service;
+	private final String accountUsername;
+	private final String accountPassword;
 
-	public AppController(BatteryService service) {
+	/** 로그인 계정은 단일 계정이며, 설정(app.login.username / app.login.password)이 없으면 admin/admin 이다. */
+	public AppController(BatteryService service, @Value("${app.login.username:admin}") String accountUsername,
+			@Value("${app.login.password:admin}") String accountPassword) {
 		this.service = service;
+		this.accountUsername = accountUsername;
+		this.accountPassword = accountPassword;
 	}
 
 	/** 모든 화면 상단에 로그인한 아이디를 보여 주기 위한 공통 모델 */
@@ -56,7 +58,7 @@ public class AppController {
 	@PostMapping("/login")
 	public String login(@RequestParam String username, @RequestParam String password, HttpSession session,
 			Model model) {
-		if (ACCOUNT.equals(username) && ACCOUNT.equals(password)) {
+		if (accountUsername.equals(username) && accountPassword.equals(password)) {
 			session.setAttribute(LoginInterceptor.SESSION_USER, username);
 			return "redirect:/orders";
 		}
@@ -113,7 +115,7 @@ public class AppController {
 	@GetMapping("/master")
 	public String master(Model model) {
 		if (!model.containsAttribute("form")) {
-			model.addAttribute("form", toForm(service.currentMaster()));
+			model.addAttribute("form", service.masterForm());
 		}
 		addMasterChoices(model);
 		return "master";
@@ -137,22 +139,5 @@ public class AppController {
 	private static void addMasterChoices(Model model) {
 		model.addAttribute("factories", Country.factories());
 		model.addAttribute("countries", Country.values());
-	}
-
-	/** 화면 입력칸 이름 → 값 */
-	private static Map<String, String> toForm(Master m) {
-		Map<String, String> form = new HashMap<>();
-		for (Master.FactoryParam f : m.factories()) {
-			form.put("maxDaily_" + f.country(), String.valueOf(f.maxDaily()));
-			form.put("stockLimit_" + f.country(), String.valueOf(f.stockLimit()));
-			form.put("unitCost_" + f.country(), String.valueOf(f.unitCost()));
-		}
-		for (Master.RouteParam r : m.routes()) {
-			form.put(BatteryService.routeKey(r.from(), r.to()), String.valueOf(r.days()));
-		}
-		form.put("shipCount", String.valueOf(m.shipCount()));
-		form.put("shipDailyCost", new BigDecimal(m.shipDailyCostWon())
-				.divide(BigDecimal.valueOf(BatteryService.WON_PER_EOK)).stripTrailingZeros().toPlainString());
-		return form;
 	}
 }
