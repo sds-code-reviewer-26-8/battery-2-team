@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** 이 앱의 로그인 계정은 admin / admin 하나뿐이다. */
 export const ADMIN = { username: 'admin', password: 'admin' };
@@ -14,6 +14,14 @@ export async function login(page: Page): Promise<void> {
   await page.getByRole('button', { name: '로그인' }).click();
   await expect(page).toHaveURL(/\/orders(;.*)?$/);
 }
+
+/**
+ * 주문 목록에서 주문 번호가 정확히 id 인 행. 목록 화면에 있는 상태에서 쓴다.
+ * 글자로 찾으면(hasText: '#42') '#142' 같은 번호도 걸리므로, 취소 주문이 남아 번호가 커진 뒤에는 어긋난다.
+ * 그래서 그 주문으로 가는 링크(/orders/{id})가 들어 있는 행을 찾는다.
+ */
+export const orderRow = (page: Page, id: number): Locator =>
+  page.locator('table.grid tbody tr.clickable').filter({ has: page.locator(`a[href="/orders/${id}"]`) });
 
 /** 주문 목록의 "전체" 건수를 읽는다. (목록 화면으로 이동한다) */
 export async function orderTotalCount(page: Page): Promise<number> {

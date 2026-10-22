@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { chipCount, createOrder, login } from './helpers';
+import { chipCount, createOrder, login, orderRow } from './helpers';
 import { changeStatus } from './ui-helpers';
 
 /**
@@ -87,7 +87,7 @@ test.describe('취소한 주문은 삭제되지 않고 남는다', () => {
     // '취소' 필터: 그 주문이 '취소' 배지로 나오고, 행 수는 칩 건수와 같다
     await page.locator('#filters a.chip', { hasText: '취소' }).click();
     await expect(page).toHaveURL(/status=CANCELED$/);
-    const row = page.locator('#rows tr.clickable', { hasText: `#${id}` });
+    const row = orderRow(page, id);
     await expect(row.locator('.badge')).toHaveText('취소');
     await expect(page.locator('#rows tr.clickable')).toHaveCount(before.canceled + 1);
   });

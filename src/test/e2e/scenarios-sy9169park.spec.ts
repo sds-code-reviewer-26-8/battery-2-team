@@ -183,6 +183,9 @@ test.describe('sy9169park 담당 시나리오', () => {
       // 같은 주문 상세를 탭 A, 탭 B 에서 모두 연다
       await page.goto(`/orders/${id}`);
       await tabB.goto(`/orders/${id}`);
+      // 화면은 데이터를 받은 뒤 그려진다. 탭 B 가 '확정' 상태(변경 번호)를 받아 버튼을 그린 뒤에 탭 A 가 바꿔야
+      // 탭 B 의 화면이 "오래된 화면"이 된다. 기다리지 않으면 탭 B 가 이미 바뀐 상태를 받아 충돌이 나지 않을 수 있다.
+      await expect(tabB.getByRole('button', { name: '취소(으)로 변경' })).toBeVisible();
 
       // 1. 탭 A: '진행(으)로 변경' → 확인창 수락
       page.once('dialog', (d) => d.accept());
