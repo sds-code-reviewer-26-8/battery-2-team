@@ -7,7 +7,7 @@
 
 | 항목 | 리팩토링 전 | 리팩토링 후 |
 |---|---|---|
-| 단위·통합 테스트 | 22개 통과 | **81개 통과** (실패 0) — 기존 22개는 그대로, 특성 테스트 등 추가 |
+| 단위·통합 테스트 | 22개 통과 | **81개 통과** (실패 0) — 기존 22개는 그대로, 새 테스트 59개 추가(특성 테스트 `PlannerGoldenTest` 2 + `AppControllerBehaviorTest` 25 + `ServiceBehaviorTest` 29, 계정 설정 `AuthControllerAccountTest` 3) |
 | E2E (Playwright 44개) | 39 통과 / 5 실패 | **39 통과 / 5 실패 — 테스트 44개 하나하나 결과가 같음** |
 | 주문 목록(`/orders`) 한 번에 나가는 SQL | 6번 | 2번 |
 | 서비스 파일 | `BatteryService` 1개 | `MasterService`, `SimulationService`, `OrderService` 3개 |
@@ -141,22 +141,45 @@
 
 ## 5. 직접 재현하기
 
-```
-# 전: 리팩토링 이전 main
-git checkout main
-./gradlew test
-./gradlew bootRun --args="--server.port=8083 --spring.datasource.url=jdbc:h2:mem:e2emain;DB_CLOSE_DELAY=-1"
-BASE_URL=http://localhost:8083 npx playwright test
+전(`main`의 리팩토링 이전 코드)과 후(PR 브랜치)를 각각 아래 순서로 실행합니다. **서버는 터미널을 계속 점유하므로 새 터미널(터미널 B)에서 띄웁니다.** 아래 명령은 Windows PowerShell 기준이며, Git Bash에서는 `BASE_URL=http://localhost:8082 npx playwright test`처럼 씁니다.
 
-# 후: PR 브랜치
-git checkout feature-sy9169-mission1-refactoring
-./gradlew test
-./gradlew bootRun --args="--server.port=8082 --spring.datasource.url=jdbc:h2:mem:e2e;DB_CLOSE_DELAY=-1"
-BASE_URL=http://localhost:8082 npx playwright test
+**(1) 준비 — 처음 한 번만 (터미널 A, 저장소 루트)**
+```powershell
+npm install
+npx playwright install chromium
 ```
-- E2E는 이미 실행 중인 서버를 대상으로 하므로 서버를 먼저 띄웁니다. 인메모리 DB로 띄우면 파일 DB(`data/`)를 건드리지 않습니다.
-- 전/후 모두 `39 passed, 5 failed`가 나오고, 실패 목록이 4번의 5개와 같으면 같은 결과입니다.
-- 특성 테스트 기준 파일을 다시 만들 때(계산 규칙을 일부러 바꿀 때만): 환경변수 `GOLDEN_UPDATE=true`로 `./gradlew test`를 실행합니다.
+
+**(2) 대상 코드 체크아웃 (터미널 A)**
+```powershell
+# 전: 리팩토링 이전 코드 (PR #26 머지 직전 커밋)
+git checkout 8122f1e
+# 후: 이 PR의 결과 코드
+git checkout <PR 브랜치 또는 머지 커밋>
+```
+
+**(3) 단위·통합 테스트 (터미널 A)**
+```powershell
+.\gradlew.bat test
+```
+기대 결과: 전 `BUILD SUCCESSFUL`(테스트 22개), 후 `BUILD SUCCESSFUL`(테스트 81개).
+
+**(4) 서버 실행 — 새 터미널 B**
+```powershell
+.\gradlew.bat bootRun --args="--server.port=8082 --spring.datasource.url=jdbc:h2:mem:e2e;DB_CLOSE_DELAY=-1"
+```
+`Started DemoApplication` 로그가 나올 때까지 기다립니다. 인메모리 DB라서 `data/` 파일 DB를 건드리지 않습니다.
+
+**(5) E2E 실행 — 터미널 A**
+```powershell
+$env:BASE_URL = "http://localhost:8082"
+npx playwright test --reporter=line
+```
+기대 결과(전/후 동일): `5 failed`, `39 passed`. 실패 목록은 아래 4번의 5개(S5, S10, No.36, T26, T27)와 같아야 합니다.
+
+**(6) 서버 종료 — 터미널 B에서 `Ctrl+C`**
+전과 후를 이어서 확인하려면 (2)로 돌아가 다른 코드를 체크아웃하고 (4)부터 반복합니다(서버는 코드를 바꿀 때마다 새로 띄웁니다).
+
+- 특성 테스트 기준 파일을 다시 만들 때(계산 규칙을 일부러 바꿀 때만): 환경변수 `GOLDEN_UPDATE=true`로 `./gradlew test`를 실행합니다. 이 모드의 테스트는 통과가 아니라 **건너뜀(skipped)** 으로 표시되고 CI(`CI` 환경변수가 있을 때)에서는 실패합니다. 바뀐 내용은 `git diff`로 확인합니다.
 
 ## 6. 한계 (이 Evidence가 보장하지 않는 것)
 - E2E가 대신 확인한 범위는 화면 흐름입니다. 이번 리팩토링은 화면 템플릿을 바꾸지 않았으므로 화면 모양은 확인 대상이 아닙니다.

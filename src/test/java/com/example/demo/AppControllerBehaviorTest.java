@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -361,9 +362,10 @@ class AppControllerBehaviorTest {
 		((ObjectNode) actual.get("master")).remove("version");
 		if ("true".equals(System.getenv("GOLDEN_UPDATE"))) {
 			Files.createDirectories(SIMULATE_GOLDEN_SOURCE.getParent());
+			assertThat(System.getenv("CI")).as("CI 에서는 GOLDEN_UPDATE 를 쓸 수 없습니다").isNull();
 			Files.writeString(SIMULATE_GOLDEN_SOURCE, json.writerWithDefaultPrettyPrinter().writeValueAsString(actual),
 					StandardCharsets.UTF_8);
-			return;
+			assumeTrue(false, "기준 파일을 다시 만들었습니다. git diff 로 바뀐 내용을 확인하세요");
 		}
 		try (InputStream in = getClass().getClassLoader().getResourceAsStream(SIMULATE_GOLDEN)) {
 			assertThat(in).as("기준 파일 %s 이 없습니다. 환경변수 GOLDEN_UPDATE=true 로 한 번 만드세요", SIMULATE_GOLDEN).isNotNull();
