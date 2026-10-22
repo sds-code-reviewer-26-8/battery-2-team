@@ -1,0 +1,205 @@
+{
+  "request": "깨진 JSON 요청(예: POST /api/simulate 에 '{\"orders\":' 또는 알 수 없는 나라 이름)에 대한 HTTP 400 응답에 스택 trace·예외 클래스명 같은 서버 내부 정보가 포함되지 않게 한다. 응답은 기존 API 오류 형식({error, conflict})을 따르고, 그 뒤 정상 요청과 화면은 계속 동작해야 한다 (팀 통합 E2E 시나리오 No. 36 / 견고성 S5, INTENT G7·G9)",
+  "round": 1,
+  "status": "READY",
+  "reason": "",
+  "questions": [],
+  "background": {
+    "understood": true,
+    "summary": "/api/simulate·/api/orders 는 @RequestBody 로 JSON 을 받는데, 본문이 끝나지 않은 JSON('{\"orders\":')이거나 Country enum 에 없는 키(MARS)·정수가 아닌 수량('abc')이면 Spring 이 컨트롤러 메서드에 들어가기 전에 HttpMessageNotReadableException 을 던진다. 메서드 안의 try/catch(BusinessException) 와 TASK-001 에서 넣은 @ExceptionHandler(NotFoundException/BusinessException) 는 이 예외를 잡지 않으므로 Spring Boot 기본 오류 처리(BasicErrorController)로 넘어가고, devtools 가 server.error.include-stacktrace 를 always 로 두기 때문에 400 본문에 trace(스택트레이스)와 예외 클래스명·패키지명(org.springframework..., com.example.demo.entity.Country)이 그대로 나간다. 2026-10-21 실행 중인 앱(8080, IntelliJ 실행, devtools 포함)에 admin 으로 로그인해 curl 로 직접 재현했다. 작업 트리에는 TASK-001(없는 주문 → notice.html 404) 구현만 들어 있고 TASK-002 구현은 아직 없다. 원인 한 줄: 요청 본문 역직렬화 실패(HttpMessageNotReadableException)를 앱이 처리하지 않아 Spring Boot 기본 오류 JSON(trace 포함)이 나간다.",
+    "evidence": [
+      "INTENT.md §4 G7: \"잘못된 입력은 **이유와 함께** 알리고, 일부만 저장되는 일이 없게 한다. 뜻밖의 상황(없는 주문 등)도 오류 화면이 아니라 안내 메시지로 알린다. (I9)\" — 깨진 JSON·알 수 없는 나라 이름은 '잘못된 입력'이므로 trace 대신 이유가 담긴 {error} 로 응답하는 것이 이 방향 그대로다.",
+      "INTENT.md §2 I9: \"**틀린 결과를 보여 주느니 멈추고, 일부만 저장하지 않는다** — 계산 결과가 맞지 않으면 틀린 값을 내보내지 않고 중단한다. 기준값 입력이 하나라도 틀리면 아무것도 저장하지 않고 틀린 곳을 모두 알려 준다.\"",
+      "PRD.md §8 입력 제약: \"총 주문 수량 | 1K 이상 100,000K 이하. 어기면 이유를 알려 주고 계산하지 않는다\" — 입력 오류 처리 원칙이 '이유 안내 + 계산 안 함'이므로 형식이 깨진 요청도 같은 원칙(기존 {error, conflict} 형식)으로 다룬다.",
+      "PRD.md §7 D5: \"기준값 입력에 잘못된 곳이 하나라도 있으면 **아무것도 저장하지 않고** 잘못된 곳을 모두 알려 준다.\"",
+      "PRD.md §4 F6: \"시뮬레이션은 **미리보기**다. 확정하기 전에는 아무것도 저장되지 않는다.\" — 깨진 요청 뒤 정상 시뮬레이션과 /orders 가 계속 동작해야 한다는 Pass 조건(절차 3)과 부합.",
+      "INTENT.md §4 G8 / PRD.md §4 F1: \"새 기능도 **로그인한 사람만** 쓸 수 있어야 한다.\" / \"로그인한 사용자만 쓸 수 있다.\" — 요청문의 'G9' 는 INTENT 에 없는 번호(§4 는 G1~G8 뿐)이며 로그인 보호를 뜻하는 G8 로 해석한다. LoginInterceptor 가 컨트롤러보다 먼저 동작하므로 /api/* 의 401 은 그대로다.",
+      "AppController.simulate(@RequestBody SimulateRequest) / confirm(@RequestBody ConfirmRequest): record SimulateRequest(Map<Country, Integer> orders) — Map 키가 enum Country(KOREA, CHINA, JAPAN, VIETNAM, INDONESIA) 라서 MARS 는 역직렬화 단계에서 실패한다. try/catch 는 BusinessException 만 잡고, @ExceptionHandler 도 NotFoundException·BusinessException 뿐이다.",
+      "application.properties: server.error.* 설정 없음. build.gradle.kts: Spring Boot 4.1.1 + developmentOnly spring-boot-devtools (devtools 가 include-stacktrace=always 기본값을 넣는다). Jackson 은 3.x(tools.jackson.core:jackson-databind:3.1.5, 패키지 tools.jackson.databind.exc.InvalidFormatException) 이다.",
+      "실측 1 (curl, 로그인 쿠키, Content-Type: application/json, 본문 '{\"orders\":'): POST /api/simulate → HTTP 400, 본문 {\"timestamp\":...,\"status\":400,\"error\":\"Bad Request\",\"trace\":\"org.springframework.http.converter.HttpMessageNotReadableException: JSON parse error: Unexpected end-of-input within/between Object entries\\r\\n\\tat org.springframework.http.converter.AbstractJacksonHttpMessageConverter.readJavaType(...)...\"}",
+      "실측 2 (본문 {\"orders\":{\"MARS\":100}}): HTTP 400, trace 에 \"Cannot deserialize Map key of type `com.example.demo.entity.Country` from String \\\"MARS\\\": not one of the values accepted for Enum class: [INDONESIA, VIETNAM, CHINA, JAPAN, KOREA]\" 포함 — S5·No.36 의 /trace|Exception|org\\.springframework/ 에 걸린다.",
+      "실측 3 (같은 종류, 범위 참고): {\"orders\":{\"KOREA\":\"abc\"}} → 400 + trace(java.lang.Integer 변환 실패), 본문 없음 → 400 + trace(Required request body is missing ... AppController.simulate 시그니처 노출), POST /api/orders 에 '{\"orders\":' → 400 + trace, Content-Type 이 form 이면 415 + trace(HttpMediaTypeNotSupportedException), GET /orders?status=FOO → 400 + trace(MethodArgumentTypeMismatchException, 화면 요청).",
+      "실측 4 (정상 동작 기준): {\"orders\":{\"CHINA\":0}} → 400 {\"conflict\":false,\"error\":\"총 생산 필요 수는 1K 이상이어야 합니다\"} (기존 apiError 형식), 미로그인 깨진 JSON → 401 {\"status\":401,\"error\":\"Unauthorized\",...} (trace 없음, 인터셉터가 먼저 막음), 깨진 요청 뒤 GET /orders → 200.",
+      "robustness.spec.ts S5(71행)·ssw60040-prog.spec.ts No.36(288행): known-issue '깨진 요청의 오류 응답에 trace 가 포함됨'. 둘 다 status 400 + 본문이 /trace|Exception|org\\.springframework/ 에 걸리지 않아야 하고(soft), 이어서 DEFAULT_ORDERS 시뮬레이션 200 + options 3개, /orders 의 '주문 목록' 제목이 보여야 통과한다."
+    ]
+  },
+  "purpose": {
+    "understood": true,
+    "summary": "비정상 요청(깨진 JSON, 알 수 없는 나라 이름 등)에 대해 서버 내부 구조(스택트레이스·예외 클래스명·패키지명·메서드 시그니처)를 응답에 드러내지 않고, 다른 입력 오류와 같은 모양인 {error: 사람이 읽을 이유, conflict: false} JSON 으로 400 을 돌려준다. 그 뒤 정상 시뮬레이션(3가지 안)과 /orders 화면은 영향 없이 동작해야 한다. INTENT G7 의 '잘못된 입력은 이유와 함께 알린다' 를 API 역직렬화 단계까지 확장하는 결함 수정이며, 기존 BusinessException 기반 400/409 응답과 로그인 보호(401/302)는 그대로 둔다.",
+    "evidence": [
+      "팀 통합 시나리오 No. 36 목적: \"비정상 요청이 앱을 멈추게 하거나 내부 정보를 드러내지 않는지 확인\"",
+      "No. 36 Pass 조건: \"1, 2: HTTP 400 이고 응답에 서버 내부 정보(trace 등 오류 추적 내용)가 없음 / 3: 3가지 안이 정상으로 나오고 /orders 가 열림\"",
+      "INTENT.md G7 (I9): 잘못된 입력은 이유와 함께 알린다 — 그래서 단순히 trace 만 지우는 것(서버 기본 오류 JSON 의 error: \"Bad Request\")으로는 부족하고, 왜 거절됐는지(JSON 형식 오류 / 알 수 없는 나라 이름 MARS) 를 error 에 담아야 한다.",
+      "AppController.apiError(): 기존 입력 오류 형식은 ResponseEntity.status(400|409).body(Map.of(\"error\", e.getMessage(), \"conflict\", e.isConflict())) — 새 응답도 이 메서드를 그대로 재사용해 형식을 맞춘다.",
+      "docs/evidence/ctkim1005/LOOP.md §4-1 보안 점검 항목: \"오류 응답의 내부 정보 노출(curl로 실제 본문 확인)\" — 구현 후 보안 점검 에이전트가 같은 기준으로 본문을 확인한다."
+    ]
+  },
+  "risk": {
+    "size": "small",
+    "severity": "low",
+    "userAware": true,
+    "warning": "application.properties 에 server.error.include-stacktrace=never 를 추가하면(계획 2단계, 방어선) 개발 중 브라우저·curl 로 보던 다른 오류 응답(415, 화면 400, 예기치 않은 500)에서도 trace 필드가 사라진다. 스택트레이스는 서버 콘솔 로그에는 그대로 남으므로 디버깅은 로그로 한다. 이 한 줄이 부담스러우면 1단계(@ExceptionHandler)만으로도 S5·No.36 은 통과한다.",
+    "items": [
+      {
+        "title": "문서 규칙 대조: 충돌·미결 없음 (판정 OK)",
+        "detail": "PRD §4~§10, INTENT §2~§7 어느 규칙과도 충돌하지 않고 팀 미결 쟁점(§10-1~8 / §7-1~8)에 의존하지 않는다. 뒷받침 규칙은 INTENT G7·I9, PRD §8·D5·F6, G8/F1. 요청문의 'G9' 는 INTENT §4 에 없는 번호(G1~G8)라 G8(로그인 보호)로 해석했다 — 해석이 결과를 바꾸지 않으므로 HILP 사유가 아니다.",
+        "severity": "low"
+      },
+      {
+        "title": "응답 문구에 내부 정보가 다시 섞이지 않게",
+        "detail": "HttpMessageNotReadableException.getMessage()/Jackson 메시지에는 `com.example.demo.entity.Country`, java.lang.Integer, 컨트롤러 메서드 시그니처가 들어 있어 그대로 error 에 넣으면 S5 의 /Exception|org\\.springframework/ 는 피해도 '내부 정보 없음' 취지에 어긋난다. error 에는 우리가 쓴 한국어 문구와 사용자가 보낸 값(InvalidFormatException.getValue(), 50자 이내로 자름)만 넣고, 예외 메시지·클래스명은 서버 로그(warn)에만 남긴다.",
+        "severity": "medium"
+      },
+      {
+        "title": "Jackson 3 패키지(tools.jackson) — Spring Boot 4.1.1",
+        "detail": "원인 예외를 들여다볼 때 com.fasterxml.jackson.databind.exc.InvalidFormatException 이 아니라 tools.jackson.databind.exc.InvalidFormatException(jackson-databind 3.1.5, jar 에 클래스 존재 확인) 을 써야 컴파일된다. e.getMostSpecificCause() 로 꺼내 instanceof 로 확인하고, 그 외 원인(JSON 문법 오류, 본문 없음)은 모두 일반 문구로 처리해 분기 누락이 500 으로 번지지 않게 한다.",
+        "severity": "medium"
+      },
+      {
+        "title": "/api/* 기존 JSON 오류 응답·상태 코드 불변",
+        "detail": "새 @ExceptionHandler 는 HttpMessageNotReadableException 만 받으므로 BusinessException 경로(400 {error, conflict:false} / 409 conflict:true)와 정상 200 응답은 건드리지 않는다. OrderFlowTests 의 emptyOrderIsRejectedWithReason·confirmFailsWhenMasterChangedAfterSimulation·simulateReturnsThreeOptions 으로 회귀 확인. 화면 요청은 @RequestBody 를 쓰지 않으므로 이 처리기에 오지 않는다.",
+        "severity": "low"
+      },
+      {
+        "title": "server.error.include-stacktrace=never 의 영향 범위",
+        "detail": "devtools 가 넣는 always 기본값을 application.properties 가 덮어써 모든 기본 오류 응답(415, /orders?status=FOO 의 화면 400, 예기치 않은 500, 미로그인 401)에서 trace 필드만 빠지고 status·error·path 는 유지된다. 운영 기본값(never)과 같아지는 것이라 동작 변화는 없고, 테스트(MockMvc 는 BasicErrorController 를 타지 않음)에도 영향 없다. TASK-001 의 404 안내 페이지(notice.html)는 이 설정과 무관하다.",
+        "severity": "low"
+      },
+      {
+        "title": "실행 중인 앱(8080, IntelliJ+devtools) 반영",
+        "detail": "TASK-001 과 같이 ./gradlew.bat compileJava processResources 로 build 출력물을 갱신하면 devtools 가 재시작한다(TASK-001 리포트에서 확인). 반영 전에는 S5·No.36 이 그대로 실패하므로 리포트 단계에서 curl 로 400 본문에 trace 가 없는지 먼저 확인하고, 재시작이 안 되면 사람에게 재시작을 요청한다.",
+        "severity": "medium"
+      },
+      {
+        "title": "범위 밖으로 남기는 것",
+        "detail": "415(Content-Type 불일치)와 화면 쿼리 오류(/orders?status=FOO 의 400)는 시나리오 대상이 아니다. include-stacktrace=never 로 trace 만 제거되고 형식은 Spring 기본 JSON 그대로 둔다. 필요하면 별도 작업으로 안내 페이지/{error} 형식을 적용한다. 다른 팀원의 spec 파일·helpers 는 수정하지 않는다.",
+        "severity": "low"
+      }
+    ]
+  },
+  "testCases": [
+    {
+      "id": "TC-1",
+      "origin": "existing",
+      "kind": "feature",
+      "target": "src/test/e2e/robustness.spec.ts S5 (71행, 수정 금지)",
+      "description": "로그인 후 '{\"orders\":' → 400 + 본문이 /trace|Exception|org\\.springframework/ 에 안 걸림, {MARS:100} → 400 + 동일, 이어서 DEFAULT_ORDERS 시뮬레이션 200(options 3개) 과 /orders '주문 목록' 제목",
+      "input": "npx playwright test src/test/e2e/robustness.spec.ts -g S5 --reporter=list",
+      "expected": "known-issue 였던 soft expect 2개가 통과하고 테스트 Pass"
+    },
+    {
+      "id": "TC-2",
+      "origin": "existing",
+      "kind": "feature",
+      "target": "src/test/e2e/ssw60040-prog.spec.ts No.36 (288행, 다른 팀원 파일, 수정 금지)",
+      "description": "팀 통합 시나리오 No. 36. S5 와 같은 절차·판정",
+      "input": "npx playwright test src/test/e2e/ssw60040-prog.spec.ts -g No.36 --reporter=list",
+      "expected": "Pass"
+    },
+    {
+      "id": "TC-3",
+      "origin": "new",
+      "kind": "feature",
+      "target": "src/test/java/com/example/demo/OrderFlowTests.java brokenJsonIsRejectedWithoutInternalInfo (신규)",
+      "description": "MockMvc: 로그인 세션으로 POST /api/simulate, Content-Type application/json, 본문 '{\"orders\":'",
+      "input": "post(\"/api/simulate\").session(login()).contentType(APPLICATION_JSON).content(\"{\\\"orders\\\":\")",
+      "expected": "status().isBadRequest(), $.error 가 비어 있지 않은 문자열, $.conflict == false, 본문에 'trace'·'Exception'·'org.springframework'·'com.example' 없음 (처리기 없으면 MockMvc 본문이 비어 $.error 검사에서 실패)"
+    },
+    {
+      "id": "TC-4",
+      "origin": "new",
+      "kind": "feature",
+      "target": "OrderFlowTests.unknownCountryIsRejectedWithReason (신규)",
+      "description": "알 수 없는 나라 이름 {\"orders\":{\"MARS\":100}} → 이유에 보낸 값이 들어간다 (G7 '이유와 함께')",
+      "input": "post(\"/api/simulate\") content {\"orders\":{\"MARS\":100}}",
+      "expected": "400, $.error 에 'MARS' 와 '나라' 포함, $.conflict false, 본문에 'Country'·'Exception' 없음"
+    },
+    {
+      "id": "TC-5",
+      "origin": "new",
+      "kind": "boundary",
+      "target": "OrderFlowTests.nonNumericQuantityAndMissingBodyAreRejectedSafely (신규)",
+      "description": "경계값: 수량이 정수가 아닌 경우({\"orders\":{\"KOREA\":\"abc\"}})와 본문이 없는 POST — InvalidFormatException 이외의 원인도 500 없이 400 {error}",
+      "input": "post(\"/api/simulate\") content {\"orders\":{\"KOREA\":\"abc\"}} / content 없음",
+      "expected": "둘 다 400, $.error 존재, 본문에 'Exception'·'AppController'·'java.lang' 없음"
+    },
+    {
+      "id": "TC-6",
+      "origin": "new",
+      "kind": "boundary",
+      "target": "OrderFlowTests.brokenJsonOnConfirmDoesNotSaveOrder (신규)",
+      "description": "POST /api/orders 에 깨진 JSON → 400 {error} 이고 주문이 저장되지 않는다(I9 일부 저장 금지)",
+      "input": "post(\"/api/orders\") content '{\"orders\":' ; 전후 orderService.listOrders(null).size() 비교",
+      "expected": "400, $.conflict false, 주문 건수 변화 없음, 본문에 'trace' 없음"
+    },
+    {
+      "id": "TC-7",
+      "origin": "new",
+      "kind": "regression",
+      "target": "OrderFlowTests.brokenRequestThenNormalSimulateStillWorks (신규)",
+      "description": "깨진 요청 2건 뒤 같은 세션으로 정상 시뮬레이션과 GET /orders (시나리오 절차 3)",
+      "input": "깨진 JSON → MARS → post(\"/api/simulate\") ORDERS → get(\"/orders\")",
+      "expected": "마지막 두 요청이 200, $.options.length() == 3"
+    },
+    {
+      "id": "TC-8",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "OrderFlowTests.anonymousUserIsSentToLogin (+ 신규 brokenJsonWithoutLoginIsUnauthorized)",
+      "description": "로그인 없이 /api/simulate → 인터셉터가 먼저 401 (G8). 깨진 JSON 이어도 401 이어야 하고 처리기가 끼어들지 않는다",
+      "input": "post(\"/api/simulate\") 세션 없음, content '{\"orders\":'",
+      "expected": "status().isUnauthorized()"
+    },
+    {
+      "id": "TC-9",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "OrderFlowTests.emptyOrderIsRejectedWithReason, confirmFailsWhenMasterChangedAfterSimulation, simulateReturnsThreeOptions",
+      "description": "기존 BusinessException JSON 응답(400 {error}, 409 conflict:true)과 정상 200 응답이 처리기 추가 후에도 그대로인지",
+      "input": "POST /api/simulate {CHINA:0} / POST /api/orders masterVersion=-1 / 정상 ORDERS",
+      "expected": "400 + $.error / 409 + $.conflict=true / 200 + options 3 (변화 없음)"
+    },
+    {
+      "id": "TC-10",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "OrderFlowTests.missingOrderShowsNoticeInsteadOf500, missingOrderStatusChangeLandsOnNotice, missingOrderWithoutLoginGoesToLogin (TASK-001)",
+      "description": "TASK-001 의 404 안내 페이지 경로가 새 처리기·설정과 충돌하지 않는지",
+      "input": "GET /orders/999999 (로그인/미로그인)",
+      "expected": "404 안내 페이지 / 302 /login (변화 없음)"
+    },
+    {
+      "id": "TC-11",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "./gradlew.bat test --rerun --console=plain 전체 (DemoApplicationTests, OrderFlowTests, simulation/PlannerTest)",
+      "description": "JUnit 전체 회귀 (TASK-001 기준 25개 + 신규)",
+      "input": "./gradlew.bat test --rerun --console=plain",
+      "expected": "BUILD SUCCESSFUL, failures=0, errors=0"
+    },
+    {
+      "id": "TC-12",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "npx playwright test --reporter=list (E2E 전체 44개) — 특히 team-ctkim1005.spec.ts T27, robustness.spec.ts S10",
+      "description": "TASK-001 대상 T27·S10 이 계속 Pass 하고, 그 외 실패는 기존 known-issue(T26 취소 정책, PRD §10-1 미결)만 남는지",
+      "input": "npx playwright test --reporter=list",
+      "expected": "S5·No.36·T27·S10 Pass, 실패는 T26 만 (known-issue)"
+    }
+  ],
+  "checklist": [
+    {
+      "title": "깨진 요청 2종이 400 + {error, conflict:false} 이고 내부 정보가 없다",
+      "detail": "로그인 쿠키로 curl: POST /api/simulate 에 '{\"orders\":' 와 {\"orders\":{\"MARS\":100}} → 둘 다 HTTP 400, 본문 키는 error·conflict 뿐이고 error 는 한국어 이유(MARS 의 경우 보낸 값 포함). 본문에 trace, Exception, org.springframework, com.example, java.lang, timestamp 가 없다. POST /api/orders 에 깨진 JSON 도 같은 형식이고 주문이 저장되지 않는다."
+    },
+    {
+      "title": "기존 동작 불변: BusinessException JSON, 로그인 보호, 화면, TASK-001 안내 페이지",
+      "detail": "{\"orders\":{\"CHINA\":0}} → 400 {conflict:false, error:'총 생산 필요 수는 1K 이상이어야 합니다'}, masterVersion=-1 확정 → 409 conflict:true, 미로그인 /api/simulate(깨진 JSON 포함) → 401, 미로그인 화면 → 302 /login, 깨진 요청 뒤 정상 시뮬레이션 200(options 3개)과 GET /orders 200, GET /orders/999999 → 404 안내 페이지. include-stacktrace=never 를 넣었다면 /orders?status=FOO 와 415 응답에서도 trace 필드가 사라졌는지 확인."
+    },
+    {
+      "title": "JUnit 전체 + E2E S5·No.36·T27·S10 통과, 다른 E2E 는 known-issue 외 실패 없음",
+      "detail": "./gradlew.bat test --rerun --console=plain 성공(신규 MockMvc 테스트 포함, failures=0), ./gradlew.bat compileJava processResources 로 8080 앱에 반영한 뒤 npx playwright test --reporter=list 에서 S5(robustness.spec.ts)·No.36(ssw60040-prog.spec.ts)·T27·S10 Pass, 남는 실패는 T26(known-issue, PRD §10-1 미결) 만."
+    }
+  ],
+  "plan": "방향: INTENT G7 에 따라 '이유와 함께 알리는' 기존 {error, conflict} 형식으로 통일하고, 내부 정보는 응답이 아니라 서버 로그에만 남긴다. 선택 근거: (a) server.error.include-stacktrace=never 만 넣으면 trace 는 빠지지만 본문이 Spring 기본 {status, error:'Bad Request', path} 라서 '기존 API 오류 형식' 과 '이유 안내' 조건을 만족하지 못한다. (b) 전역 @ControllerAdvice 는 컨트롤러가 AppController 하나뿐이라 TASK-001 과 같은 이유로 이점이 없고 범위만 넓어진다. (c) 따라서 TASK-001 처리기 옆에 HttpMessageNotReadableException 전용 @ExceptionHandler 를 두고 apiError() 를 재사용한다(주 조치). 여기에 include-stacktrace=never 한 줄을 방어선으로 더해 처리기가 못 잡는 나머지 기본 오류 응답(415, 화면 400, 500)에서도 trace 가 새지 않게 한다(보조 조치, 운영 기본값과 동일).\n\n1) src/main/java/com/example/demo/controller/AppController.java: import org.springframework.http.converter.HttpMessageNotReadableException, tools.jackson.databind.exc.InvalidFormatException(Jackson 3, com.fasterxml 아님), org.slf4j.Logger/LoggerFactory. '// ---- JSON API' 구역 아래(기존 화면 오류 안내 처리기 옆)에 추가:\n   @ExceptionHandler(HttpMessageNotReadableException.class)\n   public ResponseEntity<Map<String, Object>> unreadableRequest(HttpMessageNotReadableException e) {\n       log.warn(\"요청 본문을 읽을 수 없음: {}\", e.getMessage()); // 내부 정보는 로그에만\n       return apiError(new BusinessException(unreadableReason(e)));  // 400 {error, conflict:false}\n   }\n   private static String unreadableReason(HttpMessageNotReadableException e): Throwable cause = e.getMostSpecificCause(); cause 가 InvalidFormatException ife 이면 → ife.getTargetType() == Country.class 일 때 \"알 수 없는 나라 이름입니다: <값>. 쓸 수 있는 값: KOREA, CHINA, JAPAN, VIETNAM, INDONESIA\" (값은 String.valueOf(ife.getValue()) 를 50자로 자름), 그 외 InvalidFormatException 은 \"요청 값의 형식이 올바르지 않습니다: <값>\" ; 나머지(JSON 문법 오류, 본문 없음 등) 는 \"요청 형식이 올바르지 않습니다. JSON 본문을 확인해 주세요\". 예외 메시지·클래스명은 절대 본문에 넣지 않는다. ResponseEntity 반환이라 @Controller 안에서도 JSON 으로 나가며, HttpMessageNotReadableException 은 @RequestBody 를 쓰는 /api/simulate·/api/orders 에서만 발생하므로 화면 요청·TASK-001 처리기(NotFoundException/BusinessException → notice.html)와 겹치지 않는다. ExceptionHandlerExceptionResolver 는 컨트롤러 안의 처리기를 먼저 보므로 BasicErrorController 로 넘어가지 않는다.\n\n2) src/main/resources/application.properties: 'server.error.include-stacktrace=never' 한 줄 추가(주석으로 이유 기록: devtools 기본값 always 를 끄고 운영 기본값과 맞춤). 처리기가 다루지 않는 415·화면 400·예기치 않은 500 에서도 trace 가 응답에 실리지 않게 하는 방어선. status·error·path 는 그대로라 다른 테스트에 영향 없음.\n\n3) src/test/java/com/example/demo/OrderFlowTests.java: 기존 테스트는 손대지 않고 '// ---- 깨진 요청: 내부 정보 없이 400 {error} (팀 시나리오 No. 36 / S5, INTENT G7)' 구역에 신규 테스트 추가 — brokenJsonIsRejectedWithoutInternalInfo(400, $.error 비어 있지 않음, $.conflict false, 본문에 trace/Exception/org.springframework/com.example 없음), unknownCountryIsRejectedWithReason(MARS → 400, $.error 에 'MARS' 포함, 'Country' 없음), nonNumericQuantityAndMissingBodyAreRejectedSafely(\"abc\" 수량·본문 없음 → 400 {error}, 'AppController'·'java.lang' 없음), brokenJsonOnConfirmDoesNotSaveOrder(/api/orders → 400, 주문 건수 불변), brokenRequestThenNormalSimulateStillWorks(깨진 2건 뒤 정상 200 + options 3, GET /orders 200), brokenJsonWithoutLoginIsUnauthorized(세션 없이 → 401). 기존 ORDERS 상수와 login() 헬퍼 재사용.\n\n4) 반영·검증 순서: ./gradlew.bat test --rerun --console=plain → ./gradlew.bat compileJava processResources 로 build 출력물 갱신(IntelliJ 로 띄운 8080 앱의 devtools 재시작) → curl 로 '{\"orders\":' 와 MARS 가 400 {error, conflict} 이고 trace 없음, {CHINA:0} 400 기존 문구, 미로그인 401, /orders/999999 404 확인 → npx playwright test src/test/e2e/robustness.spec.ts src/test/e2e/ssw60040-prog.spec.ts -g \"S5|No.36\" --reporter=list → npx playwright test --reporter=list 전체 회귀(T27·S10 유지, T26 만 known-issue 실패) → round-1/report.json·report.html 작성.\n\n5) 손대지 않는 것: 다른 팀원의 *.spec.ts·helpers.ts·ui-helpers.ts, BusinessException/NotFoundException 의 공개 API, apiError() 의 상태 코드 규칙(400/409), LoginInterceptor, notice.html, 계산 규칙·기준값·주문 상태. 415 와 화면 쿼리 오류(/orders?status=FOO)는 trace 만 제거하고 형식은 바꾸지 않는다(범위 밖). commit/push 하지 않는다."
+}

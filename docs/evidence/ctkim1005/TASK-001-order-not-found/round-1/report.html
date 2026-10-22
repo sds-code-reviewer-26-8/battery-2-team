@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 검증 리포트</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, #059669, #0891b2); color: #fff; padding: 28px 16px 64px; }
+  .hero.fail { background: linear-gradient(135deg, #dc2626, #9333ea); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; gap: 8px; padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.2);
+    font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.5rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .92; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; } .tile span { color: var(--muted); font-size: .82rem; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); } .pill.info { background: var(--info-soft); color: var(--info); }
+  .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; border-left-width: 4px; }
+  .item.ok { border-left-color: var(--ok); } .item.bad { border-left-color: var(--bad); } .item.warn { border-left-color: var(--warn); }
+  .item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .item p { margin: 6px 0 0; font-size: .9rem; white-space: pre-wrap; }
+  .bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0; }
+  .bar i { display: block; height: 100%; } .bar .p { background: var(--ok); } .bar .f { background: var(--bad); } .bar .s { background: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; } td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feedback { border: 2px dashed var(--bad); border-radius: 14px; padding: 14px 16px; background: var(--bad-soft); }
+  .feedback h3 { margin: 0 0 6px; color: var(--bad); font-size: 1rem; } .feedback ul { margin: 4px 0 8px; padding-left: 20px; }
+  pre { background: var(--bg); border-radius: 10px; padding: 10px 12px; overflow: auto; font-size: .82rem; margin: 6px 0 0; white-space: pre-wrap; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  a { color: var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero"><div class="wrap">
+  <span class="badge" id="badge"></span><h1 id="title"></h1><p id="sub"></p>
+</div></div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="feedbackBox"></div>
+  <section class="card"><h2>✅ 체크리스트 점검</h2><div id="checks"></div></section>
+  <section class="card"><h2>🧪 회귀 테스트</h2>
+    <div class="bar" id="bar"></div><div class="small muted" id="barTxt"></div>
+    <div class="chips" id="chips" style="margin-top:12px"></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>결과</th><th>테스트</th><th class="num">시간</th><th>메시지</th></tr></thead><tbody id="tests"></tbody></table></div>
+    <div class="small muted" id="e2e" style="margin-top:10px"></div>
+  </section>
+  <section class="card" id="issuesCard"><h2>🔎 발견한 문제</h2><div id="issues"></div></section>
+  <section class="card" id="cmdCard"><details><summary>실행한 명령</summary><div id="cmds"></div></details></section>
+  <section class="card" id="evCard" hidden><h2>🔗 관련 산출물</h2><div id="ev"></div></section>
+</main>
+<footer>impl-verify 검증 리포트 · 이 페이지는 검증 단계의 점검·피드백 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{
+  "request": "존재하지 않는 주문 번호(예: /orders/999999)를 열면 HTTP 500 오류 화면 대신 '주문을 찾을 수 없습니다' 안내를 보여 주고, 상단 메뉴로 계속 쓸 수 있게 한다 (팀 통합 E2E 시나리오 No. 27, INTENT G7)",
+  "round": 1,
+  "verdict": "PASS",
+  "loop_action": "END",
+  "summary": "2026-10-21 라운드 1 검증 결과 PASS. 실행 중인 8080 앱(devtools 자동 재시작으로 반영 확인)에 admin 으로 로그인한 뒤 curl 로 GET /orders/999999 를 요청하면 HTTP 404 안내 페이지가 나오고, 본문에 '주문을 찾을 수 없습니다' 가 정확히 1회, 헤더 메뉴(주문 목록·주문 추가·마스터 데이터)가 각 1회 있으며 trace/Whitelabel 문자열은 없다. 헤더의 '주문 목록' 링크(/orders)는 200 으로 정상으로 열린다. /api/simulate(400, conflict:false)·/api/orders masterVersion=-1(409, conflict:true)·미로그인 /api/*(401)·미로그인 화면(302 /login) 은 모두 변하지 않았다. JUnit 은 --rerun 으로 새로 돌려 25/25 통과(신규 MockMvc 3개 포함), E2E 전체 44건은 41 passed / 3 failed 이고 T27·S10 은 Pass, 실패 3건(S5·No.36·T26)은 모두 테스트 코드에 known-issue annotation 이 있는 기존 결함(깨진 JSON 응답의 trace, 취소 시 주문 삭제 정책)으로 이번 변경 경로(BusinessException/NotFoundException → notice.html)와 무관하다. 다른 팀원 테스트(No.22 등)가 남긴 완료 상태 주문 2건(#39, #47)은 최종 상태라 화면에서 지울 수 없어 그대로 두었다. 코드는 commit/push 하지 않았다.",
+  "checklist": [
+    {
+      "title": "/orders/999999 가 500 이 아니라 안내 페이지",
+      "detail": "로그인 후 GET /orders/999999 → HTTP 404, 화면에 '주문을 찾을 수 없습니다' 가 정확히 한 번 보이고 헤더 메뉴(주문 목록·주문 추가·마스터 데이터)가 있으며 '주문 목록' 링크로 /orders 가 정상으로 열린다. curl 과 브라우저(E2E) 모두로 확인.",
+      "result": "pass",
+      "evidence": "[curl] POST /login(admin/admin) → 302 /orders 로 쿠키 획득 후 GET /orders/999999 → HTTP 404. 본문 grep: '주문을 찾을 수 없습니다' 1회, '주문 목록' 1회(헤더 \u003ca href=\"/orders\" class=\"active\">주문 목록\u003c/a>), '주문 추가' 1회, '마스터 데이터' 1회, 'trace' 0회, 'Whitelabel' 0회. 본문 버튼은 '목록으로'(href=/orders). 이어서 GET /orders → 200. 미로그인 GET /orders/999999 → 302 → /login. gradle test 실행 후 다시 확인해도 404 유지(앱 재시작 불필요). [E2E] robustness.spec.ts S10 ok(510ms), team-ctkim1005.spec.ts T27 ok(871ms) — 둘 다 status != 500, getByText('주문을 찾을 수 없습니다') 표시, getByRole('link',{name:'주문 목록'}) 클릭 후 /orders 정상. [JUnit] missingOrderShowsNoticeInsteadOf500 pass."
+    },
+    {
+      "title": "/api/* JSON 오류 응답·상태 코드 불변",
+      "detail": "POST /api/simulate {CHINA:0} → 400 + {error, conflict:false}, POST /api/orders masterVersion=-1 → 409 + conflict:true. 로그인 없이 /api/* → 401, 화면 → /login 리다이렉트 그대로.",
+      "result": "pass",
+      "evidence": "[curl, 로그인 쿠키] POST /api/simulate {\"orders\":{\"CHINA\":0}} → HTTP 400 {\"conflict\":false,\"error\":\"총 생산 필요 수는 1K 이상이어야 합니다\"}. POST /api/orders {\"orders\":{CHINA:1000,KOREA:1000,JAPAN:1000},\"routeType\":\"COST\",\"masterVersion\":-1} → HTTP 409 {\"conflict\":true,\"error\":\"시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요\"}. [curl, 미로그인] POST /api/simulate → HTTP 401, GET /orders/999999 → 302 Location /login. [JUnit] emptyOrderIsRejectedWithReason(400+$.error), confirmFailsWhenMasterChangedAfterSimulation(409+conflict=true), anonymousUserIsSentToLogin, missingOrderWithoutLoginGoesToLogin 모두 pass. [E2E] S1·T03(접근 통제), S3·S4·T14·T17(400 응답), S7·No.18(409) 모두 ok. 참고: 깨진 JSON(HttpMessageNotReadableException) 응답에 trace 가 들어가는 것은 @ExceptionHandler 추가 전부터 있던 known-issue(S5·No.36)로, BusinessException 경로가 아니다."
+    },
+    {
+      "title": "JUnit 전체 + E2E T27·S10 통과, 다른 E2E 는 known-issue 외 실패 없음",
+      "detail": "./gradlew.bat test --console=plain 성공(신규 MockMvc 테스트 포함), npx playwright test --reporter=list 에서 T27·S10 Pass, 그 외 실패는 기존 known-issue 로만 한정.",
+      "result": "pass",
+      "evidence": "[JUnit] ./gradlew.bat test --console=plain 은 :test UP-TO-DATE(캐시) 였으므로 ./gradlew.bat test --rerun --console=plain 으로 새로 실행 → BUILD SUCCESSFUL in 18s. build/test-results/test/*.xml: DemoApplicationTests tests=1, OrderFlowTests tests=12, PlannerTest tests=12 → 합계 25, failures=0, errors=0, skipped=0. 신규 3개(missingOrderShowsNoticeInsteadOf500, missingOrderStatusChangeLandsOnNotice, missingOrderWithoutLoginGoesToLogin) pass. [E2E] npx playwright test --reporter=list → Running 44 tests using 1 worker, 41 passed / 3 failed (1.6m). T27 ok, S10 ok. 실패 3건과 known-issue 확인: S5(robustness.spec.ts:73 annotations known-issue '깨진 요청의 오류 응답에 trace 가 포함됨'), No.36(ssw60040-prog.spec.ts:290 같은 known-issue), T26(team-ctkim1005.spec.ts:243 known-issue '취소 시 주문 삭제 → 상세 이동 중 오류 화면, 취소 칩 항상 0'). 이번 변경과 무관한 기존 결함이며 새 실패 없음. 구현 담당이 보고한 S1 flaky(병렬 실행 타임아웃)는 이번 실행에서 ok(627ms)."
+    }
+  ],
+  "regression": {
+    "command": "cd D:/work/battery-2-team && ./gradlew.bat test --rerun --console=plain",
+    "total": 25,
+    "passed": 25,
+    "failed": 0,
+    "skipped": 0,
+    "duration": "18s (BUILD SUCCESSFUL; suite time DemoApplicationTests 9.0s + OrderFlowTests 3.9s + PlannerTest 0.06s)",
+    "tests": [
+      {
+        "suite": "DemoApplicationTests",
+        "name": "contextLoads()",
+        "result": "pass",
+        "time": "1.03s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "confirmFailsWhenMasterChangedAfterSimulation()",
+        "result": "pass",
+        "time": "0.42s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "pagesRender()",
+        "result": "pass",
+        "time": "0.697s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "missingOrderStatusChangeLandsOnNotice()",
+        "result": "pass",
+        "time": "0.042s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "confirmThenDetailAndStatusFlow()",
+        "result": "pass",
+        "time": "0.443s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "wrongPasswordIsRejected()",
+        "result": "pass",
+        "time": "0.016s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "simulateReturnsThreeOptions()",
+        "result": "pass",
+        "time": "0.038s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "invalidMasterIsNotSaved()",
+        "result": "pass",
+        "time": "0.038s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "missingOrderWithoutLoginGoesToLogin()",
+        "result": "pass",
+        "time": "0.005s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "masterUpdateBumpsVersionAndKeepsConfirmedPlans()",
+        "result": "pass",
+        "time": "0.095s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "emptyOrderIsRejectedWithReason()",
+        "result": "pass",
+        "time": "0.015s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "missingOrderShowsNoticeInsteadOf500()",
+        "result": "pass",
+        "time": "0.042s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "anonymousUserIsSentToLogin()",
+        "result": "pass",
+        "time": "0.012s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "usesAtMostAvailableShips()",
+        "result": "pass",
+        "time": "0.009s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "costOptionIsNotMoreExpensiveAndFastOptionIsNotSlower()",
+        "result": "pass",
+        "time": "0.005s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "defaultOrderSummary()",
+        "result": "pass",
+        "time": "0.012s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "productionCostIsCellsTimesUnitCost()",
+        "result": "pass",
+        "time": "0.0s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "everyOptionCollectsExactlyWhatWasOrdered()",
+        "result": "pass",
+        "time": "0.01s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "productionStopsAtStockLimitUntilPickup()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "singleSmallOrderTakesProductionPlusRoundTrip()",
+        "result": "pass",
+        "time": "0.0s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "eachCountryIsVisitedByOneShipOnly()",
+        "result": "pass",
+        "time": "0.005s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "rejectsEmptyOrder()",
+        "result": "pass",
+        "time": "0.002s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "shipDepartsLateSoItDoesNotWaitAtPort()",
+        "result": "pass",
+        "time": "0.002s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "visitsAreCeilOfOrderOverStockLimit()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "overStockLimitOrderIsCollectedInSeveralRoundTrips()",
+        "result": "pass",
+        "time": "0.003s",
+        "message": ""
+      }
+    ]
+  },
+  "e2e": {
+    "ran": true,
+    "note": "npx playwright test --reporter=list (chromium, 1 worker, 44 tests, 1.6m) → 41 passed / 3 failed. 이번 작업 대상 T27(team-ctkim1005.spec.ts:275) ok 871ms, S10(robustness.spec.ts:149) ok 510ms — known-issue 였던 '없는 주문 번호 접근 시 HTTP 500' 이 해소됨(annotation 은 테스트 코드에 그대로 남아 있음). 실패 3건은 모두 코드에 known-issue annotation 이 있는 기존 결함: S5(robustness.spec.ts:71)·No.36(ssw60040-prog.spec.ts:288) = 깨진 JSON 요청(HttpMessageNotReadableException)의 400 응답에 trace 포함, T26(team-ctkim1005.spec.ts:240) = 취소 시 주문 삭제 정책(PRD §10-1 미결정)으로 '취소' 상태·칩 건수 불일치. 셋 다 BusinessException/NotFoundException → notice.html 경로가 아니므로 이번 변경과 무관하며, 신규 실패는 없다. e2eTotal=44, e2eFailed=3, e2eKnownIssueFailed=3."
+  },
+  "issues": [
+    {
+      "severity": "minor",
+      "location": "src/test/e2e/robustness.spec.ts:71 S5, src/test/e2e/ssw60040-prog.spec.ts:288 No.36 (known-issue, 기존)",
+      "problem": "끝나지 않은 JSON('{\"orders\":')을 POST /api/simulate 로 보내면 HTTP 400 은 맞지만 응답 본문에 trace(org.springframework... 스택트레이스)가 포함되어 soft expect '내부 정보 없음' 이 실패한다. HttpMessageNotReadableException 은 컨트롤러 메서드 진입 전에 발생해 이번 @ExceptionHandler(BusinessException) 범위 밖이다(기존 결함, 변경 전후 동일).",
+      "reproduce": "로그인 후 curl -b cj.txt -H 'Content-Type: application/json' -d '{\"orders\":' http://localhost:8080/api/simulate → 400 + \"trace\":\"org.springframework.http.converter.HttpMessageNotReadableException...\""
+    },
+    {
+      "severity": "minor",
+      "location": "src/test/e2e/team-ctkim1005.spec.ts:240 T26 (known-issue, 기존)",
+      "problem": "확정·진행 주문을 '취소' 로 바꾸면 주문이 삭제되어 상세의 .badge '취소' 와 '최종 상태라 더 바꿀 수 없습니다.' 가 없고 목록 '취소' 칩이 0 이다(Expected 2, Received 0). 취소를 상태로 남길지는 PRD §10-1 미결정 사항으로 이번 작업 범위 밖. 다만 이번 변경으로 취소 직후 화면은 500 오류 화면이 아니라 404 안내 페이지('주문을 찾을 수 없습니다')로 바뀌었다(precheck 경고대로).",
+      "reproduce": "npx playwright test src/test/e2e/team-ctkim1005.spec.ts -g T26 --reporter=list"
+    },
+    {
+      "severity": "minor",
+      "location": "실행 중 앱 DB(8080) 주문 목록",
+      "problem": "E2E 실행 전 주문 2건(#23, #31) → 실행 후 4건(#23, #31, #39, #47). 남은 #39(메모 'No.22 핵심 업무 흐름 테스트', 완료)와 #47(메모 없음, 완료)는 다른 팀원 spec(order-status-flow.spec.ts No.22 등)이 만들고 정리하지 않은 완료 상태 주문이며, 완료는 최종 상태라 화면에서 삭제·취소할 수 없어 그대로 두었다. ctkim1005 spec 은 finally 의 removeIfExists 로 자기 주문을 정리했다(T26 의 #50·#51 은 취소 시 삭제됨). 코드는 되돌리지 않았고 commit/push 하지 않았다.",
+      "reproduce": "curl -s -b cj.txt http://localhost:8080/orders | grep -o 'href=\"/orders/[0-9]*\"' | sort -u"
+    }
+  ],
+  "plan_feedback": {
+    "summary": "PASS 이므로 되돌아갈 계획 없음. 체크리스트 3/3 pass, JUnit 25/25, E2E T27·S10 Pass, 그 외 실패는 known-issue 3건(S5·No.36·T26)뿐.",
+    "failed_checklist": [],
+    "failed_tests": [],
+    "suggested_focus": []
+  },
+  "commands": [
+    {
+      "cmd": "netstat -ano | grep \":8080 .*LISTENING\"",
+      "result": "PID 27696 LISTENING (IPv4/IPv6) — 앱 실행 중, 재시작 불필요"
+    },
+    {
+      "cmd": "curl -s -c cj.txt -d 'username=admin&password=admin' http://localhost:8080/login",
+      "result": "302 → /orders (로그인 쿠키 획득)"
+    },
+    {
+      "cmd": "curl -s -b cj.txt -o body999.html -w '%{http_code}' http://localhost:8080/orders/999999",
+      "result": "404. 본문: '주문을 찾을 수 없습니다' 1회, '주문 목록' 1회, '주문 추가' 1회, '마스터 데이터' 1회, trace 0, Whitelabel 0, '목록으로' 버튼 href=/orders"
+    },
+    {
+      "cmd": "curl -s -b cj.txt -o /dev/null -w '%{http_code}' http://localhost:8080/orders",
+      "result": "200 (주문 목록 정상)"
+    },
+    {
+      "cmd": "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://localhost:8080/orders/999999 (미로그인)",
+      "result": "302 http://localhost:8080/login"
+    },
+    {
+      "cmd": "curl -s -b cj.txt -H 'Content-Type: application/json' -d '{\"orders\":{\"CHINA\":0}}' http://localhost:8080/api/simulate",
+      "result": "400 {\"conflict\":false,\"error\":\"총 생산 필요 수는 1K 이상이어야 합니다\"}"
+    },
+    {
+      "cmd": "curl -s -b cj.txt -H 'Content-Type: application/json' -d '{\"orders\":{\"CHINA\":1000,\"KOREA\":1000,\"JAPAN\":1000},\"routeType\":\"COST\",\"masterVersion\":-1}' http://localhost:8080/api/orders",
+      "result": "409 {\"conflict\":true,\"error\":\"시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요\"}"
+    },
+    {
+      "cmd": "curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{\"orders\":{\"CHINA\":0}}' http://localhost:8080/api/simulate (미로그인)",
+      "result": "401"
+    },
+    {
+      "cmd": "cd D:/work/battery-2-team && ./gradlew.bat test --console=plain",
+      "result": "BUILD SUCCESSFUL in 4s — 단 :test UP-TO-DATE(캐시) 라 아래 --rerun 으로 다시 실행"
+    },
+    {
+      "cmd": "cd D:/work/battery-2-team && ./gradlew.bat test --rerun --console=plain",
+      "result": "BUILD SUCCESSFUL in 18s. XML 합계 tests=25 (DemoApplicationTests 1, OrderFlowTests 12, PlannerTest 12), failures=0, errors=0, skipped=0"
+    },
+    {
+      "cmd": "curl -s -b cj.txt -o /dev/null -w '%{http_code}' http://localhost:8080/orders/999999 (gradle 실행 후 재확인)",
+      "result": "404 — 앱 반영 유지"
+    },
+    {
+      "cmd": "cd D:/work/battery-2-team && npx playwright test --reporter=list",
+      "result": "Running 44 tests using 1 worker → 41 passed / 3 failed (1.6m). T27 ok(871ms), S10 ok(510ms). 실패: S5, No.36, T26 (모두 known-issue)"
+    },
+    {
+      "cmd": "grep -n 'known-issue' src/test/e2e/robustness.spec.ts src/test/e2e/ssw60040-prog.spec.ts src/test/e2e/team-ctkim1005.spec.ts",
+      "result": "robustness.spec.ts:73(S5) / ssw60040-prog.spec.ts:290(No.36) '깨진 요청의 오류 응답에 trace 가 포함됨', team-ctkim1005.spec.ts:243(T26) '취소 시 주문 삭제 → 상세 이동 중 오류 화면, 취소 칩 항상 0' — 실패 3건 모두 annotation 확인"
+    },
+    {
+      "cmd": "curl -s -b cj.txt http://localhost:8080/orders | grep -o 'href=\"/orders/[0-9]*\"' | sort -u (E2E 전/후)",
+      "result": "전: #23, #31 / 후: #23, #31, #39(No.22 테스트, 완료), #47(완료) — 다른 spec 이 남긴 완료 주문 2건, 최종 상태라 정리 불가"
+    },
+    {
+      "cmd": "node docs/evidence/ctkim1005/loop/render.mjs report docs/evidence/ctkim1005/TASK-001-order-not-found/round-1/report.json docs/evidence/ctkim1005/TASK-001-order-not-found/round-1/report.html",
+      "result": "report.html 생성"
+    }
+  ],
+  "precheck_link": "./precheck.html"
+}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">리포트 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function pill(x, k) { return el('span', 'pill ' + k, x); }
+  var RES = { pass: ['통과', 'ok'], fail: ['실패', 'bad'], skipped: ['건너뜀', 'warn'], unverified: ['확인 못함', 'warn'] };
+
+  var pass = D.verdict === 'PASS';
+  $('hero').classList.toggle('fail', !pass);
+  $('badge').textContent = pass ? '✔ PASS — 루프를 종료합니다' : '✖ FAIL — 계획 단계로 되돌아갑니다';
+  $('title').textContent = D.request || '구현 검증 리포트';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (D.summary || '');
+  document.title = (pass ? '[PASS] ' : '[FAIL] ') + '구현 검증 리포트';
+
+  var cl = D.checklist || [], R = D.regression || {}, tests = R.tests || [];
+  var okCl = cl.filter(function (c) { return c.result === 'pass'; }).length;
+  [['판정', pass ? 'PASS' : 'FAIL'], ['체크리스트', okCl + ' / ' + cl.length], ['회귀 테스트', (R.passed || 0) + ' / ' + (R.total || 0)], ['실패', (R.failed || 0) + (cl.length - okCl)]]
+    .forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  var F = D.plan_feedback;
+  if (!pass && F) {
+    var fb = el('div', 'feedback'); fb.appendChild(el('h3', '', '↩ 계획 단계로 되돌아가기 위한 값'));
+    if (F.summary) fb.appendChild(el('p', '', F.summary));
+    [['실패한 체크리스트', F.failed_checklist], ['실패한 테스트', F.failed_tests], ['계획이 집중할 점', F.suggested_focus]].forEach(function (g) {
+      if (!(g[1] || []).length) return; fb.appendChild(el('b', 'small', g[0]));
+      var ul = el('ul'); g[1].forEach(function (x) { ul.appendChild(el('li', '', x)); }); fb.appendChild(ul);
+    });
+    var w = el('div', 'card'); w.style.borderColor = 'var(--bad)'; w.appendChild(fb); $('feedbackBox').appendChild(w);
+  }
+
+  cl.forEach(function (c, i) {
+    var r = RES[c.result] || RES.unverified, d = el('div', 'item ' + r[1]), h = el('header');
+    h.appendChild(pill(r[0], r[1])); h.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); d.appendChild(h);
+    if (c.detail) d.appendChild(el('p', 'muted', '확인 방법: ' + c.detail));
+    if (c.evidence) d.appendChild(el('p', '', '근거: ' + c.evidence));
+    $('checks').appendChild(d);
+  });
+  if (!cl.length) $('checks').appendChild(el('div', 'empty', '체크리스트가 전달되지 않았습니다.'));
+
+  var tot = R.total || 0;
+  function seg(c, n) { var i = el('i', c); i.style.width = (tot ? n / tot * 100 : 0) + '%'; $('bar').appendChild(i); }
+  seg('p', R.passed || 0); seg('f', R.failed || 0); seg('s', R.skipped || 0);
+  $('barTxt').textContent = '통과 ' + (R.passed || 0) + ' · 실패 ' + (R.failed || 0) + ' · 건너뜀 ' + (R.skipped || 0) + ' / 전체 ' + tot + (R.duration ? ' · ' + R.duration : '');
+  var filter = 'all', q = '', defs = [['all', '전체'], ['pass', '통과'], ['fail', '실패'], ['skipped', '건너뜀']];
+  function draw() {
+    var tb = $('tests'); tb.textContent = '';
+    var list = tests.filter(function (t) { return (filter === 'all' || t.result === filter) && (!q || ((t.suite || '') + ' ' + t.name + ' ' + (t.message || '')).toLowerCase().indexOf(q) >= 0); });
+    if (!list.length) { var tr = el('tr'), td = el('td', 'empty', '표시할 테스트가 없습니다.'); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr); return; }
+    list.forEach(function (t) {
+      var r = RES[t.result] || RES.skipped, tr = el('tr'), a = el('td'); a.appendChild(pill(r[0], r[1])); tr.appendChild(a);
+      var b = el('td'); b.appendChild(el('b', '', t.name || '')); if (t.suite) b.appendChild(el('div', 'small muted', t.suite)); tr.appendChild(b);
+      tr.appendChild(el('td', 'num', t.time || '')); tr.appendChild(el('td', 'small', t.message || '')); tb.appendChild(tr);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); draw(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 검색'; s.oninput = function () { q = s.value.toLowerCase(); draw(); }; $('chips').appendChild(s);
+  draw();
+  if (D.e2e) $('e2e').textContent = 'E2E(Playwright): ' + (D.e2e.ran ? '실행함' : '실행하지 않음') + (D.e2e.note ? ' — ' + D.e2e.note : '');
+  if (R.command) $('e2e').textContent = '실행: ' + R.command + (D.e2e ? ' · ' + $('e2e').textContent : '');
+
+  var iss = D.issues || [];
+  if (!iss.length) $('issues').appendChild(el('div', 'empty', '발견한 문제가 없습니다.'));
+  iss.forEach(function (x) {
+    var k = x.severity === 'blocker' ? 'bad' : x.severity === 'major' ? 'warn' : 'info', d = el('div', 'item ' + (k === 'info' ? 'ok' : k)), h = el('header');
+    h.appendChild(pill(x.severity || '', k)); h.appendChild(el('b', '', x.location || '')); d.appendChild(h);
+    d.appendChild(el('p', '', x.problem || '')); if (x.reproduce) d.appendChild(el('p', 'muted', '재현/확인: ' + x.reproduce)); $('issues').appendChild(d);
+  });
+
+  var cm = D.commands || [];
+  if (!cm.length) $('cmdCard').hidden = true;
+  cm.forEach(function (c) { $('cmds').appendChild(el('pre', '', '$ ' + c.cmd + '\n→ ' + (c.result || ''))); });
+
+  if (D.precheck_link) { $('evCard').hidden = false; var a = el('a', '', '계획 점검 보기 (' + D.precheck_link + ')'); a.href = D.precheck_link; $('ev').appendChild(a); }
+})();
+</script>
+</body>
+</html>

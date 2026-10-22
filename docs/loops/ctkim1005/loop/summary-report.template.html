@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop 리포트</title>
+<style>
+  :root {
+    --bg: #f4f6fa; --card: #ffffff; --border: #dde3ea; --text: #1d232a; --muted: #5f6b7a;
+    --accent: #0b5cad; --accent-soft: #e4eefb; --pass: #1a7f4b; --pass-soft: #e3f5ea;
+    --fail: #b3261e; --fail-soft: #fbe7e5; --warn: #9a6200; --warn-soft: #fff3d6; --code: #eef1f5;
+    --radius: 12px; --maxw: 1040px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1419; --card: #161c24; --border: #2a333e; --text: #e6edf3; --muted: #9aa6b2;
+      --accent: #6cb4ff; --accent-soft: #16283d; --pass: #5fd08a; --pass-soft: #12301f;
+      --fail: #ff7b72; --fail-soft: #3a1a18; --warn: #f0c060; --warn-soft: #3a2d10; --code: #1e262f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1419; --card: #161c24; --border: #2a333e; --text: #e6edf3; --muted: #9aa6b2;
+    --accent: #6cb4ff; --accent-soft: #16283d; --pass: #5fd08a; --pass-soft: #12301f;
+    --fail: #ff7b72; --fail-soft: #3a1a18; --warn: #f0c060; --warn-soft: #3a2d10; --code: #1e262f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; font-size: 15px; line-height: 1.6; overflow-x: hidden; }
+  main { max-width: var(--maxw); margin: 0 auto; padding: 28px 16px 56px; }
+  .hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 20px; margin-bottom: 20px; }
+  .hero h1 { font-size: 1.6rem; margin: 0; flex: 1 1 420px; }
+  .hero .req { color: var(--muted); margin: 4px 0 0; flex-basis: 100%; }
+  .verdict { padding: 6px 16px; border-radius: 999px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .verdict.PASS { background: var(--pass-soft); color: var(--pass); }
+  .verdict.FAIL { background: var(--fail-soft); color: var(--fail); }
+  .verdict.HILP { background: var(--warn-soft); color: var(--warn); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: .9rem; margin-bottom: 22px; }
+  .meta b { color: var(--text); font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .tile { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .tile span { display: block; color: var(--muted); font-size: .82rem; }
+  .tile b { display: block; font-size: 1.5rem; font-weight: 700; margin-top: 2px; }
+  .tile b.ok { color: var(--pass); } .tile b.bad { color: var(--fail); }
+  .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stage { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; border-top: 4px solid var(--accent); }
+  .stage h2 { font-size: 1.05rem; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .stage h2 .n { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); align-items: center; justify-content: center; font-size: .85rem; }
+  .stage .sub { color: var(--muted); font-size: .85rem; margin: 0 0 10px; }
+  .stage ul { margin: 0; padding-left: 18px; }
+  .stage li { margin-bottom: 6px; }
+  .stage .status { display: inline-block; margin-top: 10px; font-size: .82rem; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  section.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 18px; }
+  section.card h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: .8rem; font-weight: 600; }
+  .pill.PASS, .pill.READY, .pill.OK { background: var(--pass-soft); color: var(--pass); }
+  .pill.FAIL, .pill.CONFLICT { background: var(--fail-soft); color: var(--fail); }
+  .pill.HILP, .pill.UNRESOLVED { background: var(--warn-soft); color: var(--warn); }
+  .files code, .links code { background: var(--code); padding: 1px 6px; border-radius: 4px; font-family: Consolas, "D2Coding", monospace; font-size: .86em; }
+  .links a { color: var(--accent); }
+  .issues li { margin-bottom: 6px; }
+  .issues .sev { font-weight: 700; margin-right: 6px; }
+  .issues .sev.blocker { color: var(--fail); } .issues .sev.major { color: var(--warn); } .issues .sev.minor { color: var(--muted); }
+  footer { color: var(--muted); font-size: .82rem; margin-top: 10px; }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <h1 id="title"></h1>
+    <span class="verdict" id="verdict"></span>
+    <p class="req" id="request"></p>
+  </div>
+  <div class="meta">
+    <span>작업 <b id="task"></b></span>
+    <span>라운드 <b id="rounds"></b></span>
+    <span>날짜 <b id="date"></b></span>
+    <span>담당 <b id="owner"></b></span>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="stages">
+    <div class="stage"><h2><span class="n">1</span>prepare · 구현 전</h2><p class="sub">배경·목적 이해, 규칙 대조, 위험, 체크리스트, 계획</p><ul id="prepare"></ul><span class="status" id="prepareStatus"></span></div>
+    <div class="stage"><h2><span class="n">2</span>implement · 구현</h2><p class="sub">Plan, 코드 변경, 테스트 추가, JUnit, 자가검증</p><ul id="implement"></ul><span class="status" id="implementStatus"></span></div>
+    <div class="stage"><h2><span class="n">3</span>verify · 구현 후</h2><p class="sub">보안·아키텍처 점검, 회귀 테스트, 체크리스트 판정</p><ul id="verify"></ul><span class="status" id="verifyStatus"></span></div>
+  </div>
+
+  <section class="card">
+    <h2>체크리스트 판정</h2>
+    <table><thead><tr><th>#</th><th>항목</th><th>결과</th><th>근거</th></tr></thead><tbody id="checklist"></tbody></table>
+  </section>
+
+  <section class="card">
+    <h2>라운드 이력</h2>
+    <table><thead><tr><th>라운드</th><th>규칙 대조</th><th>사전 점검</th><th>구현</th><th>보안</th><th>아키텍처</th><th>검증</th></tr></thead><tbody id="history"></tbody></table>
+  </section>
+
+  <section class="card files">
+    <h2>바뀐 파일</h2>
+    <ul id="files"></ul>
+  </section>
+
+  <section class="card issues">
+    <h2>남은 지적 (minor 포함)</h2>
+    <ul id="issues"></ul>
+  </section>
+
+  <section class="card links">
+    <h2>산출물</h2>
+    <ul id="links"></ul>
+  </section>
+
+  <footer>이 리포트는 ctkim1005 의 impl-loop(Dynamic Workflow)가 PASS 로 종료되며 자동 생성했습니다.</footer>
+</main>
+
+<script id="data" type="application/json">__SUMMARY_DATA__</script>
+<script>
+(function () {
+  const d = JSON.parse(document.getElementById('data').textContent);
+  const $ = (id) => document.getElementById(id);
+  const text = (el, v) => { el.textContent = v == null ? '' : String(v); return el; };
+  const li = (parent, v) => { const e = document.createElement('li'); text(e, v); parent.appendChild(e); return e; };
+
+  text($('title'), d.title || 'Loop 리포트');
+  const v = $('verdict'); text(v, d.verdict); v.classList.add(d.verdict || '');
+  text($('request'), d.request);
+  text($('task'), d.task); text($('rounds'), d.roundCount); text($('date'), d.date); text($('owner'), d.owner);
+
+  (d.tiles || []).forEach(t => {
+    const el = document.createElement('div'); el.className = 'tile';
+    const s = document.createElement('span'); text(s, t.label);
+    const b = document.createElement('b'); text(b, t.value); if (t.tone) b.classList.add(t.tone);
+    el.appendChild(s); el.appendChild(b); $('tiles').appendChild(el);
+  });
+
+  ['prepare', 'implement', 'verify'].forEach(k => {
+    const st = d.stages && d.stages[k] ? d.stages[k] : { did: [], status: '' };
+    const ul = $(k); (st.did || []).forEach(x => li(ul, x));
+    if (!(st.did || []).length) li(ul, '기록 없음').className = 'empty';
+    text($(k + 'Status'), st.status);
+  });
+
+  const cl = $('checklist');
+  (d.checklist || []).forEach((c, i) => {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); text(td1, i + 1);
+    const td2 = document.createElement('td'); text(td2, c.title);
+    const td3 = document.createElement('td'); const p = document.createElement('span'); p.className = 'pill ' + (c.result === 'pass' ? 'PASS' : c.result === 'fail' ? 'FAIL' : 'HILP'); text(p, c.result); td3.appendChild(p);
+    const td4 = document.createElement('td'); text(td4, c.evidence);
+    [td1, td2, td3, td4].forEach(x => tr.appendChild(x)); cl.appendChild(tr);
+  });
+
+  const hist = $('history');
+  (d.history || []).forEach(r => {
+    const tr = document.createElement('tr');
+    const cells = [r.round, r.rules, r.precheck, r.implemented ? '완료' : '-', r.security == null ? '-' : '발견 ' + r.security, r.architecture == null ? '-' : '위반 ' + r.architecture, r.verdict || '-'];
+    cells.forEach((c, i) => { const td = document.createElement('td'); if ((i === 1 || i === 2 || i === 6) && c && c !== '-') { const p = document.createElement('span'); p.className = 'pill ' + c; text(p, c); td.appendChild(p); } else text(td, c); tr.appendChild(td); });
+    hist.appendChild(tr);
+  });
+
+  const files = $('files');
+  (d.filesChanged || []).forEach(f => { const e = document.createElement('li'); const c = document.createElement('code'); text(c, f); e.appendChild(c); files.appendChild(e); });
+  if (!(d.filesChanged || []).length) li(files, '없음').className = 'empty';
+
+  const issues = $('issues');
+  (d.issues || []).forEach(x => { const e = document.createElement('li'); const s = document.createElement('span'); s.className = 'sev ' + (x.severity || ''); text(s, '[' + (x.severity || '') + ']'); e.appendChild(s); e.appendChild(document.createTextNode((x.location ? x.location + ' — ' : '') + (x.problem || ''))); issues.appendChild(e); });
+  if (!(d.issues || []).length) li(issues, '없음').className = 'empty';
+
+  const links = $('links');
+  (d.links || []).forEach(l => { const e = document.createElement('li'); const a = document.createElement('a'); a.href = l.href; text(a, l.label); e.appendChild(a); if (l.note) e.appendChild(document.createTextNode(' — ' + l.note)); links.appendChild(e); });
+  if (!(d.links || []).length) li(links, '없음').className = 'empty';
+})();
+</script>
+</body>
+</html>

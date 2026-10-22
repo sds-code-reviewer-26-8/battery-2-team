@@ -1,0 +1,167 @@
+{
+  "request": "존재하지 않는 주문 번호(예: /orders/999999)를 열면 HTTP 500 오류 화면 대신 '주문을 찾을 수 없습니다' 안내를 보여 주고, 상단 메뉴로 계속 쓸 수 있게 한다 (팀 통합 E2E 시나리오 No. 27, INTENT G7)",
+  "round": 1,
+  "status": "READY",
+  "reason": "",
+  "questions": [],
+  "background": {
+    "understood": true,
+    "summary": "주문 상세(GET /orders/{id})는 BatteryService.getOrder() 가 던지는 BusinessException(\"주문을 찾을 수 없습니다\") 을 어디서도 잡지 않아, 없는 번호를 열면 Spring Boot 기본 오류 처리(BasicErrorController)로 넘어가 HTTP 500 오류 화면이 나온다. 2026-10-21 실행 중인 앱(8080)에 admin 으로 로그인한 뒤 curl 로 /orders/999999 를 요청해 500 과 스택트레이스(BusinessException: 주문을 찾을 수 없습니다 at BatteryService.getOrder(BatteryService.java:266)) 를 직접 확인했다. /api/simulate, /api/orders 는 try/catch 로 BusinessException 을 잡아 JSON(400/409) 으로 돌려주므로 API 는 문제가 없고, 화면 요청인 detail() 만 보호되지 않은 상태다. 팀 통합 시나리오 No. 27 과 E2E T27(team-ctkim1005.spec.ts), S10(robustness.spec.ts) 이 이 결함을 known-issue 로 기록해 두었다.",
+    "evidence": [
+      "INTENT.md §4 G7: \"잘못된 입력은 이유와 함께 알리고, 일부만 저장되는 일이 없게 한다. 뜻밖의 상황(없는 주문 등)도 오류 화면이 아니라 안내 메시지로 알린다. (I9)\"",
+      "INTENT.md §3 I9: \"틀린 결과를 보여 주느니 멈추고, 일부만 저장하지 않는다\" — 계산 결과가 맞지 않으면 틀린 값을 내보내지 않고 중단한다.",
+      "PRD.md §4 F8: \"확정된 주문을 목록(상태별 보기와 건수)과 상세 화면으로 조회할 수 있고, 상세에서는 확정 당시의 계획을 다시 볼 수 있다.\" [구현됨]",
+      "PRD.md §10-1 쟁점(취소 주문): \"취소 직후에는 \\\"주문을 찾을 수 없습니다\\\" 오류 화면이 나옴 (KewryByun이 직접 실행해 확인)\" [확인 필요] — 같은 코드 경로(getOrder → BusinessException 미처리)에서 나오는 오류 화면이다.",
+      "AppController.detail(): Order order = service.getOrder(id); — try/catch 없음. BatteryService.getOrder(): orders.findById(id).orElseThrow(() -> new BusinessException(\"주문을 찾을 수 없습니다\"))",
+      "AppController.apiError(): /api/simulate, /api/orders 는 catch (BusinessException e) → ResponseEntity 400(또는 충돌이면 409) + {error, conflict} JSON. 화면용 BusinessException 처리기는 없음.",
+      "실측(curl, 로그인 쿠키 사용): GET /orders/999999 → HTTP 500, 본문 {\"status\":500,\"error\":\"Internal Server Error\",\"trace\":\"com.example.demo.service.BusinessException: 주문을 찾을 수 없습니다 ...\"}",
+      "team-ctkim1005.spec.ts T27, robustness.spec.ts S10: annotations known-issue '없는 주문 번호 접근 시 HTTP 500'. 둘 다 status != 500, getByText('주문을 찾을 수 없습니다'), getByRole('link', {name:'주문 목록'}) 가 보여야 하고 이어서 /orders 가 정상으로 열려야 통과한다."
+    ]
+  },
+  "purpose": {
+    "understood": true,
+    "summary": "없는 주문 번호를 열었을 때 500 오류 화면에 갇히지 않고, 공통 헤더(주문 목록·주문 추가·마스터 데이터 메뉴)가 있는 안내 페이지에서 '주문을 찾을 수 없습니다' 를 보여 주어 사용자가 바로 다음 작업으로 이어가게 한다. INTENT G7 이 이미 \"오류 화면이 아니라 안내 메시지\" 로 방향을 정해 두었으므로, 이번 작업은 그 방향을 주문 상세 화면에 적용하는 결함 수정이다. 동시에 /api/* 의 JSON 오류 응답(400/409 + {error, conflict}) 과 다른 화면의 동작은 그대로 유지해야 한다.",
+    "evidence": [
+      "팀 통합 시나리오 No. 27 목적: \"없는 주문을 열어도 오류 화면에 갇히지 않고 안내와 함께 계속 쓸 수 있는지 확인\"",
+      "No. 27 Pass 조건 1: \"오류 화면(HTTP 500)이 아니라 '주문을 찾을 수 없습니다' 같은 안내가 표시되고 메뉴를 쓸 수 있음\" / 2: \"주문 목록이 정상으로 열림\"",
+      "INTENT.md G7 (I9): 뜻밖의 상황(없는 주문 등)도 오류 화면이 아니라 안내 메시지로 알린다.",
+      "fragments.html header 조각: <a th:href=\"@{/orders}\">주문 목록</a> · 주문 추가 · 마스터 데이터 — 안내 페이지도 이 조각을 그대로 쓰면 '메뉴로 계속 쓸 수 있다' 는 조건을 만족한다."
+    ]
+  },
+  "risk": {
+    "size": "small",
+    "severity": "low",
+    "userAware": true,
+    "warning": "취소(CANCELED) 직후 주문이 삭제된 뒤 상세로 리다이렉트되는 경로(PRD §10-1)도 같은 처리기를 타므로, 취소 직후 화면이 500 오류 화면에서 '주문을 찾을 수 없습니다' 안내 페이지(404)로 바뀐다. 취소를 상태로 남길지(§10-1 결정)는 이 작업의 범위가 아니며, T26 은 여전히 known-issue 로 남는다.",
+    "items": [
+      {
+        "title": "/api/* JSON 오류 응답 불변",
+        "detail": "@ExceptionHandler 를 AppController 에 두면 그 컨트롤러의 모든 핸들러에 적용되지만, /api/simulate·/api/orders 는 이미 메서드 안에서 BusinessException 을 잡아 apiError() 로 JSON 을 돌려주므로 처리기에 도달하지 않는다. 그래도 OrderFlowTests 의 emptyOrderIsRejectedWithReason(400 + $.error), confirmFailsWhenMasterChangedAfterSimulation(409 + conflict=true) 로 회귀를 확인한다.",
+        "severity": "low"
+      },
+      {
+        "title": "E2E 문구 정확 일치·strict mode",
+        "detail": "T27 은 getByText('주문을 찾을 수 없습니다', { exact: true }) 를 쓰므로 안내 문구는 한 요소에 정확히 그 글자로 한 번만 넣어야 한다(제목과 본문에 중복하면 Playwright strict mode 위반). 또 getByRole('link', { name: '주문 목록' }) 은 부분 일치라서 본문에 '주문 목록으로 돌아가기' 같은 링크를 더 넣으면 두 개가 잡혀 실패한다. 본문 버튼은 order-detail 과 같은 '목록으로' 로 한다.",
+        "severity": "medium"
+      },
+      {
+        "title": "헤더의 로그인 아이디(loginUser)",
+        "detail": "@ExceptionHandler 가 돌려주는 ModelAndView 에는 @ModelAttribute(\"loginUser\") 가 자동으로 실리지 않는다. 처리기에서 HttpSession 을 받아 loginUser 를 모델에 직접 넣어야 헤더 오른쪽 아이디가 비지 않는다(비어도 렌더링은 되므로 기능 결함은 아님).",
+        "severity": "low"
+      },
+      {
+        "title": "로그인 전 접근",
+        "detail": "LoginInterceptor 가 컨트롤러보다 먼저 동작하므로 로그인 없이 /orders/999999 를 열면 지금처럼 /login 으로 리다이렉트된다. 처리기 추가로 바뀌지 않지만 경계값 테스트로 확인한다.",
+        "severity": "low"
+      },
+      {
+        "title": "실행 중인 앱 반영",
+        "detail": "8080 앱은 IntelliJ 에서 build/classes/java/main 클래스패스로 떠 있다(devtools 포함). Java·템플릿을 고친 뒤 ./gradlew.bat compileJava processResources 로 build 출력물을 갱신해야 devtools 가 재시작해 E2E 가 새 코드를 본다. 재시작이 안 되면 T27·S10 이 그대로 실패하므로 리포트 단계에서 curl 로 404 를 먼저 확인한다.",
+        "severity": "medium"
+      },
+      {
+        "title": "상태 코드 선택(404)",
+        "detail": "'없는 자원' 이므로 404 가 의미에 맞고, T27·S10 은 500 만 아니면 되며, team-ctkim1005.spec.ts 의 removeIfExists 는 status === 200 일 때만 삭제하므로 404 로 바꿔도 정리 로직이 깨지지 않는다. 목록으로 리다이렉트(302+flash)는 시나리오 1단계(해당 URL 에서 안내+메뉴 표시)에 맞지 않아 택하지 않는다.",
+        "severity": "low"
+      }
+    ]
+  },
+  "testCases": [
+    {
+      "id": "TC-1",
+      "origin": "existing",
+      "kind": "feature",
+      "target": "src/test/e2e/team-ctkim1005.spec.ts T27",
+      "description": "팀 통합 시나리오 No. 27. 로그인 후 /orders/999999 → 500 아님 + '주문을 찾을 수 없습니다'(exact) + '주문 목록' 링크 → /orders 정상",
+      "input": "npx playwright test src/test/e2e/team-ctkim1005.spec.ts -g T27 --reporter=list",
+      "expected": "known-issue 였던 soft expect 3개가 모두 통과하고 테스트가 Pass"
+    },
+    {
+      "id": "TC-2",
+      "origin": "existing",
+      "kind": "feature",
+      "target": "src/test/e2e/robustness.spec.ts S10",
+      "description": "다른 팀원 작성(수정 금지). 같은 흐름을 비정확 일치(getByText 부분 일치)로 확인",
+      "input": "npx playwright test src/test/e2e/robustness.spec.ts -g S10 --reporter=list",
+      "expected": "Pass"
+    },
+    {
+      "id": "TC-3",
+      "origin": "new",
+      "kind": "feature",
+      "target": "src/test/java/com/example/demo/OrderFlowTests.java missingOrderShowsNoticeInsteadOf500 (신규)",
+      "description": "MockMvc: 로그인 세션으로 GET /orders/999999",
+      "input": "get(\"/orders/999999\").session(login())",
+      "expected": "status().isNotFound(), 본문에 '주문을 찾을 수 없습니다' 와 헤더 메뉴 '주문 목록' 포함, 'Whitelabel'·'trace' 없음"
+    },
+    {
+      "id": "TC-4",
+      "origin": "new",
+      "kind": "boundary",
+      "target": "src/test/java/com/example/demo/OrderFlowTests.java missingOrderStatusChangeLandsOnNotice (신규)",
+      "description": "없는 주문에 상태 변경 POST → 기존대로 상세로 리다이렉트 → 상세는 안내 페이지",
+      "input": "post(\"/orders/999999/status\").param(\"status\",\"IN_PROGRESS\").param(\"version\",\"0\").session(s)",
+      "expected": "redirectedUrl(\"/orders/999999\") 유지, 이어서 GET 이 404 안내 페이지"
+    },
+    {
+      "id": "TC-5",
+      "origin": "new",
+      "kind": "boundary",
+      "target": "src/test/java/com/example/demo/OrderFlowTests.java missingOrderWithoutLoginGoesToLogin (신규)",
+      "description": "로그인 없이 /orders/999999 → 인터셉터가 먼저 막아 /login 으로",
+      "input": "get(\"/orders/999999\") (세션 없음)",
+      "expected": "redirectedUrl(\"/login\") — 404 안내가 아니라 로그인 화면"
+    },
+    {
+      "id": "TC-6",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "OrderFlowTests.emptyOrderIsRejectedWithReason, confirmFailsWhenMasterChangedAfterSimulation",
+      "description": "/api/* 의 BusinessException JSON 응답이 처리기 추가 후에도 그대로인지",
+      "input": "POST /api/simulate {CHINA:0} / POST /api/orders masterVersion=-1",
+      "expected": "400 + $.error 존재 / 409 + $.conflict=true (변화 없음)"
+    },
+    {
+      "id": "TC-7",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "OrderFlowTests.confirmThenDetailAndStatusFlow, pagesRender",
+      "description": "있는 주문의 상세(200)와 /orders, /orders/new, /master 렌더링이 유지되는지",
+      "input": "GET /orders/{존재 id}, /orders, /orders/new, /master",
+      "expected": "모두 200"
+    },
+    {
+      "id": "TC-8",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "./gradlew.bat test --console=plain 전체 (DemoApplicationTests, OrderFlowTests, simulation/*)",
+      "description": "JUnit 전체 회귀",
+      "input": "./gradlew.bat test --console=plain",
+      "expected": "BUILD SUCCESSFUL, 실패 0"
+    },
+    {
+      "id": "TC-9",
+      "origin": "existing",
+      "kind": "regression",
+      "target": "npx playwright test --reporter=list (E2E 전체)",
+      "description": "다른 화면·시나리오 회귀. known-issue(T26 취소 상태, PRD §10-1 미결정 등) 외 새 실패가 없어야 한다",
+      "input": "npx playwright test --reporter=list",
+      "expected": "T27·S10 Pass, 기존 known-issue 외 실패 없음"
+    }
+  ],
+  "checklist": [
+    {
+      "title": "/orders/999999 가 500 이 아니라 안내 페이지",
+      "detail": "로그인 후 GET /orders/999999 → HTTP 404, 화면에 '주문을 찾을 수 없습니다' 가 정확히 한 번 보이고 헤더 메뉴(주문 목록·주문 추가·마스터 데이터)가 있으며 '주문 목록' 링크로 /orders 가 정상으로 열린다. curl 과 브라우저(E2E) 모두로 확인."
+    },
+    {
+      "title": "/api/* JSON 오류 응답·상태 코드 불변",
+      "detail": "POST /api/simulate {CHINA:0} → 400 + {error, conflict:false}, POST /api/orders masterVersion=-1 → 409 + conflict:true. 로그인 없이 /api/* → 401, 화면 → /login 리다이렉트 그대로."
+    },
+    {
+      "title": "JUnit 전체 + E2E T27·S10 통과, 다른 E2E 는 known-issue 외 실패 없음",
+      "detail": "./gradlew.bat test --console=plain 성공(신규 MockMvc 테스트 포함), npx playwright test --reporter=list 에서 T27·S10 Pass, 그 외 실패는 기존 known-issue 로만 한정."
+    }
+  ],
+  "plan": "방향: INTENT G7 에 따라 '오류 화면이 아니라 안내 메시지'. 선택 근거: (a) 목록으로 리다이렉트+flash 는 시나리오 1단계(/orders/999999 에서 안내와 메뉴가 보여야 함)에 맞지 않고, (b) 전역 @ControllerAdvice 는 컨트롤러가 AppController 하나뿐이라 이점이 없으면서 범위가 넓어지므로, 추천대로 AppController 안의 @ExceptionHandler 로 처리한다. 상태 코드는 '없는 자원' 의미에 맞는 404 로 한다.\n\n1) src/main/java/com/example/demo/service/NotFoundException.java (신규): BusinessException 을 상속하는 작은 예외. BatteryService.getOrder() 의 orElseThrow 에서 new NotFoundException(\"주문을 찾을 수 없습니다\") 를 던지도록 한 줄 변경(메시지 동일, BusinessException 을 잡는 기존 catch 는 모두 그대로 동작).\n\n2) src/main/java/com/example/demo/controller/AppController.java: @ExceptionHandler(NotFoundException.class) → HTTP 404 + 뷰 'notice', 그리고 안전망으로 @ExceptionHandler(BusinessException.class) → HTTP 400 + 뷰 'notice' 를 추가한다(화면 요청에서 잡히지 않은 업무 오류가 다시 500 이 되지 않게). 처리기 시그니처 예: public ModelAndView notFound(NotFoundException e, HttpSession session, HttpServletResponse response) { response.setStatus(404); ModelAndView mv = new ModelAndView(\"notice\"); mv.addObject(\"message\", e.getMessage()); mv.addObject(\"loginUser\", session.getAttribute(LoginInterceptor.SESSION_USER)); return mv; } — /api/simulate·/api/orders 는 이미 try/catch 로 apiError() JSON 을 돌려주므로 처리기에 오지 않아 영향 없음.\n\n3) src/main/resources/templates/notice.html (신규): fragments :: head('안내'), fragments :: header('orders') 를 재사용하고 <main> 에 <h1>안내</h1>, <p class=\"alert error\" th:text=\"${message}\"> (문구는 이 한 곳에만), <a class=\"button\" th:href=\"@{/orders}\">목록으로</a>. '주문 목록' 이라는 글자가 들어간 링크는 헤더 외에 추가하지 않는다(T27 strict mode).\n\n4) src/test/java/com/example/demo/OrderFlowTests.java: 신규 테스트 3개 추가 — missingOrderShowsNoticeInsteadOf500(404 + 문구 + '주문 목록' 포함, 'trace' 미포함), missingOrderStatusChangeLandsOnNotice(POST /orders/999999/status → redirectedUrl /orders/999999 → GET 404), missingOrderWithoutLoginGoesToLogin(세션 없이 → /login). 기존 테스트는 손대지 않는다.\n\n5) 반영·검증 순서: ./gradlew.bat test --console=plain → ./gradlew.bat compileJava processResources 로 build 출력물 갱신(IntelliJ 로 띄운 8080 앱의 devtools 재시작 유도, 안 되면 사람에게 재시작 요청) → curl 로 /orders/999999 가 404 인지 확인 → npx playwright test src/test/e2e/team-ctkim1005.spec.ts src/test/e2e/robustness.spec.ts --reporter=list → npx playwright test --reporter=list 전체 회귀 → report.json/report.html 작성.\n\n6) 손대지 않는 것: 다른 팀원의 *.spec.ts·helpers.ts·ui-helpers.ts, BusinessException 의 공개 API(apiError 로직), 취소 시 주문 삭제 정책(PRD §10-1 미결정). commit/push 하지 않는다."
+}
