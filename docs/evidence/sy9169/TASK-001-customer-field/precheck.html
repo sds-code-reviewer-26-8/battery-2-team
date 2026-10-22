@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 사전 점검</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; padding: 28px 16px 64px; }
+  .hero.hilp { background: linear-gradient(135deg, #d97706, #dc2626); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.2); font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.55rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .9; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: .82rem; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid2 .card { margin-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  ul.ev { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem; }
+  .meter { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .meter i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }
+  .meter i.on.low { background: var(--ok); } .meter i.on.medium { background: var(--warn); } .meter i.on.high { background: var(--bad); }
+  .risk { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; background: var(--bg); border-radius: 0 10px 10px 0; }
+  .risk.low { border-color: var(--ok); } .risk.medium { border-color: var(--warn); } .risk.high { border-color: var(--bad); }
+  .alert { border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  .tc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .tc header { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .tc code { font-size: .85rem; color: var(--muted); }
+  .tc dl { margin: 8px 0 0; display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; font-size: .88rem; }
+  .tc dt { color: var(--muted); } .tc dd { margin: 0; white-space: pre-wrap; }
+  .check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .check:first-of-type { border-top: 0; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .check b { display: block; } .check.done b { text-decoration: line-through; color: var(--muted); }
+  .progress { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .plan { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 14px; font-size: .9rem; }
+  details summary { cursor: pointer; font-weight: 700; }
+  ol.q { margin: 8px 0 0; padding-left: 20px; } ol.q li { margin-bottom: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero">
+  <div class="wrap">
+    <span class="badge" id="badge"></span>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="hilpBox"></div>
+  <div class="grid2">
+    <section class="card"><h2>🧭 배경 이해</h2><div id="bg"></div></section>
+    <section class="card"><h2>🎯 목적 이해</h2><div id="pu"></div></section>
+  </div>
+  <section class="card" style="margin-top:16px"><h2>⚠️ 변경 규모와 위험</h2><div id="risk"></div></section>
+  <section class="card"><h2>🧪 테스트 점검</h2>
+    <div class="chips" id="chips"></div>
+    <div id="tcs"></div>
+  </section>
+  <section class="card"><h2>✅ 구현 후 꼭 확인할 3가지</h2>
+    <div class="progress"><i id="bar"></i></div><div class="small muted" id="barTxt"></div>
+    <div id="checks"></div>
+  </section>
+  <section class="card" id="planCard"><h2>🗺️ 구현 계획</h2><div class="plan" id="plan"></div></section>
+</main>
+<footer>impl-plan 사전 점검 · 이 페이지는 계획 단계의 점검 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"주문 시 고객사를 입력하고, 주문 목록에서 고객사 이름을 확인할 수 있게 한다","round":1,"status":"READY","reason":"","questions":[],"background":{"understood":true,"summary":"현재 주문(Order)에는 고객사 정보가 없고 메모(memo)만 있다. 주문 확정 화면(order-new.html)은 메모만 받고, 주문 목록(orders.html)은 주문번호·확정 일시·수량·경로·소요 일수·총 비용·상태·작성자만 보여 준다. PRD 는 이를 F4(고객사·납기 입력) [미구현]으로 기록하고 있다.","evidence":["src/main/java/com/example/demo/entity/Order.java:15-76 (고객사 필드 없음, memo 1000자만 있음)","src/main/resources/templates/order-new.html:37-43 (3. 주문 확정 섹션은 메모 입력만 있음)","src/main/resources/templates/orders.html:25-26 (목록 헤더에 고객사 없음)","docs/PRD-INTENT/team/PRD.md:52 (F4 고객사와 필요 납기 입력 [미구현]), :144 (§10-4)"]},"purpose":{"understood":true,"summary":"담당자가 어느 고객사의 주문인지 확정 시점에 기록하고, 목록에서 바로 구분할 수 있게 한다. 새 항목은 이미 확정된 기존 주문에 영향을 주지 않아야 하며(INTENT G1), 서버가 다시 계산해 저장하는 확정 흐름(G2)과 로그인 필수(G8)를 유지한다. 납기는 이번 요청 범위 밖이므로 다루지 않는다.","evidence":["docs/PRD-INTENT/team/INTENT.md:46 (G1 새 항목을 더해도 기존 확정 주문이 정상으로 보여야 함)","docs/PRD-INTENT/team/INTENT.md:47 (G2), :54 (G8), :80 (미결 4: 고객사·납기)","docs/PRD-INTENT/team/PRD.md:7-8 및 :129-131 (고객사·납기 관리는 현재 범위 밖으로 표기)","src/main/java/com/example/demo/service/BatteryService.java:224-248 (confirm 에서 memo 를 검증하고 Order 를 생성)"]},"risk":{"size":"medium","severity":"medium","userAware":true,"warning":"기존 주문은 고객사 값이 비어 있으므로 목록·상세에서 '-'로 보입니다. 이번 구현은 고객사를 선택 입력(자유 텍스트, 최대 100자)으로 두며, 필수로 바꾸면 기존 테스트와 e2e 시나리오 수정이 더 필요합니다.","items":[{"title":"기존 주문 데이터(null 고객사)","detail":"ddl-auto=update 로 orders 테이블에 nullable 컬럼이 추가된다. 기존 행은 null 이므로 화면에서 '-'로 표시해야 하고, 확정된 주문의 planJson 등 기존 값은 바꾸지 않는다.","severity":"medium"},{"title":"목록 표 헤더 변경으로 기존 e2e 가 깨짐","detail":"order-list-layout.spec.ts 가 표 헤더 배열을 정확히 비교한다. 고객사 열을 추가하면 이 기대값과 colspan(8 -> 9)을 함께 고쳐야 한다.","severity":"medium"},{"title":"확정 API 요청 형식 확장","detail":"ConfirmRequest 에 customer 를 추가하면 customer 없이 호출하는 기존 호출(OrderFlowTests.confirm)은 null 로 들어온다. null/빈 문자열을 같은 '미입력'으로 처리해야 한다.","severity":"low"},{"title":"입력 검증과 화면 출력","detail":"앞뒤 공백 제거, 길이 100자 초과 시 이유와 함께 거절한다. 화면에는 th:text 로만 출력해 HTML 이 실행되지 않게 한다.","severity":"low"}]},"testCases":[{"id":"TC-1","origin":"existing","kind":"regression","target":"src/test/java/com/example/demo/OrderFlowTests.java - confirmThenDetailAndStatusFlow","description":"고객사를 보내지 않고 확정해도 기존 흐름(확정, 진행, 완료, 이력 3건)이 그대로 동작한다.","input":"customer 없이 /api/orders 호출","expected":"200 OK, 주문 생성, 상태 변경 규칙과 이력 건수는 기존과 동일"},{"id":"TC-2","origin":"existing","kind":"regression","target":"src/test/java/com/example/demo/OrderFlowTests.java - pagesRender","description":"/orders, /orders/new, /master 가 새 템플릿으로도 정상 렌더링된다.","input":"로그인 후 세 화면 GET","expected":"모두 200 OK"},{"id":"TC-3","origin":"existing","kind":"regression","target":"src/test/java/com/example/demo/OrderFlowTests.java - masterUpdateBumpsVersionAndKeepsConfirmedPlans","description":"새 컬럼 추가 후에도 확정된 주문의 planJson 이 마스터 변경 뒤 그대로 보존된다.","input":"확정 후 마스터 수정","expected":"planJson 이 변경 전과 동일"},{"id":"TC-4","origin":"existing","kind":"regression","target":"src/test/e2e/order-list-layout.spec.ts - No.20 목록 화면 구성과 이동(주문 추가, 행 클릭)","description":"목록 표 헤더 기대값에 '고객사'를 추가하도록 수정한 뒤 통과해야 한다. 행 클릭 이동(2번째 칸)도 유지된다.","input":"/orders 접속 후 헤더 확인, 행 클릭","expected":"헤더가 주문번호, 고객사, 확정 일시, ... 작성자 순서로 일치하고 행 클릭 시 상세로 이동"},{"id":"TC-5","origin":"new","kind":"feature","target":"OrderFlowTests (신규) - 고객사 저장과 목록 표시","description":"고객사를 입력해 확정하면 저장되고 목록 화면에 이름이 보인다.","input":"customer 에 'ACME 모터스' 를 넣어 /api/orders 호출 후 GET /orders","expected":"Order.getCustomer() 가 'ACME 모터스', 목록 HTML 에 해당 이름 포함, 상세 화면에도 표시"},{"id":"TC-6","origin":"new","kind":"boundary","target":"OrderFlowTests (신규) - 고객사 길이와 공백","description":"공백만 입력하면 미입력으로 저장되고, 100자 초과는 이유와 함께 거절된다. 정확히 100자는 허용된다.","input":"customer = '   ', 100자, 101자","expected":"공백은 null 로 저장(목록 '-'), 100자는 200 OK, 101자는 400 과 error 메시지"},{"id":"TC-7","origin":"new","kind":"regression","target":"OrderFlowTests (신규) - 기존 주문(고객사 null) 표시","description":"고객사가 없는 주문이 목록과 상세에서 오류 없이 '-'로 보인다.","input":"customer 없이 확정한 주문의 /orders, /orders/{id} 조회","expected":"200 OK, 고객사 칸에 '-'"},{"id":"TC-8","origin":"new","kind":"feature","target":"src/test/e2e (신규 spec) - 화면에서 고객사 입력 후 목록 확인","description":"주문 확정 섹션의 고객사 입력칸에 이름을 넣고 확정하면 목록 첫 행에 그 이름이 보인다.","input":"/orders/new 에서 시뮬레이션 실행, 고객사 입력, 주문 확정, /orders 이동","expected":"해당 주문 행의 고객사 칸이 입력한 이름과 같다"}],"checklist":[{"title":"고객사를 입력해 확정하면 목록과 상세에 그 이름이 보인다","detail":"/orders/new 에서 고객사 입력 후 확정한 뒤 /orders 의 해당 행과 /orders/{id} 에서 이름을 확인한다. 자동 확인은 TC-5, TC-8."},{"title":"고객사를 비우거나 100자를 넘기는 경우가 정해진 대로 처리된다","detail":"공백/미입력은 '-'로 저장·표시되고, 101자는 400 과 이유 메시지로 거절되며 주문이 만들어지지 않는다. TC-6, TC-7 로 확인."},{"title":"기존 흐름과 기존 주문이 깨지지 않는다","detail":"OrderFlowTests 전체와 e2e No.20(헤더에 고객사 추가 반영)이 통과하고, 고객사가 없는 기존 주문의 planJson 과 상태 변경 이력이 그대로다. TC-1~TC-4."}],"plan":"1) Order 엔티티에 nullable 컬럼 customer(length 100)와 getter 를 추가하고, 생성자에 customer 인자를 더한다(ddl-auto=update 로 기존 DB 에 컬럼 자동 추가, 기존 행은 null). 2) AppController.ConfirmRequest 에 customer 를 추가하고 service.confirm 에 전달한다. 3) BatteryService.confirm 에서 memo 와 같은 방식으로 strip, 빈 값은 null, 100자 초과는 BusinessException(이유 포함, 400)으로 처리한다. 계산·마스터 버전 검사·스냅샷 저장 로직은 건드리지 않는다. 4) order-new.html 의 '3. 주문 확정' 섹션에 고객사 입력칸(maxlength 100, 선택)을 추가하고 order-new.js 의 확정 요청 본문에 customer 를 포함한다. 5) orders.html 에 '고객사' 열을 주문번호 다음에 추가하고(th:text, null 이면 '-'), 빈 목록 colspan 을 9 로 고친다. order-detail.html 의 meta 에도 고객사를 표시한다. 6) 테스트: OrderFlowTests 에 TC-5~TC-7 을 추가하고, order-list-layout.spec.ts 의 헤더 기대값을 수정하며, 고객사 입력 e2e(TC-8)를 새로 만든다. 7) 납기는 이번 범위에서 제외하고, PRD F4 상태 표기는 고객사 부분만 구현됨을 사용자에게 알린다."}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">점검 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pill(text, kind) { return el('span', 'pill ' + kind, text); }
+
+  var hilp = D.status === 'HILP';
+  $('hero').classList.toggle('hilp', hilp);
+  $('badge').textContent = hilp ? '⏸ HILP — 사람의 판단이 필요합니다' : '✔ READY — 구현을 진행할 수 있습니다';
+  $('title').textContent = D.request || '구현 사전 점검';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (hilp ? (D.reason || '') : '배경·목적·위험·테스트를 점검했습니다');
+  document.title = (hilp ? '[HILP] ' : '[READY] ') + '구현 사전 점검';
+
+  var tcs = D.testCases || [];
+  var tiles = [
+    ['점검 결과', hilp ? 'HILP' : 'READY'],
+    ['테스트 케이스', tcs.length],
+    ['신규 작성', tcs.filter(function (t) { return t.origin === 'new'; }).length],
+    ['위험도', ({ low: '낮음', medium: '보통', high: '높음' })[(D.risk || {}).severity] || '-']
+  ];
+  tiles.forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  if (hilp) {
+    var box = el('section', 'card'); box.style.borderColor = 'var(--bad)';
+    box.appendChild(el('h2', '', '🙋 사람이 답해야 할 질문'));
+    if (D.risk && D.risk.warning && !D.risk.userAware) box.appendChild(el('div', 'alert', '경고: ' + D.risk.warning));
+    var ol = el('ol', 'q'); (D.questions || []).forEach(function (q) { ol.appendChild(el('li', '', q)); });
+    box.appendChild(ol); $('hilpBox').appendChild(box);
+  }
+
+  function understanding(root, u) {
+    u = u || {};
+    root.appendChild(pill(u.understood ? '이해함' : '이해하지 못함', u.understood ? 'ok' : 'bad'));
+    root.appendChild(el('p', '', u.summary || '(내용 없음)'));
+    if ((u.evidence || []).length) { var ul = el('ul', 'ev'); u.evidence.forEach(function (x) { ul.appendChild(el('li', '', x)); }); root.appendChild(ul); }
+  }
+  understanding($('bg'), D.background); understanding($('pu'), D.purpose);
+
+  var R = D.risk || {}, lv = { low: 1, medium: 2, high: 3 }[R.severity] || 0;
+  var sz = ({ small: '작음', medium: '보통', large: '큼' })[R.size] || '-';
+  var rr = $('risk');
+  rr.appendChild(pill('변경 규모: ' + sz, 'info')); rr.appendChild(document.createTextNode(' '));
+  rr.appendChild(pill('위험도: ' + (({ low: '낮음', medium: '보통', high: '높음' })[R.severity] || '-'), R.severity === 'high' ? 'bad' : R.severity === 'medium' ? 'warn' : 'ok'));
+  rr.appendChild(document.createTextNode(' ')); rr.appendChild(pill(R.userAware ? '사용자가 인지함' : '사용자 인지 여부 불명', R.userAware ? 'ok' : 'warn'));
+  var m = el('div', 'meter'); for (var i = 1; i <= 3; i++) m.appendChild(el('i', i <= lv ? 'on ' + R.severity : '')); rr.appendChild(m);
+  if (R.warning) rr.appendChild(el('div', 'alert warn', R.warning));
+  (R.items || []).forEach(function (x) { var b = el('div', 'risk ' + (x.severity || '')); b.appendChild(el('b', '', x.title || '')); if (x.detail) b.appendChild(el('div', 'small muted', x.detail)); rr.appendChild(b); });
+  if (!R.warning && !(R.items || []).length) rr.appendChild(el('p', 'muted', '특별한 위험 요소를 찾지 못했습니다.'));
+
+  var filter = 'all', q = '';
+  var defs = [['all', '전체'], ['existing', '기존'], ['new', '신규'], ['regression', '회귀'], ['boundary', '경계값']];
+  function match(t) {
+    if (filter === 'existing' || filter === 'new') { if (t.origin !== filter) return false; }
+    else if (filter !== 'all' && t.kind !== filter) return false;
+    var s = (t.id + ' ' + t.target + ' ' + t.description + ' ' + t.input + ' ' + t.expected).toLowerCase();
+    return !q || s.indexOf(q) >= 0;
+  }
+  function drawTcs() {
+    var root = $('tcs'); root.textContent = '';
+    var list = tcs.filter(match);
+    if (!list.length) { root.appendChild(el('div', 'empty', '조건에 맞는 테스트 케이스가 없습니다.')); return; }
+    list.forEach(function (t) {
+      var c = el('div', 'tc'), h = el('header');
+      h.appendChild(pill(t.origin === 'new' ? '신규' : '기존', t.origin === 'new' ? 'acc' : 'info'));
+      h.appendChild(pill(({ regression: '회귀', boundary: '경계값', feature: '기능' })[t.kind] || t.kind || '', t.kind === 'boundary' ? 'warn' : t.kind === 'regression' ? 'ok' : 'info'));
+      h.appendChild(el('code', '', t.id || '')); c.appendChild(h);
+      c.appendChild(el('b', '', t.description || ''));
+      var dl = el('dl');
+      [['대상', t.target], ['입력', t.input], ['기대', t.expected]].forEach(function (p) { if (p[1]) { dl.appendChild(el('dt', '', p[0])); dl.appendChild(el('dd', '', p[1])); } });
+      c.appendChild(dl); root.appendChild(c);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); drawTcs(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 케이스 검색'; s.oninput = function () { q = s.value.toLowerCase(); drawTcs(); }; $('chips').appendChild(s);
+  drawTcs();
+
+  var key = 'precheck:' + (D.request || '') + ':' + (D.round || 0), saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  var cl = D.checklist || [];
+  function progress() {
+    var n = cl.filter(function (_, i) { return saved[i]; }).length;
+    $('bar').style.width = (cl.length ? n / cl.length * 100 : 0) + '%';
+    $('barTxt').textContent = n + ' / ' + cl.length + ' 확인함';
+  }
+  cl.forEach(function (c, i) {
+    var lab = el('label', 'check' + (saved[i] ? ' done' : '')), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!saved[i];
+    var box = el('div'); box.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); if (c.detail) box.appendChild(el('span', 'small muted', c.detail));
+    cb.onchange = function () { saved[i] = cb.checked; lab.classList.toggle('done', cb.checked); try { localStorage.setItem(key, JSON.stringify(saved)); } catch (e) {} progress(); };
+    lab.appendChild(cb); lab.appendChild(box); $('checks').appendChild(lab);
+  });
+  progress();
+
+  if (D.plan) $('plan').textContent = D.plan; else $('planCard').hidden = true;
+})();
+</script>
+</body>
+</html>
