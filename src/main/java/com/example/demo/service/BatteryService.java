@@ -276,15 +276,6 @@ public class BatteryService {
 	 */
 	@Transactional
 	public void changeStatus(Long id, OrderStatus target, long expectedVersion, String user) {
-		changeStatus(id, target, expectedVersion, user, null);
-	}
-
-	/**
-	 * 상태를 바꾼다. 취소(CANCELED)이면 주문은 지우지 않고 상태만 바꾸며, 사유(선택, 최대 200자)를 주문에 저장한다.
-	 * 취소가 아닌 전이에서는 사유를 무시한다.
-	 */
-	@Transactional
-	public void changeStatus(Long id, OrderStatus target, long expectedVersion, String user, String reason) {
 		Order order = getOrder(id);
 		if (order.getVersion() != expectedVersion) {
 			throw conflict();
@@ -293,25 +284,17 @@ public class BatteryService {
 			throw new BusinessException("%s 상태에서는 %s(으)로 바꿀 수 없습니다"
 					.formatted(order.getStatus().getLabel(), target.getLabel()));
 		}
-		String cancelReason = null;
-		if (target == OrderStatus.CANCELED && reason != null) {
-			String trimmed = reason.trim();
-			if (trimmed.length() > 200) {
-				throw new BusinessException("취소 사유는 200자까지 입력할 수 있습니다");
-			}
-			cancelReason = trimmed.isEmpty() ? null : trimmed;
-		}
 		OrderStatus from = order.getStatus();
 		order.setStatus(target);
-		if (target == OrderStatus.CANCELED) {
-			order.setCancelReason(cancelReason);
-		}
 		try {
 			orders.saveAndFlush(order);
 		} catch (ObjectOptimisticLockingFailureException e) {
 			throw conflict();
 		}
 		histories.save(new OrderStatusHistory(id, from, target, user, LocalDateTime.now()));
+		if (target == OrderStatus.CANCELED) {
+			orders.delete(order);
+		}
 	}
 
 	private static BusinessException conflict() {

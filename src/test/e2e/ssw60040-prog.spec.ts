@@ -174,8 +174,7 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
       // 3. '전체' 칩 클릭 → 모든 주문 표시
       await chip('전체').click();
       await expect(page).not.toHaveURL(/status=/);
-      const allStatuses = await rowStatuses();
-      for (const label of ['확정', '진행', '완료']) expect(allStatuses.has(label)).toBe(true); // 취소 주문도 목록에 남는다
+      expect(await rowStatuses()).toEqual(new Set(['확정', '진행', '완료']));
 
       // 4. 각 칩의 건수 = 필터링된 행 수, 전체 = 상태별 건수의 합
       const counts: Record<string, number> = {};

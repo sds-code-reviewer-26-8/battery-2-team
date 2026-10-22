@@ -26,14 +26,11 @@
 			      th:data-confirm="${s.label + '(으)로 바꿉니다. 계속할까요?'}" class="status-form">
 				<input type="hidden" name="status" th:value="${s.name()}">
 				<input type="hidden" name="version" th:value="${order.version}">
-				<input type="text" name="reason" maxlength="200" placeholder="취소 사유(선택, 200자 이내)"
-				       th:if="${s.name() == 'CANCELED'}">
 				<button type="submit" th:class="${s.name() == 'CANCELED'} ? 'danger' : 'primary'"
 				        th:text="${s.label + '(으)로 변경'}">진행</button>
 			</form>
 		</div>
 		<p class="muted" th:if="${order.status.next().isEmpty()}">최종 상태라 더 바꿀 수 없습니다.</p>
-		<p th:if="${order.status.name() == 'CANCELED'}">취소 사유: <span id="cancelReason" th:text="${order.cancelReason != null ? order.cancelReason : '-'}">-</span></p>
 	</section>
 
 	<section class="card">
