@@ -106,6 +106,13 @@ class WebBehaviorTest {
 			mvc.perform(get(url)).andExpect(redirectedUrl("/login"));
 		}
 		mvc.perform(get("/login")).andExpect(status().isOk()).andExpect(forwardedUrl("/login.html"));
+		// 가입 화면도 로그인 전에 열려야 한다(G8 의 예외)
+		mvc.perform(get("/signup")).andExpect(status().isOk()).andExpect(forwardedUrl("/signup.html"));
+	}
+
+	@Test
+	void signupPageRedirectsWhenAlreadyLoggedIn() throws Exception {
+		mvc.perform(get("/signup").session(login())).andExpect(redirectedUrl("/orders"));
 	}
 
 	@Test
@@ -114,7 +121,7 @@ class WebBehaviorTest {
 	}
 
 	@Test
-	void everyApiNeedsLoginExceptLogin() throws Exception {
+	void everyApiNeedsLoginExceptLoginAndSignup() throws Exception {
 		mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/master")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/master/form")).andExpect(status().isUnauthorized());
@@ -126,12 +133,117 @@ class WebBehaviorTest {
 		mvc.perform(postJson("/api/master", null, "{}")).andExpect(status().isUnauthorized());
 	}
 
+	// ---------------------------------------------------------------- 회원가입
+
+	private String signupBody(String username, String password, String confirm, String code) throws Exception {
+		return json.writeValueAsString(Map.of("username", username, "password", password, "passwordConfirm", confirm,
+				"code", code));
+	}
+
+	@Test
+	void signupIsPublicAndTheNewMemberCanLogIn() throws Exception {
+		String name = TestAccounts.newUsername();
+		MvcResult res = mvc.perform(postJson("/api/signup", null,
+						signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE)))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.username").value(name))
+				.andExpect(jsonPath("$.message").value("가입했습니다. 로그인해 주세요")).andReturn();
+		// 응답에 비밀번호나 해시가 없다
+		assertThat(res.getResponse().getContentAsString(StandardCharsets.UTF_8)).doesNotContain(TestAccounts.PASSWORD)
+				.doesNotContain("$2").doesNotContain("assword");
+
+		mvc.perform(postJson("/api/login", null, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.username").value(name));
+		mvc.perform(postJson("/api/login", null, "{\"username\":\"" + name + "\",\"password\":\"wrong-password\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void signupDoesNotLogTheMemberIn() throws Exception {
+		MockHttpSession session = new MockHttpSession();
+		mvc.perform(postJson("/api/signup", session,
+						signupBody(TestAccounts.newUsername(), TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE)))
+				.andExpect(status().isOk());
+		mvc.perform(get("/api/me").session(session)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void signupInputErrorsAreBadRequestWithEveryReason() throws Exception {
+		mvc.perform(postJson("/api/signup", null, signupBody("ab", "short", "different", "wrong-code")))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.conflict").value(false))
+				.andExpect(jsonPath("$.errors.length()").value(4))
+				.andExpect(jsonPath("$.errors[0]").value("아이디는 4자 이상 20자 이하여야 합니다"))
+				.andExpect(jsonPath("$.errors[1]").value("비밀번호는 8자 이상이어야 합니다"))
+				.andExpect(jsonPath("$.errors[2]").value("비밀번호 확인이 일치하지 않습니다"))
+				.andExpect(jsonPath("$.errors[3]").value("가입 코드가 올바르지 않습니다"));
+		mvc.perform(postJson("/api/signup", null, "{}")).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.length()").value(3));
+	}
+
+	@Test
+	void duplicateSignupIsAConflict() throws Exception {
+		String name = TestAccounts.newUsername();
+		String body = signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE);
+		mvc.perform(postJson("/api/signup", null, body)).andExpect(status().isOk());
+		mvc.perform(postJson("/api/signup", null, body)).andExpect(status().isConflict())
+				.andExpect(jsonPath("$.conflict").value(true)).andExpect(jsonPath("$.error").value("이미 사용 중인 아이디입니다"));
+	}
+
+	@Test
+	void signupWithAWrongCodeCreatesNoAccount() throws Exception {
+		String name = TestAccounts.newUsername();
+		mvc.perform(postJson("/api/signup", null, signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, "wrong")))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0]").value("가입 코드가 올바르지 않습니다"));
+		mvc.perform(postJson("/api/login", null, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	/** 가입한 회원이 만든 주문과 상태 변경에는 그 회원의 아이디가 작성자·변경한 사람으로 남는다. */
+	@Test
+	void ordersAndHistoryRecordTheSignedUpMember() throws Exception {
+		String name = TestAccounts.newUsername();
+		mvc.perform(postJson("/api/signup", null, signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE)))
+				.andExpect(status().isOk());
+		MockHttpSession session = new MockHttpSession();
+		mvc.perform(postJson("/api/login", session, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
+				.andExpect(status().isOk());
+		MvcResult res = mvc.perform(postJson("/api/orders", session, "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":"
+				+ masters.currentMaster().version() + "}")).andExpect(status().isOk()).andReturn();
+		long id = json.readTree(res.getResponse().getContentAsString()).get("id").asLong();
+		mvc.perform(get("/api/orders/" + id).session(session)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.createdBy").value(name)).andExpect(jsonPath("$.history[0].changedBy").value(name));
+	}
+
 	// ---------------------------------------------------------------- 로그인
+
+	/**
+	 * 아이디만 있고 권한이 없는 세션(권한을 담기 전 코드로 로그인한 세션)은 로그인하지 않은 것으로 본다.
+	 * 다시 로그인하게 하고, 로그인 화면과 주문 목록 사이를 계속 오가는 일은 없어야 한다.
+	 */
+	@Test
+	void sessionWithoutRoleIsTreatedAsLoggedOutWithoutRedirectLoops() throws Exception {
+		MockHttpSession stale = new MockHttpSession();
+		stale.setAttribute(com.example.demo.config.LoginInterceptor.SESSION_USER, "admin");
+		mvc.perform(get("/orders").session(stale)).andExpect(redirectedUrl("/login"));
+		mvc.perform(get("/login").session(stale)).andExpect(status().isOk()).andExpect(forwardedUrl("/login.html"));
+		mvc.perform(get("/signup").session(stale)).andExpect(status().isOk()).andExpect(forwardedUrl("/signup.html"));
+		mvc.perform(get("/api/me").session(stale)).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/orders").session(stale)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meReturnsTheRoleStoredInTheSession() throws Exception {
+		MockHttpSession session = login();
+		mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.role").value("ADMIN"));
+		// 세션에 담긴 값을 돌려줄 뿐 DB 를 다시 보지 않는다: 세션 값을 바꾸면 그대로 따라간다
+		session.setAttribute(com.example.demo.config.LoginInterceptor.SESSION_ROLE, "STAFF");
+		mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.role").value("STAFF"));
+	}
 
 	@Test
 	void loginSetsSessionAndMeReturnsTheUser() throws Exception {
 		MockHttpSession s = login();
-		mvc.perform(get("/api/me").session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin"));
+		mvc.perform(get("/api/me").session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin"))
+				.andExpect(jsonPath("$.role").value("ADMIN"));
 	}
 
 	@Test
