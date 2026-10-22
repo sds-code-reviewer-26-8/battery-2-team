@@ -11,7 +11,7 @@ import { login } from './helpers';
  * 예상시간  10초
  * Pass 조건 - 공장 4곳의 하루 최대 생산량·재고 상한·셀당 원가·하루 운영비가 기본값으로 표시
  *             (중국 400/4,000/700, 일본 800/2,000/900, 베트남 200/10,000/550, 인도네시아 300/7,000/450,
- *             하루 운영비는 공장마다 10억)
+ *             하루 운영비는 공장마다 0.5억)
  *           - 배 척수 3, 척당 일 운항비 1
  *           - 항로 표에 기본 항해 일수 (한국–중국 1일 등)
  * 담당자    kewrybyun0119
@@ -57,9 +57,9 @@ test('No.28 기본 기준값 표시', async ({ page }) => {
     await expect(field(`unitCost_${country}`), `${country} 셀당 원가`).toHaveValue(String(unitCost));
   }
 
-  // Pass 1 (운영비) — 공장 4곳의 하루 운영비는 기본 10억
+  // Pass 1 (운영비) — 공장 4곳의 하루 운영비는 기본 0.5억
   for (const country of Object.keys(FACTORY_DEFAULTS)) {
-    await expect(field(`operatingCost_${country}`), `${country} 하루 운영비`).toHaveValue('10');
+    await expect(field(`operatingCost_${country}`), `${country} 하루 운영비`).toHaveValue('0.5');
   }
 
   // Pass 2 — 배 척수 3, 척당 일 운항비 1

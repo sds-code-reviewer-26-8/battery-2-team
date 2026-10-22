@@ -368,7 +368,7 @@ class WebBehaviorTest {
 		long before = masters.currentMaster().version();
 		mvc.perform(postJson("/api/master", login(), "{\"shipCount\":\"9\",\"shipDailyCost\":\"abc\"}"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.conflict").value(false))
-				.andExpect(jsonPath("$.errors.length()").value(28))
+				.andExpect(jsonPath("$.errors.length()").value(24))
 				.andExpect(jsonPath("$.errors[0]").value("배 척수은(는) 1 이상 4 이하의 정수여야 합니다"))
 				.andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.startsWith("배 척수은(는) 1 이상 4 이하의 정수여야 합니다 / ")));
 		assertThat(masters.currentMaster().version()).isEqualTo(before);

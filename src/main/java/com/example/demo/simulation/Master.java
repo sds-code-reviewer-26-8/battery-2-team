@@ -15,11 +15,6 @@ public record Master(long version, int shipCount, long shipDailyCostWon, List<Fa
 		public FactoryParam {
 			operatingCostWon = operatingCostWon == null ? 0L : operatingCostWon;
 		}
-
-		/** 운영비 없이(0원) 만드는 생성자 */
-		public FactoryParam(Country country, int maxDaily, int stockLimit, long unitCost) {
-			this(country, maxDaily, stockLimit, unitCost, 0L);
-		}
 	}
 
 	public record RouteParam(Country from, Country to, int days) {

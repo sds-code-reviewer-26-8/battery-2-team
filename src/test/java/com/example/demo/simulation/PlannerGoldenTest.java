@@ -33,12 +33,17 @@ class PlannerGoldenTest {
 	private static final String GOLDEN = "golden/planner.txt";
 	private static final Path GOLDEN_SOURCE = Path.of("src/test/resources", GOLDEN);
 
+	/** 이 골든 파일은 운영비가 없던 시절의 입력(운영비 0원)으로 만든 값이라 0원 공장을 만든다. */
+	private static FactoryParam noOperatingCost(Country country, int maxDaily, int stockLimit, long unitCost) {
+		return new FactoryParam(country, maxDaily, stockLimit, unitCost, 0L);
+	}
+
 	private static Master defaultMaster(int ships) {
 		return new Master(1, ships, 100_000_000L,
-				List.of(new FactoryParam(Country.CHINA, 400, 4000, 700),
-						new FactoryParam(Country.JAPAN, 800, 2000, 900),
-						new FactoryParam(Country.VIETNAM, 200, 10000, 550),
-						new FactoryParam(Country.INDONESIA, 300, 7000, 450)),
+				List.of(noOperatingCost(Country.CHINA, 400, 4000, 700),
+						noOperatingCost(Country.JAPAN, 800, 2000, 900),
+						noOperatingCost(Country.VIETNAM, 200, 10000, 550),
+						noOperatingCost(Country.INDONESIA, 300, 7000, 450)),
 				List.of(new RouteParam(Country.KOREA, Country.CHINA, 1),
 						new RouteParam(Country.KOREA, Country.JAPAN, 2),
 						new RouteParam(Country.KOREA, Country.VIETNAM, 5),
@@ -54,10 +59,10 @@ class PlannerGoldenTest {
 	/** 기본값과 모든 값이 다른 마스터: 비용·생산량·재고 상한·항해 일수가 계산에 모두 쓰이는지 본다. */
 	private static Master otherMaster(int ships) {
 		return new Master(7, ships, 150_000_000L,
-				List.of(new FactoryParam(Country.CHINA, 250, 1500, 800),
-						new FactoryParam(Country.JAPAN, 500, 3000, 1000),
-						new FactoryParam(Country.VIETNAM, 350, 2500, 600),
-						new FactoryParam(Country.INDONESIA, 150, 900, 500)),
+				List.of(noOperatingCost(Country.CHINA, 250, 1500, 800),
+						noOperatingCost(Country.JAPAN, 500, 3000, 1000),
+						noOperatingCost(Country.VIETNAM, 350, 2500, 600),
+						noOperatingCost(Country.INDONESIA, 150, 900, 500)),
 				List.of(new RouteParam(Country.KOREA, Country.CHINA, 3),
 						new RouteParam(Country.KOREA, Country.JAPAN, 1),
 						new RouteParam(Country.KOREA, Country.VIETNAM, 6),

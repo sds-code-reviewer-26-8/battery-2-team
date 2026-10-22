@@ -162,20 +162,43 @@ class OperatingCostTest {
 	}
 
 	@Test
-	void defaultOperatingCostIsTenEokPerFactoryAndSavingBumpsVersion() {
+	void defaultOperatingCostIsHalfEokPerFactoryAndSavingBumpsVersion() {
 		for (Country c : Country.factories()) {
-			assertThat(originalForm.get("operatingCost_" + c)).isEqualTo("10");
+			assertThat(originalForm.get("operatingCost_" + c)).isEqualTo("0.5");
 		}
 		long before = masters.currentMaster().version();
 		Map<String, String> form = new HashMap<>(originalForm);
-		form.put("operatingCost_JAPAN", "0.5");
+		form.put("operatingCost_JAPAN", "0.7");
 		form.put("operatingCost_CHINA", "0");
 		masters.updateMaster(form);
 		Master after = masters.currentMaster();
 		assertThat(after.version()).isEqualTo(before + 1);
-		assertThat(after.factory(Country.JAPAN).operatingCostWon()).isEqualTo(EOK / 2);
+		assertThat(after.factory(Country.JAPAN).operatingCostWon()).isEqualTo(70_000_000L);
 		assertThat(after.factory(Country.CHINA).operatingCostWon()).isZero();
-		assertThat(after.factory(Country.VIETNAM).operatingCostWon()).isEqualTo(10 * EOK);
+		assertThat(after.factory(Country.VIETNAM).operatingCostWon()).isEqualTo(EOK / 2);
+	}
+
+	/** 하루 운영비 칸이 없던 시절 형식의 저장 요청은 거부하지 않고, 운영비는 지금 저장된 값을 그대로 둔다. */
+	@Test
+	void saveWithoutOperatingCostFieldsKeepsTheStoredValues() {
+		Map<String, String> form = new HashMap<>(originalForm);
+		form.put("operatingCost_CHINA", "3");
+		masters.updateMaster(form);
+		for (Country c : Country.factories()) {
+			form.remove("operatingCost_" + c);
+		}
+		form.put("shipCount", "2");
+		masters.updateMaster(form);
+		Master after = masters.currentMaster();
+		assertThat(after.shipCount()).isEqualTo(2);
+		assertThat(after.factory(Country.CHINA).operatingCostWon()).isEqualTo(3 * EOK);
+		assertThat(after.factory(Country.JAPAN).operatingCostWon()).isEqualTo(EOK / 2);
+	}
+
+	/** 칸은 있는데 비어 있으면 값을 안 넣은 것이 아니라 잘못된 입력이다. */
+	@Test
+	void blankOperatingCostFieldIsStillRejected() {
+		assertRejected("operatingCost_CHINA", "", "중국 하루 운영비(억 원)은(는) 숫자로 입력하세요");
 	}
 
 	// ---------------------------------------------------------------- 확정 저장

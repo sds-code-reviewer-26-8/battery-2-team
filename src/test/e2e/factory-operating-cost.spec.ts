@@ -6,7 +6,7 @@ import { readMasterForm, runSimulation, saveMasterForm } from './ui-helpers';
  * No.       TASK-002
  * 영역      마스터 데이터 / 주문
  * 시나리오  공장 운영비 설정과 시뮬레이션·주문 반영
- * 절차      [사전 조건] 기본 기준값 (공장별 하루 운영비 10억)
+ * 절차      [사전 조건] 기본 기준값 (공장별 하루 운영비 0.5억)
  *           1. /master 에서 중국 하루 운영비에 숫자가 아닌 값을 넣고 저장 → 이유와 함께 거부되는지 확인
  *           2. 기본값으로 시뮬레이션 → 요약에 운영비 행이 있고 총 비용 = 생산 원가 + 운항비 + 운영비
  *           3. 선택한 안으로 주문 확정 → 상세 요약·주문 목록의 운영비가 시뮬레이션과 같은지 확인
@@ -45,11 +45,11 @@ test('TASK-002 공장 운영비 설정과 시뮬레이션·주문 반영', async
     // 절차 1 / Pass 1 — 잘못된 운영비는 이유와 함께 거부된다
     await page.goto('/master');
     const china = page.locator('input[name="operatingCost_CHINA"]');
-    await expect(china).toHaveValue('10');
+    await expect(china).toHaveValue('0.5');
     await china.fill('열억');
     await page.getByRole('button', { name: /저장/ }).click();
     await expect(page.locator('#alerts .alert.error')).toContainText('중국 하루 운영비');
-    expect((await readMasterForm(page)).operatingCost_CHINA).toBe('10'); // 저장되지 않음
+    expect((await readMasterForm(page)).operatingCost_CHINA).toBe('0.5'); // 저장되지 않음
 
     // 절차 2 / Pass 2 — 시뮬레이션 요약에 운영비 행, 총 비용은 세 항목의 합
     await page.goto('/orders/new');

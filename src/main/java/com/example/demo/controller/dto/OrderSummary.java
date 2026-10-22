@@ -11,6 +11,7 @@ public record OrderSummary(Long id, String confirmedAt, int totalK, String route
 
 	public static OrderSummary of(Order o) {
 		return new OrderSummary(o.getId(), o.getConfirmedAt().format(MINUTE), o.getTotalK(), o.getRouteLabel(),
-				o.getTotalDays(), o.getOperatingCostEok(), o.getTotalCostEok(), StatusInfo.of(o.getStatus()), o.getCreatedBy());
+				o.getTotalDays(), o.getOperatingCostEok(), o.getTotalCostEok(), StatusInfo.of(o.getStatus()),
+				o.getCreatedBy());
 	}
 }

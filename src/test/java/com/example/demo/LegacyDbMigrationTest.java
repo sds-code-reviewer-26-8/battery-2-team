@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * G1: 공장 운영비 컬럼이 없던 이전 스키마의 H2 파일 DB 를 실제로 열어도(ddl-auto=update) 기동이 깨지지 않고,
- * 컬럼이 추가되며, 옛 공장은 기본 10억/일, 옛 주문은 운영비 0원(합계 재계산 없음)으로 보이는지 확인한다.
+ * 컬럼이 추가되며, 옛 공장은 운영비 0원/일, 옛 주문은 운영비 0원(합계 재계산 없음)으로 보이는지 확인한다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -126,10 +126,10 @@ class LegacyDbMigrationTest {
 		assertThat(hasColumn("factory", "operating_cost")).isTrue();
 		assertThat(hasColumn("orders", "operating_cost")).isTrue();
 
-		// 옛 공장은 기본 10억/일, 마스터 버전은 그대로
+		// 옛 공장은 0원/일(올려도 결과가 안 바뀜), 마스터 버전은 그대로
 		Map<String, String> form = masters.masterForm();
 		for (String country : new String[] {"CHINA", "JAPAN", "VIETNAM", "INDONESIA"}) {
-			assertThat(form.get("operatingCost_" + country)).as(country).isEqualTo("10");
+			assertThat(form.get("operatingCost_" + country)).as(country).isEqualTo("0");
 		}
 		assertThat(masters.currentMaster().version()).isEqualTo(5);
 
@@ -148,18 +148,24 @@ class LegacyDbMigrationTest {
 				.andExpect(jsonPath("$.plan.plan.operatingCost").value(0))
 				.andExpect(jsonPath("$.plan.plan.totalCost").value(480_000_000));
 
-		// 옛 DB 에서도 시뮬레이션이 운영비를 반영한다
+		// 옛 DB 는 마스터에서 운영비를 저장하기 전까지 운영비 0원 — 업그레이드만으로 시뮬레이션 결과가 바뀌지 않는다
 		mvc.perform(post("/api/simulate").session(s).contentType(MediaType.APPLICATION_JSON)
 						.content("{\"orders\":{\"CHINA\":400}}"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.options.length()").value(3))
-				.andExpect(jsonPath("$.options[0].operatingCost").value(Matchers.greaterThan(0)));
+				.andExpect(jsonPath("$.options[0].operatingCost").value(0));
 
 		// 마스터 저장: 운영비가 바뀌고 버전이 오른다
 		form.put("operatingCost_CHINA", "12");
 		masters.updateMaster(form);
 		assertThat(masters.masterForm().get("operatingCost_CHINA")).isEqualTo("12");
 		assertThat(masters.currentMaster().version()).isEqualTo(6);
+
+		// 저장한 뒤부터 시뮬레이션이 운영비를 반영한다
+		mvc.perform(post("/api/simulate").session(s).contentType(MediaType.APPLICATION_JSON)
+						.content("{\"orders\":{\"CHINA\":400}}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.options[0].operatingCost").value(Matchers.not(Matchers.is(0))));
 
 		// 옛 주문은 마스터를 바꿔도 그대로
 		mvc.perform(get("/api/orders").session(s))

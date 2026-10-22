@@ -141,7 +141,10 @@ public class MasterService {
 			int cost = parseInt(form, "unitCost_" + c, name + " 셀당 원가", 1, 100_000_000, errors);
 			factoryValues.put(c, new int[] {max, limit});
 			unitCosts.put(c, (long) cost);
-			operatingCosts.put(c, parseOperatingCost(form, "operatingCost_" + c, name + " 하루 운영비", errors));
+			String operatingKey = "operatingCost_" + c;
+			if (form.containsKey(operatingKey)) {
+				operatingCosts.put(c, parseOperatingCost(form, operatingKey, name + " 하루 운영비", errors));
+			}
 		}
 
 		List<Country> all = List.of(Country.values());
@@ -163,7 +166,10 @@ public class MasterService {
 			f.setMaxDaily(factoryValues.get(c)[0]);
 			f.setStockLimit(factoryValues.get(c)[1]);
 			f.setUnitCost(unitCosts.get(c));
-			f.setOperatingCost(operatingCosts.get(c));
+			// 하루 운영비 칸이 없는 요청(이 칸이 생기기 전 형식)은 지금 저장된 값을 그대로 둔다
+			if (operatingCosts.containsKey(c)) {
+				f.setOperatingCost(operatingCosts.get(c));
+			}
 		}
 		for (Route r : routes.findAll()) {
 			r.setDays(days.get(routeKey(r.getFromCountry(), r.getToCountry())));
