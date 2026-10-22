@@ -11,6 +11,9 @@ import { cancelOrderIfOpen, createOrder, login } from './helpers';
  * G5  이미 로그인한 사람이 가입 화면을 열면 주문 목록으로 보낸다
  * G6  가입한 회원이 만든 주문에는 그 회원의 아이디가 작성자·변경한 사람으로 남는다
  * G7  기존 admin 계정은 그대로 로그인된다 (회귀)
+ * G8  서버에 연결할 수 없으면 가입 화면이 안내를 보여 준다
+ * G9  서버에 연결할 수 없으면 로그인 화면도 같은 안내를 보여 준다
+ * G10 한글로 된 긴 비밀번호는 서버 오류(500)가 아니라 안내로 거절한다 (BCrypt 는 72바이트까지만 받는다)
  *
  * - 가입한 계정은 지울 수 없어 실행할 때마다 쌓이므로, 아이디는 실행마다 새로 만든다.
  *   E2E 는 인메모리 DB 서버에서 실행한다(playwright.config.ts 설명 참고).
@@ -161,5 +164,43 @@ test.describe('회원가입', () => {
   test('G7 기존 admin 계정은 그대로 로그인된다', async ({ page }) => {
     await login(page);
     await expect(page.locator('header .user')).toContainText('admin');
+  });
+
+  test('G8 서버에 연결할 수 없으면 가입 화면이 안내를 보여 준다', async ({ page }) => {
+    await page.route('**/api/signup', (route) => route.abort());
+    await page.goto('/signup');
+    const username = newUsername();
+    await fillSignup(page, { username, password: PASSWORD });
+    await submitSignup(page);
+    await expect(page.locator('.alert.error li')).toHaveText(['서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요']);
+    await expect(page).toHaveURL(/\/signup$/);
+    await expect(page.locator('input[name="username"]')).toHaveValue(username); // 입력한 값은 그대로
+  });
+
+  test('G9 서버에 연결할 수 없으면 로그인 화면도 같은 안내를 보여 준다', async ({ page }) => {
+    await page.route('**/api/login', (route) => route.abort());
+    await page.goto('/login');
+    await loginAs(page, 'admin', 'admin');
+    await expect(page.locator('.alert.error')).toHaveText('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요');
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test('G10 한글로 된 긴 비밀번호는 서버 오류가 아니라 안내로 거절한다', async ({ page }) => {
+    await page.goto('/signup');
+    const hangul25 = '가'.repeat(25); // 75바이트
+    await fillSignup(page, { username: newUsername(), password: hangul25 });
+    await submitSignup(page);
+    await expect(page.locator('.alert.error li')).toHaveText([
+      '비밀번호가 너무 깁니다. 영문·숫자는 72자, 한글은 24자까지 쓸 수 있습니다',
+    ]);
+
+    // 24자(72바이트)는 가입되고, 그 비밀번호로 로그인된다
+    const username = newUsername();
+    const hangul24 = '가'.repeat(24);
+    await fillSignup(page, { username, password: hangul24 });
+    await submitSignup(page);
+    await expect(page).toHaveURL(/\/login\?signedUp=1$/);
+    await loginAs(page, username, hangul24);
+    await expect(page).toHaveURL(/\/orders$/);
   });
 });
