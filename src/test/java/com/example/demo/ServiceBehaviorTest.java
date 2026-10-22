@@ -9,6 +9,7 @@ import com.example.demo.entity.OrderStatus;
 import com.example.demo.entity.OrderStatusHistory;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.MasterService;
+import com.example.demo.service.NotFoundException;
 import com.example.demo.service.OrderService;
 import com.example.demo.service.SimulationService;
 import com.example.demo.service.SimulationService.SimulationResult;
@@ -384,8 +385,8 @@ class ServiceBehaviorTest {
 
 	@Test
 	void unknownOrderIsReportedWithReason() {
-		assertThatThrownBy(() -> orderService.getOrder(-12345L)).isInstanceOf(BusinessException.class)
-				.hasMessage("주문을 찾을 수 없습니다");
+		assertThatThrownBy(() -> orderService.getOrder(-12345L)).isInstanceOf(NotFoundException.class)
+				.isInstanceOf(BusinessException.class).hasMessage("주문을 찾을 수 없습니다");
 		assertThat(orderService.history(-12345L)).isEmpty();
 	}
 
@@ -491,6 +492,6 @@ class ServiceBehaviorTest {
 	@Test
 	void changingStatusOfUnknownOrderIsReported() {
 		assertThatThrownBy(() -> orderService.changeStatus(-12345L, OrderStatus.IN_PROGRESS, 0, "u"))
-				.isInstanceOf(BusinessException.class).hasMessage("주문을 찾을 수 없습니다");
+				.isInstanceOf(NotFoundException.class).hasMessage("주문을 찾을 수 없습니다");
 	}
 }

@@ -147,14 +147,18 @@ test.describe('견고성', () => {
   });
 
   test('S10 오류 처리: 존재하지 않는 주문 번호 접근', async ({ page }) => {
-    // 현재 앱은 없는 주문을 열면 HTTP 500 오류 화면이 나오므로 아래 확인에서 Fail 이 예상된다.
-    test.info().annotations.push({ type: 'known-issue', description: '없는 주문 번호 접근 시 HTTP 500' });
     await login(page);
 
+    // API 는 "없음"을 404 와 이유로 알린다 (화면 파일은 정적이라 항상 200 이므로, 없음을 구분하는 것은 API 이다)
+    const api = await page.request.get('/api/orders/999999');
+    expect(api.status(), '없는 주문 API 는 404 여야 한다').toBe(404);
+    expect((await api.json()).error).toBe('주문을 찾을 수 없습니다');
+
+    // 화면은 오류 화면(HTTP 500)이 아니라 안내 문구와 메뉴를 보여 준다
     const res = await page.goto('/orders/999999');
-    expect.soft(res?.status(), '오류 화면(HTTP 500)이 아니어야 한다').not.toBe(500);
-    await expect.soft(page.getByText('주문을 찾을 수 없습니다')).toBeVisible({ timeout: 3_000 });
-    await expect.soft(page.getByRole('link', { name: '주문 목록' })).toBeVisible({ timeout: 3_000 });
+    expect(res?.status(), '오류 화면(HTTP 500)이 아니어야 한다').not.toBe(500);
+    await expect(page.getByText('주문을 찾을 수 없습니다')).toBeVisible({ timeout: 3_000 });
+    await expect(page.getByRole('link', { name: '주문 목록' })).toBeVisible({ timeout: 3_000 });
 
     // 그래도 앱은 계속 쓸 수 있다
     await page.goto('/orders');

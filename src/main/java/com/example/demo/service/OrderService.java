@@ -84,7 +84,7 @@ public class OrderService {
 
 	@Transactional(readOnly = true)
 	public Order getOrder(Long id) {
-		return orders.findById(id).orElseThrow(() -> new BusinessException("주문을 찾을 수 없습니다"));
+		return orders.findById(id).orElseThrow(() -> new NotFoundException("주문을 찾을 수 없습니다"));
 	}
 
 	/** 확정 때 저장해 둔 계획(주문 당시의 마스터 값 포함) */

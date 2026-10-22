@@ -234,9 +234,16 @@ class WebBehaviorTest {
 	}
 
 	@Test
-	void unknownOrderIsABadRequestWithMessage() throws Exception {
-		mvc.perform(get("/api/orders/-12345").session(login())).andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error").value("주문을 찾을 수 없습니다")).andExpect(jsonPath("$.conflict").value(false));
+	void unknownOrderIsNotFoundWithMessage() throws Exception {
+		mvc.perform(get("/api/orders/-12345").session(login())).andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.error").value("주문을 찾을 수 없습니다")).andExpect(jsonPath("$.conflict").value(false))
+				.andExpect(jsonPath("$.errors[0]").value("주문을 찾을 수 없습니다"));
+	}
+
+	@Test
+	void statusChangeOfUnknownOrderIsNotFound() throws Exception {
+		mvc.perform(postJson("/api/orders/-12345/status", login(), statusBody("IN_PROGRESS", 0)))
+				.andExpect(status().isNotFound()).andExpect(jsonPath("$.error").value("주문을 찾을 수 없습니다"));
 	}
 
 	@Test
