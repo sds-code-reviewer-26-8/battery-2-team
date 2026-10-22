@@ -1,4 +1,6 @@
 (function () {
+	renderHeader('new');
+
 	const totalInput = document.getElementById('total');
 	const gaugesEl = document.getElementById('gauges');
 	const inputError = document.getElementById('inputError');
@@ -172,7 +174,7 @@
 
 	values = even(total);
 	buildGauges();
-	fetch('/api/master').then(r => r.json()).then(m => {
+	getJson('/api/master').then(m => {
 		master = m;
 		refreshGauges();
 	}).catch(() => { /* 방문 횟수 표시만 비어 있게 둔다 */ });
