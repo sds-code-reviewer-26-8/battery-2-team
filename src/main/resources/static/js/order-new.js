@@ -9,6 +9,8 @@
 	const optionsEl = document.getElementById('options');
 	const confirmBtn = document.getElementById('confirmBtn');
 	const confirmError = document.getElementById('confirmError');
+	const customerInput = document.getElementById('customerName');
+	const customerHint = document.getElementById('customerHint');
 	const dueAsap = document.getElementById('dueAsap');
 	const dueDate = document.getElementById('dueDate');
 
@@ -223,8 +225,17 @@
 
 	// ---- 주문 확정
 
+	/** 고객사가 비었거나 공백뿐이면 확정 버튼을 막고 안내한다 */
+	function refreshConfirmGuard() {
+		const empty = customerInput.value.trim() === '';
+		confirmBtn.disabled = empty;
+		customerHint.hidden = !empty;
+	}
+	customerInput.addEventListener('input', refreshConfirmGuard);
+	refreshConfirmGuard();
+
 	confirmBtn.addEventListener('click', async () => {
-		if (!result) return;
+		if (!result || customerInput.value.trim() === '') return;
 		confirmError.hidden = true;
 		const problem = dueProblem();
 		if (problem) {
@@ -238,13 +249,14 @@
 				routeType: selected,
 				masterVersion: result.master.version,
 				memo: document.getElementById('memo').value,
+				customerName: customerInput.value,
 				dueAsap: dueAsap.checked,
 				dueDate: dueAsap.checked ? null : dueDate.value
 			});
 			location.href = '/orders/' + res.id;
 		} catch (e) {
 			showError(confirmError, e.message);
-			confirmBtn.disabled = false;
+			refreshConfirmGuard();
 		}
 	});
 

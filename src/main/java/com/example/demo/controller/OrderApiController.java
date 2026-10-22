@@ -26,12 +26,18 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 @RequestMapping("/api/orders")
 public class OrderApiController {
 
-	/** dueAsap('가능한 빨리'), dueDate(yyyy-MM-dd) 는 없어도 된다. 응답(OrderDetail)과 같은 이름을 쓴다. dueDate 를 문자열로 받아 형식 오류도 400 이유로 돌려준다. */
+	/**
+	 * customerName 은 필수다. dueAsap('가능한 빨리'), dueDate(yyyy-MM-dd) 는 없어도 된다(응답 OrderDetail 과 같은 이름).
+	 * dueDate 를 문자열로 받아 형식 오류도 400 이유로 돌려준다.
+	 */
 	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo,
-			Boolean dueAsap, String dueDate) {
+			String customerName, Boolean dueAsap, String dueDate) {
 	}
 
 	public record StatusRequest(OrderStatus status, long version) {
+	}
+
+	public record CustomerRequest(String customerName, long version) {
 	}
 
 	private final OrderService orders;
@@ -68,7 +74,7 @@ public class OrderApiController {
 	public Map<String, Long> confirm(@RequestBody ConfirmRequest request,
 			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		Order order = orders.confirm(request.orders(), request.routeType(), request.masterVersion(), request.memo(),
-				request.dueAsap(), request.dueDate(), user);
+				request.customerName(), request.dueAsap(), request.dueDate(), user);
 		return Map.of("id", order.getId());
 	}
 
@@ -77,5 +83,12 @@ public class OrderApiController {
 			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		orders.changeStatus(id, request.status(), request.version(), user);
 		return Map.of("message", "상태를 '" + request.status().getLabel() + "'(으)로 바꿨습니다");
+	}
+
+	@PostMapping("/{id}/customer")
+	public Map<String, String> changeCustomer(@PathVariable Long id, @RequestBody CustomerRequest request,
+			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
+		orders.changeCustomerName(id, request.customerName(), request.version(), user);
+		return Map.of("message", "고객사를 저장했습니다");
 	}
 }

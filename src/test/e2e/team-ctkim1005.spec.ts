@@ -182,6 +182,7 @@ test.describe('ctkim1005 담당', () => {
 
       // 2. 메모 입력  3. 주문 확정
       await page.locator('#memo').fill('3분기 긴급 물량');
+      await page.locator('#customerName').fill('E2E 고객사');
       await page.locator('#confirmBtn').click();
 
       // /orders/{id} 상세로 이동
@@ -228,7 +229,7 @@ test.describe('ctkim1005 담당', () => {
     // 2. 우회 요청: 기준값 번호를 읽고 메모 1,001자로 확정 요청 → 400
     const version = await masterVersion(page);
     const res = await page.request.post('/api/orders', {
-      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, memo: 'a'.repeat(1001) },
+      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, memo: 'a'.repeat(1001), customerName: 'E2E 고객사' },
     });
     expect(res.status()).toBe(400);
     expect((await res.json()).error).toBe('메모는 1000자 이하로 입력하세요');
@@ -413,6 +414,7 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
       await asap.uncheck();
       await expect(page.locator('#options .option[data-type="COST"]')).toHaveClass(/over-due/);
       await page.locator('#options .option[data-type="COST"]').click();
+      await page.locator('#customerName').fill('E2E 고객사');
       await page.locator('#confirmBtn').click();
       await expect(page).toHaveURL(/\/orders\/\d+$/);
       id = Number(new URL(page.url()).pathname.split('/').pop());
@@ -424,7 +426,7 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
       const version = await masterVersion(page);
       for (const days of [4, 51]) {
         const res = await page.request.post('/api/orders', {
-          data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, dueAsap: false, dueDate: localDate(days) },
+          data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, customerName: 'E2E 고객사', dueAsap: false, dueDate: localDate(days) },
         });
         expect(res.status()).toBe(400);
         expect((await res.json()).error).toBe('필요 납기일은 오늘부터 5~50일 사이로 선택하세요');
@@ -439,7 +441,7 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
     await login(page);
     // 납기 기능 전 형식의 확정 요청(납기 필드 없음)으로 주문을 만든다
     const res = await page.request.post('/api/orders', {
-      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: await masterVersion(page) },
+      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: await masterVersion(page), customerName: 'E2E 고객사' },
     });
     expect(res.status()).toBe(200);
     const id: number = (await res.json()).id;

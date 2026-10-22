@@ -11,14 +11,14 @@ import java.util.List;
  * dueAsap·dueDate(yyyy-MM-dd)·dueExceeded 는 필요 납기이며, 납기 기능 전에 확정된 주문은 모두 null 이다.
  */
 public record OrderDetail(Long id, String confirmedAt, String createdBy, String routeLabel, String memo,
-		StatusInfo status, long version, List<StatusInfo> nextStatuses, List<HistoryEntry> history, StoredPlan plan,
-		Boolean dueAsap, String dueDate, Boolean dueExceeded) {
+		String customerName, boolean customerEditable, StatusInfo status, long version, List<StatusInfo> nextStatuses,
+		List<HistoryEntry> history, StoredPlan plan, Boolean dueAsap, String dueDate, Boolean dueExceeded) {
 
 	private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 	public static OrderDetail of(Order o, List<OrderStatusHistory> history, StoredPlan plan) {
 		return new OrderDetail(o.getId(), o.getConfirmedAt().format(MINUTE), o.getCreatedBy(), o.getRouteLabel(),
-				o.getMemo(), StatusInfo.of(o.getStatus()), o.getVersion(),
+				o.getMemo(), o.getCustomerName(), o.getStatus().isCustomerEditable(), StatusInfo.of(o.getStatus()), o.getVersion(),
 				o.getStatus().next().stream().map(StatusInfo::of).toList(),
 				history.stream().map(HistoryEntry::of).toList(), plan, o.getDueAsap(),
 				o.getDueDate() == null ? null : o.getDueDate().toString(), o.getDueExceeded());

@@ -22,13 +22,15 @@ function serverDate(days: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-/** 주문 추가 화면을 열고, 납기 규칙을 받아 '가능한 빨리'가 켜질 때까지 기다린 뒤 시뮬레이션한다 */
+/** 주문 추가 화면을 열고, 납기 규칙을 받아 '가능한 빨리'가 켜질 때까지 기다린 뒤 시뮬레이션한다.
+ *  고객사는 필수라(PR #31) 미리 채워 두어, 확정이 막히는 이유가 납기뿐이게 한다 */
 async function openAndSimulate(page: Page): Promise<void> {
   await page.goto('/orders/new');
   await expect(page.locator('#dueAsap')).toBeEnabled();
   await page.locator('#runBtn').click();
   await expect(page.locator('#result')).toBeVisible();
   await expect(page.locator('#options .option')).toHaveCount(3);
+  await page.locator('#customerName').fill('E2E 고객사');
 }
 
 test.describe('필요 납기 리뷰 보강', () => {

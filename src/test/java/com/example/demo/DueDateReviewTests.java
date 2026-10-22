@@ -61,7 +61,7 @@ class DueDateReviewTests {
 	private ResultActions confirm(MockHttpSession s, int version, String routeType, String dueJson) throws Exception {
 		return mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"orders\":" + ORDERS + ",\"routeType\":\"" + routeType + "\",\"masterVersion\":"
-						+ version + dueJson + "}"));
+						+ version + ",\"customerName\":\"테스트고객\"" + dueJson + "}"));
 	}
 
 	private static String due(LocalDate date) {

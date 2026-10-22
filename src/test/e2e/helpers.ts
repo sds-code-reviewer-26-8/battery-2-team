@@ -44,13 +44,14 @@ export async function masterVersion(page: Page): Promise<number> {
 }
 
 /**
- * 화면으로 주문 1건을 만든다: 시뮬레이션 실행 → 첫 번째 안(운항비 최소)으로 확정.
+ * 화면으로 주문 1건을 만든다: 시뮬레이션 실행 → 고객사 입력(필수) → 첫 번째 안(운항비 최소)으로 확정.
  * 확정되면 주문 상세로 이동하며, 주문 번호를 돌려준다. 상태는 "확정"이다.
  */
-export async function createOrder(page: Page): Promise<number> {
+export async function createOrder(page: Page, customerName = 'E2E 고객사'): Promise<number> {
   await page.goto('/orders/new');
   await page.locator('#runBtn').click();
   await expect(page.locator('#result')).toBeVisible();
+  await page.locator('#customerName').fill(customerName); // 고객사는 필수 입력이다
   await page.locator('#confirmBtn').click();
   await expect(page).toHaveURL(/\/orders\/\d+$/);
   return Number(new URL(page.url()).pathname.split('/').pop());

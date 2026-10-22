@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 사전 점검</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; padding: 28px 16px 64px; }
+  .hero.hilp { background: linear-gradient(135deg, #d97706, #dc2626); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.2); font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.55rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .9; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: .82rem; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid2 .card { margin-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  ul.ev { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem; }
+  .meter { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .meter i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }
+  .meter i.on.low { background: var(--ok); } .meter i.on.medium { background: var(--warn); } .meter i.on.high { background: var(--bad); }
+  .risk { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; background: var(--bg); border-radius: 0 10px 10px 0; }
+  .risk.low { border-color: var(--ok); } .risk.medium { border-color: var(--warn); } .risk.high { border-color: var(--bad); }
+  .alert { border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  .tc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .tc header { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .tc code { font-size: .85rem; color: var(--muted); }
+  .tc dl { margin: 8px 0 0; display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; font-size: .88rem; }
+  .tc dt { color: var(--muted); } .tc dd { margin: 0; white-space: pre-wrap; }
+  .check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .check:first-of-type { border-top: 0; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .check b { display: block; } .check.done b { text-decoration: line-through; color: var(--muted); }
+  .progress { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .plan { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 14px; font-size: .9rem; }
+  details summary { cursor: pointer; font-weight: 700; }
+  ol.q { margin: 8px 0 0; padding-left: 20px; } ol.q li { margin-bottom: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero">
+  <div class="wrap">
+    <span class="badge" id="badge"></span>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="hilpBox"></div>
+  <div class="grid2">
+    <section class="card"><h2>🧭 배경 이해</h2><div id="bg"></div></section>
+    <section class="card"><h2>🎯 목적 이해</h2><div id="pu"></div></section>
+  </div>
+  <section class="card" style="margin-top:16px"><h2>⚠️ 변경 규모와 위험</h2><div id="risk"></div></section>
+  <section class="card"><h2>🧪 테스트 점검</h2>
+    <div class="chips" id="chips"></div>
+    <div id="tcs"></div>
+  </section>
+  <section class="card"><h2>✅ 구현 후 꼭 확인할 3가지</h2>
+    <div class="progress"><i id="bar"></i></div><div class="small muted" id="barTxt"></div>
+    <div id="checks"></div>
+  </section>
+  <section class="card" id="planCard"><h2>🗺️ 구현 계획</h2><div class="plan" id="plan"></div></section>
+</main>
+<footer>impl-plan 사전 점검 · 이 페이지는 계획 단계의 점검 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 < 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"주문 시 고객사 입력, 주문 후 고객사 이름 수정 가능, 완료/삭제(취소) 상태에서는 수정 불가","round":1,"status":"READY","reason":"","questions":[],"background":{"understood":true,"summary":"담당자가 주문을 확정할 때 어느 고객사의 주문인지 기록하지 못한다. 현재 주문에는 메모(자유 텍스트)만 있다. 확정 후에는 고객사를 바로잡거나 보완할 수 있어야 하되, 업무가 끝난 주문(완료, 취소)은 기록 보존을 위해 잠가야 한다.","evidence":["요청문: 주문시 고객사 입력, 주문 이후 수정 가능, 완료/삭제 이후 수정 불가","Order.java: 고객사 필드 없음, memo 만 있음. OrderApiController.ConfirmRequest 에도 없음","OrderStatus.java: COMPLETED, CANCELED 는 next() 가 빈 목록이라 최종 상태","OrderService.changeStatus 주석: 취소해도 주문은 지우지 않고 취소 상태로 남긴다. 주문 삭제 기능은 코드에서 찾지 못함"]},"purpose":{"understood":true,"summary":"주문을 고객사 단위로 식별·관리하려는 것이다. 입력 실수를 정정할 수 있어야 하지만 종료된 주문은 변하지 않아야 한다. 요청의 '삭제'는 현재 코드에서 삭제 기능이 없고 취소(CANCELED)가 최종 상태이므로 취소로 해석한다. 이 해석이 틀려도 잠금 규칙(최종 상태는 수정 불가)은 같다.","evidence":["요청문: Status 완료/삭제 이후에는 수정 불가","docs/PRD-INTENT/SangwooSong/PRD.md 5절: 완료와 취소는 최종 상태","INTENT.md 5절 미결 1: 취소 시 삭제 vs 보존. 현재 코드는 보존(OrderService.changeStatus)"]},"risk":{"size":"medium","severity":"medium","userAware":true,"warning":"확정 주문의 일부 필드를 확정 후 수정하는 것은 PRD 9절(확정 후 계획 수정은 범위 밖)과 INTENT G1과 긴장 관계다. 고객사는 계획(planJson)·수량·비용과 별개의 열로 두고 계획 스냅샷과 비용은 절대 건드리지 않는 조건으로 진행한다. 요청문이 확정 후 수정을 명시했으므로 사용자는 인지한 것으로 본다.","items":[{"title":"엔티티 컬럼 추가(파일 DB 호환)","detail":"orders 테이블에 nullable 열 customer_name 추가. ddl-auto=update 라 기존 data/battery 는 열이 추가되고 기존 행은 null. NOT NULL 로 만들면 기존 DB 가 깨지므로 금지. 실제 파일 DB 로 기동 확인은 하지 못함.","severity":"medium"},{"title":"G1: 확정 주문 불변과의 관계","detail":"고객사 이름만 수정 가능하게 하고 planJson, 수량, 비용, 경로, 상태는 수정 경로를 만들지 않는다. 수정 API 는 customerName 외 필드를 받지 않는다.","severity":"medium"},{"title":"G5: 잠금 규칙의 위치","detail":"수정 가능 여부 판단을 OrderStatus 한 곳에 두고 서버 검증과 화면 노출이 모두 이를 쓴다. 화면에 상태 이름을 하드코딩하지 않는다.","severity":"medium"},{"title":"동시 수정과 낙관적 락(D4)","detail":"수정에도 version 을 받아 다르면 거부한다. 상태 변경과 같은 충돌 메시지를 재사용한다. 완료로 바뀐 직후의 늦은 수정 요청이 거부되는지 테스트로 확인한다.","severity":"medium"},{"title":"요청에 명시되지 않은 사항(가정)","detail":"고객사 필수 여부는 '입력 받을 수 있는'이라는 표현에 따라 선택으로 가정한다. 최대 100자, 앞뒤 공백 제거, 빈 값은 null 은 메모 처리 규칙과 맞춘 가정이다. 이름 변경 이력은 남기지 않는다. 주문 목록에 고객사 열은 추가하지 않는다(E2E 열 위치 영향 방지). 필요하면 후속으로 정한다.","severity":"low"},{"title":"기존 테스트 영향","detail":"OrderService.confirm 과 Order 생성자 시그니처가 바뀌면 ServiceBehaviorTest, WebBehaviorTest, OrderFlowTests 의 호출부를 함께 고쳐야 한다. 오버로드를 두지 말고 호출부를 모두 수정한다.","severity":"low"},{"title":"문서와 코드 불일치","detail":"CLAUDE.md 의 BatteryService, AppController, templates 구조는 실제 코드와 다르다. 실제로는 OrderService, OrderApiController, static/*.html 이다. 이 계획은 실제 코드를 기준으로 했다.","severity":"low"}]},"testCases":[{"id":"TC-1","origin":"existing","kind":"regression","target":"ServiceBehaviorTest 메모 처리(memoIsTrimmedAndBlankBecomesNull, memoLengthLimitIsOneThousandAfterTrim)","description":"고객사 추가 후에도 메모 처리 규칙이 그대로다","input":"기존 테스트 실행(호출부 시그니처만 수정)","expected":"모두 통과"},{"id":"TC-2","origin":"existing","kind":"regression","target":"OrderFlowTests.confirmThenDetailAndStatusFlow, WebBehaviorTest 상태 변경·취소 테스트","description":"상태 전이, 이력, 최종 상태 nextStatuses 가 비어 있음이 그대로다","input":"기존 테스트 실행","expected":"모두 통과"},{"id":"TC-3","origin":"existing","kind":"regression","target":"ServiceBehaviorTest/OrderFlowTests masterUpdateBumpsVersionAndKeepsConfirmedPlans","description":"고객사 수정이 planJson 을 바꾸지 않는다는 G1 의 기존 보장 유지","input":"기존 테스트 실행","expected":"통과"},{"id":"TC-4","origin":"new","kind":"feature","target":"OrderService.confirm","description":"확정 시 고객사 이름이 저장된다","input":"customerName=\"  ㈜한빛  \" 로 확정","expected":"getOrder().getCustomerName() 이 \"㈜한빛\"(공백 제거)"},{"id":"TC-5","origin":"new","kind":"boundary","target":"OrderService.confirm","description":"고객사 미입력은 허용되고 null 로 저장된다","input":"customerName 이 null, \"\", \"   \" 각각","expected":"세 경우 모두 확정 성공, customerName 이 null"},{"id":"TC-6","origin":"new","kind":"boundary","target":"OrderService.confirm","description":"고객사 길이 한도 100자 경계","input":"\"가\"를 100자 / 101자","expected":"100자는 성공, 101자는 BusinessException(\"고객사 이름은 100자 이하로 입력하세요\"), 주문이 저장되지 않음"},{"id":"TC-7","origin":"new","kind":"feature","target":"OrderService.changeCustomerName","description":"확정, 진행 상태에서 고객사 이름을 수정할 수 있다","input":"CONFIRMED 주문에 \"A사\"로 수정, 이어 IN_PROGRESS 로 바꾼 뒤 최신 version 으로 \"B사\"로 수정","expected":"각각 성공하고 이름이 A사 → B사로 바뀐다. planJson, totalCost, routeType, status 는 변하지 않는다"},{"id":"TC-8","origin":"new","kind":"regression","target":"OrderService.changeCustomerName","description":"완료 주문은 수정 불가","input":"CONFIRMED → IN_PROGRESS → COMPLETED 후 최신 version 으로 수정 요청","expected":"BusinessException(\"완료/취소된 주문의 고객사 이름은 수정할 수 없습니다\" 계열 메시지), 이름 변화 없음"},{"id":"TC-9","origin":"new","kind":"regression","target":"OrderService.changeCustomerName","description":"취소 주문은 수정 불가","input":"CONFIRMED → CANCELED 후 수정 요청","expected":"BusinessException, 이름 변화 없음"},{"id":"TC-10","origin":"new","kind":"boundary","target":"OrderService.changeCustomerName","description":"오래된 version 으로 수정하면 충돌로 거부된다","input":"version 을 읽은 뒤 다른 쪽이 상태를 바꿔 version 증가, 이전 version 으로 수정","expected":"BusinessException(conflict 메시지, 재시도 안내), 이름 변화 없음"},{"id":"TC-11","origin":"new","kind":"boundary","target":"OrderService.changeCustomerName","description":"수정 시에도 100자 경계와 빈 값 처리","input":"100자, 101자, 빈 문자열(지우기)","expected":"100자 성공, 101자 거부, 빈 문자열은 null 로 지워짐"},{"id":"TC-12","origin":"new","kind":"feature","target":"OrderApiController GET /api/orders/{id}, POST /api/orders/{id}/customer","description":"상세 응답에 customerName, customerEditable 이 있고 수정 API 가 동작한다","input":"고객사 있는 주문 조회, 수정 요청(JSON: customerName, version), 완료 주문 조회 및 수정 요청","expected":"진행 중 주문은 customerEditable=true 이고 수정 200. 완료/취소 주문은 customerEditable=false, 수정은 4xx 와 이유 메시지. 고객사 없는 주문은 customerName 이 null"},{"id":"TC-13","origin":"new","kind":"regression","target":"LoginInterceptor + 수정 API","description":"미로그인 상태로 수정 API 호출 시 401","input":"세션 없이 POST /api/orders/1/customer","expected":"401 (G9 일괄 접근 통제)"},{"id":"TC-14","origin":"new","kind":"regression","target":"POST /api/orders (ConfirmRequest)","description":"customerName 필드가 없는 기존 형식의 확정 요청도 그대로 성공한다","input":"기존 OrderFlowTests 의 확정 JSON(memo 만 포함)","expected":"성공, customerName null"}],"checklist":[{"title":"완료·취소 주문은 서버에서 수정이 거부되고 계획·비용이 불변이다","detail":"./gradlew test 실행 후 TC-7~TC-9, TC-12 통과 확인. 테스트가 수정 전후 planJson, totalCost, status 를 비교한다. Grep 으로 OrderStatus 에 수정 가능 여부 판단이 한 곳에 있고 order-detail.js 에 COMPLETED/CANCELED 상태 이름이 하드코딩되지 않았는지 확인."},{"title":"기존 파일 DB 와 확정 흐름 호환(nullable 열, 기존 테스트)","detail":"Order.java 의 customerName 이 nullable 이고 length 100 인지 파일로 확인. ./gradlew test 전체 통과(TC-1~TC-3, TC-14). 가능하면 기존 data/battery 가 있는 상태로 bootRun 을 띄워 기동 오류가 없는지 로그 확인(실행 환경에서 불가하면 확인하지 못함으로 보고)."},{"title":"동시 수정 충돌과 입력 검증이 이유와 함께 거부된다","detail":"TC-6, TC-10, TC-11 통과. 오류 응답 본문에 서버 내부 정보 없이 한국어 사유 메시지가 있는지 WebBehaviorTest 계열 테스트에서 jsonPath 로 확인."}],"plan":"## 전제와 가정\n- 요청의 '삭제'는 현재 코드에 삭제 기능이 없어 취소(CANCELED)로 해석한다. 잠금 대상은 COMPLETED, CANCELED.\n- 고객사는 선택 입력, 최대 100자, 앞뒤 공백 제거, 빈 값은 null. 이력은 남기지 않는다. 목록 화면은 바꾸지 않는다.\n- 실제 구조(OrderService, OrderApiController, static/*.html)를 기준으로 한다. CLAUDE.md 의 구조 설명과 다르다.\n\n## 변경 순서\n1. entity/Order.java\n   - @Column(length = 100) private String customerName; (nullable, 기존 DB 호환) 추가, getter, changeCustomerName(String) 추가.\n   - 생성자에 customerName 추가하고 호출부를 모두 수정한다.\n2. entity/OrderStatus.java\n   - isCustomerEditable(): CONFIRMED, IN_PROGRESS 는 true, COMPLETED, CANCELED 는 false. 규칙은 이 한 곳에만 둔다(G5).\n3. service/OrderService.java\n   - MAX_CUSTOMER = 100, normalizeCustomer(String): strip, 빈 값은 null, 100자 초과 시 BusinessException(\"고객사 이름은 100자 이하로 입력하세요\").\n   - confirm(...) 에 customerName 인자 추가(검증은 저장 전에 수행).\n   - changeCustomerName(Long id, String name, long expectedVersion, String user): 주문 조회, version 비교(다르면 conflict()), 상태가 수정 불가면 BusinessException, 값 변경, saveAndFlush, 낙관적 락 예외는 conflict(). planJson 등 다른 필드는 건드리지 않는다.\n4. controller/OrderApiController.java\n   - ConfirmRequest 에 customerName 추가(기존 요청에 없으면 null).\n   - record CustomerRequest(String customerName, long version), POST /api/orders/{id}/customer 추가. 응답은 안내 메시지.\n5. controller/dto/OrderDetail.java\n   - customerName, customerEditable 필드 추가(OrderDetail.of 수정).\n6. 화면\n   - static/order-new.html: 고객사 입력(id=customerName, maxlength=100)을 메모 위에 추가.\n   - static/js/order-new.js: 확정 요청 본문에 customerName 포함.\n   - static/js/order-detail.js: 메타에 '고객사' 표시(없으면 '-'). customerEditable 이면 입력칸과 저장 버튼, 아니면 '완료/취소된 주문은 수정할 수 없습니다' 안내. 저장은 version 과 함께 보내고 성공/충돌 시 load() 로 새로 그린다. 상태 이름 하드코딩 금지.\n7. 테스트(테스트 케이스 명세 TC-1~TC-14를 코드로 옮긴다)\n   - ServiceBehaviorTest: TC-4~TC-11 (confirm 호출부 시그니처 수정 포함).\n   - WebBehaviorTest: TC-12, TC-13 (Order 생성, confirm 호출부 수정 포함).\n   - OrderFlowTests: TC-14 및 호출부 수정.\n   - 선택: src/test/e2e 에 상세 화면 수정/잠금 시나리오(기존 E2E 의 메모 선택자 방식 참고). 실행 불가 시 보고.\n8. 문서\n   - docs/PRD-INTENT/SangwooSong/PRD.md 9절의 '확정 후 계획 수정'은 범위 밖 문구를 유지하되 고객사 이름은 확정 후 수정 가능(완료/취소 전까지)임을 3절 기능 요구사항에 한 줄 추가할지 구현 담당이 판단해 보고한다.\n\n## 실행\n- ./gradlew test 로 전체 통과 확인.\n\n## 사람이 직접 확인할 것\n- 주문 추가 화면의 고객사 입력칸 위치와 확정 후 상세 화면의 표시\n- 진행 주문에서 이름 저장, 완료 처리 후 입력칸이 사라지고 안내 문구가 나오는지\n- 기존 data/battery 파일 DB 로 bootRun 시 기동 확인\n- '삭제'를 취소로 해석한 것이 맞는지, 목록에 고객사 열이 필요한지"}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">점검 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pill(text, kind) { return el('span', 'pill ' + kind, text); }
+
+  var hilp = D.status === 'HILP';
+  $('hero').classList.toggle('hilp', hilp);
+  $('badge').textContent = hilp ? '⏸ HILP — 사람의 판단이 필요합니다' : '✔ READY — 구현을 진행할 수 있습니다';
+  $('title').textContent = D.request || '구현 사전 점검';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (hilp ? (D.reason || '') : '배경·목적·위험·테스트를 점검했습니다');
+  document.title = (hilp ? '[HILP] ' : '[READY] ') + '구현 사전 점검';
+
+  var tcs = D.testCases || [];
+  var tiles = [
+    ['점검 결과', hilp ? 'HILP' : 'READY'],
+    ['테스트 케이스', tcs.length],
+    ['신규 작성', tcs.filter(function (t) { return t.origin === 'new'; }).length],
+    ['위험도', ({ low: '낮음', medium: '보통', high: '높음' })[(D.risk || {}).severity] || '-']
+  ];
+  tiles.forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  if (hilp) {
+    var box = el('section', 'card'); box.style.borderColor = 'var(--bad)';
+    box.appendChild(el('h2', '', '🙋 사람이 답해야 할 질문'));
+    if (D.risk && D.risk.warning && !D.risk.userAware) box.appendChild(el('div', 'alert', '경고: ' + D.risk.warning));
+    var ol = el('ol', 'q'); (D.questions || []).forEach(function (q) { ol.appendChild(el('li', '', q)); });
+    box.appendChild(ol); $('hilpBox').appendChild(box);
+  }
+
+  function understanding(root, u) {
+    u = u || {};
+    root.appendChild(pill(u.understood ? '이해함' : '이해하지 못함', u.understood ? 'ok' : 'bad'));
+    root.appendChild(el('p', '', u.summary || '(내용 없음)'));
+    if ((u.evidence || []).length) { var ul = el('ul', 'ev'); u.evidence.forEach(function (x) { ul.appendChild(el('li', '', x)); }); root.appendChild(ul); }
+  }
+  understanding($('bg'), D.background); understanding($('pu'), D.purpose);
+
+  var R = D.risk || {}, lv = { low: 1, medium: 2, high: 3 }[R.severity] || 0;
+  var sz = ({ small: '작음', medium: '보통', large: '큼' })[R.size] || '-';
+  var rr = $('risk');
+  rr.appendChild(pill('변경 규모: ' + sz, 'info')); rr.appendChild(document.createTextNode(' '));
+  rr.appendChild(pill('위험도: ' + (({ low: '낮음', medium: '보통', high: '높음' })[R.severity] || '-'), R.severity === 'high' ? 'bad' : R.severity === 'medium' ? 'warn' : 'ok'));
+  rr.appendChild(document.createTextNode(' ')); rr.appendChild(pill(R.userAware ? '사용자가 인지함' : '사용자 인지 여부 불명', R.userAware ? 'ok' : 'warn'));
+  var m = el('div', 'meter'); for (var i = 1; i <= 3; i++) m.appendChild(el('i', i <= lv ? 'on ' + R.severity : '')); rr.appendChild(m);
+  if (R.warning) rr.appendChild(el('div', 'alert warn', R.warning));
+  (R.items || []).forEach(function (x) { var b = el('div', 'risk ' + (x.severity || '')); b.appendChild(el('b', '', x.title || '')); if (x.detail) b.appendChild(el('div', 'small muted', x.detail)); rr.appendChild(b); });
+  if (!R.warning && !(R.items || []).length) rr.appendChild(el('p', 'muted', '특별한 위험 요소를 찾지 못했습니다.'));
+
+  var filter = 'all', q = '';
+  var defs = [['all', '전체'], ['existing', '기존'], ['new', '신규'], ['regression', '회귀'], ['boundary', '경계값']];
+  function match(t) {
+    if (filter === 'existing' || filter === 'new') { if (t.origin !== filter) return false; }
+    else if (filter !== 'all' && t.kind !== filter) return false;
+    var s = (t.id + ' ' + t.target + ' ' + t.description + ' ' + t.input + ' ' + t.expected).toLowerCase();
+    return !q || s.indexOf(q) >= 0;
+  }
+  function drawTcs() {
+    var root = $('tcs'); root.textContent = '';
+    var list = tcs.filter(match);
+    if (!list.length) { root.appendChild(el('div', 'empty', '조건에 맞는 테스트 케이스가 없습니다.')); return; }
+    list.forEach(function (t) {
+      var c = el('div', 'tc'), h = el('header');
+      h.appendChild(pill(t.origin === 'new' ? '신규' : '기존', t.origin === 'new' ? 'acc' : 'info'));
+      h.appendChild(pill(({ regression: '회귀', boundary: '경계값', feature: '기능' })[t.kind] || t.kind || '', t.kind === 'boundary' ? 'warn' : t.kind === 'regression' ? 'ok' : 'info'));
+      h.appendChild(el('code', '', t.id || '')); c.appendChild(h);
+      c.appendChild(el('b', '', t.description || ''));
+      var dl = el('dl');
+      [['대상', t.target], ['입력', t.input], ['기대', t.expected]].forEach(function (p) { if (p[1]) { dl.appendChild(el('dt', '', p[0])); dl.appendChild(el('dd', '', p[1])); } });
+      c.appendChild(dl); root.appendChild(c);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); drawTcs(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 케이스 검색'; s.oninput = function () { q = s.value.toLowerCase(); drawTcs(); }; $('chips').appendChild(s);
+  drawTcs();
+
+  var key = 'precheck:' + (D.request || '') + ':' + (D.round || 0), saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  var cl = D.checklist || [];
+  function progress() {
+    var n = cl.filter(function (_, i) { return saved[i]; }).length;
+    $('bar').style.width = (cl.length ? n / cl.length * 100 : 0) + '%';
+    $('barTxt').textContent = n + ' / ' + cl.length + ' 확인함';
+  }
+  cl.forEach(function (c, i) {
+    var lab = el('label', 'check' + (saved[i] ? ' done' : '')), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!saved[i];
+    var box = el('div'); box.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); if (c.detail) box.appendChild(el('span', 'small muted', c.detail));
+    cb.onchange = function () { saved[i] = cb.checked; lab.classList.toggle('done', cb.checked); try { localStorage.setItem(key, JSON.stringify(saved)); } catch (e) {} progress(); };
+    lab.appendChild(cb); lab.appendChild(box); $('checks').appendChild(lab);
+  });
+  progress();
+
+  if (D.plan) $('plan').textContent = D.plan; else $('planCard').hidden = true;
+})();
+</script>
+</body>
+</html>

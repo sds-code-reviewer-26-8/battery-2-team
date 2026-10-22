@@ -55,6 +55,8 @@ class WebBehaviorTest {
 	@Autowired
 	OrderService orderService;
 	@Autowired
+	com.example.demo.repository.OrderRepository orderRepository;
+	@Autowired
 	ObjectMapper json;
 
 	private Map<String, String> originalForm;
@@ -83,7 +85,7 @@ class WebBehaviorTest {
 
 	private Order confirm(String memo) {
 		return orderService.confirm(ServiceBehaviorTest.orders(3000, 3000, 3000, 3000), "COST",
-				masters.currentMaster().version(), memo, "admin");
+				masters.currentMaster().version(), memo, "테스트고객", "admin");
 	}
 
 	// ---------------------------------------------------------------- 화면 주소
@@ -104,6 +106,13 @@ class WebBehaviorTest {
 			mvc.perform(get(url)).andExpect(redirectedUrl("/login"));
 		}
 		mvc.perform(get("/login")).andExpect(status().isOk()).andExpect(forwardedUrl("/login.html"));
+		// 가입 화면도 로그인 전에 열려야 한다(G8 의 예외)
+		mvc.perform(get("/signup")).andExpect(status().isOk()).andExpect(forwardedUrl("/signup.html"));
+	}
+
+	@Test
+	void signupPageRedirectsWhenAlreadyLoggedIn() throws Exception {
+		mvc.perform(get("/signup").session(login())).andExpect(redirectedUrl("/orders"));
 	}
 
 	@Test
@@ -112,7 +121,7 @@ class WebBehaviorTest {
 	}
 
 	@Test
-	void everyApiNeedsLoginExceptLogin() throws Exception {
+	void everyApiNeedsLoginExceptLoginAndSignup() throws Exception {
 		mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/master")).andExpect(status().isUnauthorized());
 		mvc.perform(get("/api/master/form")).andExpect(status().isUnauthorized());
@@ -124,12 +133,117 @@ class WebBehaviorTest {
 		mvc.perform(postJson("/api/master", null, "{}")).andExpect(status().isUnauthorized());
 	}
 
+	// ---------------------------------------------------------------- 회원가입
+
+	private String signupBody(String username, String password, String confirm, String code) throws Exception {
+		return json.writeValueAsString(Map.of("username", username, "password", password, "passwordConfirm", confirm,
+				"code", code));
+	}
+
+	@Test
+	void signupIsPublicAndTheNewMemberCanLogIn() throws Exception {
+		String name = TestAccounts.newUsername();
+		MvcResult res = mvc.perform(postJson("/api/signup", null,
+						signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE)))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.username").value(name))
+				.andExpect(jsonPath("$.message").value("가입했습니다. 로그인해 주세요")).andReturn();
+		// 응답에 비밀번호나 해시가 없다
+		assertThat(res.getResponse().getContentAsString(StandardCharsets.UTF_8)).doesNotContain(TestAccounts.PASSWORD)
+				.doesNotContain("$2").doesNotContain("assword");
+
+		mvc.perform(postJson("/api/login", null, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.username").value(name));
+		mvc.perform(postJson("/api/login", null, "{\"username\":\"" + name + "\",\"password\":\"wrong-password\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void signupDoesNotLogTheMemberIn() throws Exception {
+		MockHttpSession session = new MockHttpSession();
+		mvc.perform(postJson("/api/signup", session,
+						signupBody(TestAccounts.newUsername(), TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE)))
+				.andExpect(status().isOk());
+		mvc.perform(get("/api/me").session(session)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void signupInputErrorsAreBadRequestWithEveryReason() throws Exception {
+		mvc.perform(postJson("/api/signup", null, signupBody("ab", "short", "different", "wrong-code")))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.conflict").value(false))
+				.andExpect(jsonPath("$.errors.length()").value(4))
+				.andExpect(jsonPath("$.errors[0]").value("아이디는 4자 이상 20자 이하여야 합니다"))
+				.andExpect(jsonPath("$.errors[1]").value("비밀번호는 8자 이상이어야 합니다"))
+				.andExpect(jsonPath("$.errors[2]").value("비밀번호 확인이 일치하지 않습니다"))
+				.andExpect(jsonPath("$.errors[3]").value("가입 코드가 올바르지 않습니다"));
+		mvc.perform(postJson("/api/signup", null, "{}")).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors.length()").value(3));
+	}
+
+	@Test
+	void duplicateSignupIsAConflict() throws Exception {
+		String name = TestAccounts.newUsername();
+		String body = signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE);
+		mvc.perform(postJson("/api/signup", null, body)).andExpect(status().isOk());
+		mvc.perform(postJson("/api/signup", null, body)).andExpect(status().isConflict())
+				.andExpect(jsonPath("$.conflict").value(true)).andExpect(jsonPath("$.error").value("이미 사용 중인 아이디입니다"));
+	}
+
+	@Test
+	void signupWithAWrongCodeCreatesNoAccount() throws Exception {
+		String name = TestAccounts.newUsername();
+		mvc.perform(postJson("/api/signup", null, signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, "wrong")))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0]").value("가입 코드가 올바르지 않습니다"));
+		mvc.perform(postJson("/api/login", null, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	/** 가입한 회원이 만든 주문과 상태 변경에는 그 회원의 아이디가 작성자·변경한 사람으로 남는다. */
+	@Test
+	void ordersAndHistoryRecordTheSignedUpMember() throws Exception {
+		String name = TestAccounts.newUsername();
+		mvc.perform(postJson("/api/signup", null, signupBody(name, TestAccounts.PASSWORD, TestAccounts.PASSWORD, TestAccounts.CODE)))
+				.andExpect(status().isOk());
+		MockHttpSession session = new MockHttpSession();
+		mvc.perform(postJson("/api/login", session, "{\"username\":\"" + name + "\",\"password\":\"" + TestAccounts.PASSWORD + "\"}"))
+				.andExpect(status().isOk());
+		MvcResult res = mvc.perform(postJson("/api/orders", session, "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":"
+				+ masters.currentMaster().version() + ",\"customerName\":\"가입고객\"}")).andExpect(status().isOk()).andReturn();
+		long id = json.readTree(res.getResponse().getContentAsString()).get("id").asLong();
+		mvc.perform(get("/api/orders/" + id).session(session)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.createdBy").value(name)).andExpect(jsonPath("$.history[0].changedBy").value(name));
+	}
+
 	// ---------------------------------------------------------------- 로그인
+
+	/**
+	 * 아이디만 있고 권한이 없는 세션(권한을 담기 전 코드로 로그인한 세션)은 로그인하지 않은 것으로 본다.
+	 * 다시 로그인하게 하고, 로그인 화면과 주문 목록 사이를 계속 오가는 일은 없어야 한다.
+	 */
+	@Test
+	void sessionWithoutRoleIsTreatedAsLoggedOutWithoutRedirectLoops() throws Exception {
+		MockHttpSession stale = new MockHttpSession();
+		stale.setAttribute(com.example.demo.config.LoginInterceptor.SESSION_USER, "admin");
+		mvc.perform(get("/orders").session(stale)).andExpect(redirectedUrl("/login"));
+		mvc.perform(get("/login").session(stale)).andExpect(status().isOk()).andExpect(forwardedUrl("/login.html"));
+		mvc.perform(get("/signup").session(stale)).andExpect(status().isOk()).andExpect(forwardedUrl("/signup.html"));
+		mvc.perform(get("/api/me").session(stale)).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/orders").session(stale)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meReturnsTheRoleStoredInTheSession() throws Exception {
+		MockHttpSession session = login();
+		mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.role").value("ADMIN"));
+		// 세션에 담긴 값을 돌려줄 뿐 DB 를 다시 보지 않는다: 세션 값을 바꾸면 그대로 따라간다
+		session.setAttribute(com.example.demo.config.LoginInterceptor.SESSION_ROLE, "STAFF");
+		mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.role").value("STAFF"));
+	}
 
 	@Test
 	void loginSetsSessionAndMeReturnsTheUser() throws Exception {
 		MockHttpSession s = login();
-		mvc.perform(get("/api/me").session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin"));
+		mvc.perform(get("/api/me").session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin"))
+				.andExpect(jsonPath("$.role").value("ADMIN"));
 	}
 
 	@Test
@@ -252,6 +366,107 @@ class WebBehaviorTest {
 		assertThat(order.getTotalCostEok()).isEqualTo(String.format("%.2f", order.getTotalCost() / 1e8));
 		assertThat(order.getProductionCostEok()).matches("\\d+\\.\\d{2}");
 		assertThat(order.getShippingCostEok()).matches("\\d+\\.\\d{2}");
+	}
+
+	// ---------------------------------------------------------------- 고객사
+
+	private String customerBody(String name, long version) {
+		return "{\"customerName\":" + (name == null ? "null" : "\"" + name + "\"") + ",\"version\":" + version + "}";
+	}
+
+	@Test
+	void customerNameShowsInDetailAndCanBeChangedWhileInProgress() throws Exception {
+		Order order = confirm(null);
+		orderService.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "admin");
+		long v = orderService.getOrder(order.getId()).getVersion();
+		mvc.perform(get("/api/orders/" + order.getId()).session(login())).andExpect(status().isOk())
+				.andExpect(jsonPath("$.customerName").value("테스트고객")).andExpect(jsonPath("$.customerEditable").value(true));
+		mvc.perform(postJson("/api/orders/" + order.getId() + "/customer", login(), customerBody("한빛", v)))
+				.andExpect(status().isOk());
+		mvc.perform(get("/api/orders/" + order.getId()).session(login()))
+				.andExpect(jsonPath("$.customerName").value("한빛")).andExpect(jsonPath("$.customerEditable").value(true));
+	}
+
+	@Test
+	void customerNameChangeIsRejectedWithReasonForCompletedAndCanceled() throws Exception {
+		Order done = confirm(null);
+		orderService.changeStatus(done.getId(), OrderStatus.IN_PROGRESS, done.getVersion(), "admin");
+		orderService.changeStatus(done.getId(), OrderStatus.COMPLETED,
+				orderService.getOrder(done.getId()).getVersion(), "admin");
+		Order canceled = confirm(null);
+		orderService.changeStatus(canceled.getId(), OrderStatus.CANCELED, canceled.getVersion(), "admin");
+		for (Order o : new Order[] {done, canceled}) {
+			long v = orderService.getOrder(o.getId()).getVersion();
+			mvc.perform(get("/api/orders/" + o.getId()).session(login()))
+					.andExpect(jsonPath("$.customerEditable").value(false));
+			mvc.perform(postJson("/api/orders/" + o.getId() + "/customer", login(), customerBody("새", v)))
+					.andExpect(status().is4xxClientError())
+					.andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("고객사를 수정할 수 없습니다")))
+					.andExpect(jsonPath("$.trace").doesNotExist());
+			assertThat(orderService.getOrder(o.getId()).getCustomerName()).isEqualTo("테스트고객");
+		}
+	}
+
+	@Test
+	void customerNameChangeNeedsLogin() throws Exception {
+		mvc.perform(postJson("/api/orders/1/customer", null, customerBody("x", 0))).andExpect(status().isUnauthorized());
+	}
+
+	private String confirmBody(String customerField) {
+		return "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":" + masters.currentMaster().version()
+				+ ",\"memo\":\"기존\"" + customerField + "}";
+	}
+
+	@Test
+	void confirmRequestWithoutCustomerNameIsRejectedWithReason() throws Exception {
+		int count = orderService.listOrders(null).size();
+		for (String field : new String[] {"", ",\"customerName\":null", ",\"customerName\":\"  \"", ",\"customerName\":\"\""}) {
+			mvc.perform(postJson("/api/orders", login(), confirmBody(field))).andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.error").value("고객사를 입력하세요")).andExpect(jsonPath("$.conflict").value(false));
+		}
+		assertThat(orderService.listOrders(null)).hasSize(count);
+	}
+
+	@Test
+	void confirmRequestWithCustomerNameWorks() throws Exception {
+		MvcResult res = mvc.perform(postJson("/api/orders", login(), confirmBody(",\"customerName\":\" 한빛 \"")))
+				.andExpect(status().isOk()).andReturn();
+		long id = json.readTree(res.getResponse().getContentAsString(StandardCharsets.UTF_8)).get("id").asLong();
+		assertThat(orderService.getOrder(id).getCustomerName()).isEqualTo("한빛");
+	}
+
+	@Test
+	void blankCustomerNameChangeIsRejectedWithReason() throws Exception {
+		Order order = confirm(null);
+		long v = order.getVersion();
+		for (String blank : new String[] {"", "   ", null}) {
+			mvc.perform(postJson("/api/orders/" + order.getId() + "/customer", login(), customerBody(blank, v)))
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("고객사를 입력하세요"));
+		}
+		Order after = orderService.getOrder(order.getId());
+		assertThat(after.getCustomerName()).isEqualTo("테스트고객");
+		assertThat(after.getVersion()).isEqualTo(v);
+	}
+
+	@Test
+	void legacyOrderWithoutCustomerShowsNullAndCanBeFilledOnce() throws Exception {
+		Order order = confirm(null);
+		Order legacy = orderService.getOrder(order.getId());
+		legacy.changeCustomerName(null);
+		legacy = orderRepository.saveAndFlush(legacy);
+		Long id = legacy.getId();
+		String plan = legacy.getPlanJson();
+		mvc.perform(get("/api/orders/" + id).session(login())).andExpect(status().isOk())
+				.andExpect(jsonPath("$.customerName").isEmpty()).andExpect(jsonPath("$.customerEditable").value(true));
+		mvc.perform(postJson("/api/orders/" + id + "/customer", login(), customerBody("신규사", legacy.getVersion())))
+				.andExpect(status().isOk());
+		long v = orderService.getOrder(id).getVersion();
+		mvc.perform(postJson("/api/orders/" + id + "/customer", login(), customerBody("", v)))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("고객사를 입력하세요"));
+		Order after = orderService.getOrder(id);
+		assertThat(after.getCustomerName()).isEqualTo("신규사");
+		assertThat(after.getPlanJson()).isEqualTo(plan);
+		assertThat(orderService.history(id)).hasSize(1);
 	}
 
 	// ---------------------------------------------------------------- 상태 변경
@@ -400,7 +615,7 @@ class WebBehaviorTest {
 		MockHttpSession s = login();
 		long version = masters.currentMaster().version();
 		MvcResult res = mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"NEAR\",\"masterVersion\":"
-						+ version + ",\"memo\":\"api\"}"))
+						+ version + ",\"memo\":\"api\",\"customerName\":\"api고객\"}"))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.id").isNumber()).andReturn();
 		long id = json.readTree(res.getResponse().getContentAsString()).get("id").asLong();
 		Order saved = orderService.getOrder(id);
@@ -413,14 +628,14 @@ class WebBehaviorTest {
 	void confirmErrorsMapToStatusCodes() throws Exception {
 		MockHttpSession s = login();
 		long version = masters.currentMaster().version();
-		mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"SLOW\",\"masterVersion\":" + version + "}"))
+		mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"SLOW\",\"masterVersion\":" + version + ",\"customerName\":\"c\"}"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("선택한 경로를 찾을 수 없습니다"))
 				.andExpect(jsonPath("$.conflict").value(false));
-		mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":" + (version - 1) + "}"))
+		mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":" + (version - 1) + ",\"customerName\":\"c\"}"))
 				.andExpect(status().isConflict()).andExpect(jsonPath("$.conflict").value(true))
 				.andExpect(jsonPath("$.error").value("시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요"));
 		mvc.perform(postJson("/api/orders", s, "{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":" + version
-						+ ",\"memo\":\"" + "가".repeat(1001) + "\"}"))
+						+ ",\"customerName\":\"c\",\"memo\":\"" + "가".repeat(1001) + "\"}"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("메모는 1000자 이하로 입력하세요"));
 	}
 

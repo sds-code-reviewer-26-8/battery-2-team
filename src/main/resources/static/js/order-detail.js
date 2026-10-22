@@ -33,13 +33,39 @@
 			: h('span', {class: 'due-ok'}, '납기 내')];
 	}
 
+	function renderCustomer(order) {
+		if (!order.customerEditable) {
+			$('customer').replaceChildren(h('p', {class: 'muted'}, '완료 또는 취소된 주문은 고객사를 수정할 수 없습니다.'));
+			return;
+		}
+		const input = h('input', {type: 'text', id: 'customerInput', maxlength: '100', value: order.customerName || '', required: '', 'aria-required': 'true', 'aria-label': '고객사 이름 (필수)'});
+		const save = h('button', {type: 'submit', class: 'primary'}, '저장');
+		const hint = h('p', {class: 'muted', id: 'customerHint'}, '고객사를 입력해야 저장할 수 있습니다.');
+		// 비었거나 공백뿐이면 저장을 막는다(기존 null 주문은 빈 칸으로 시작해 채우면 저장할 수 있다)
+		const refresh = () => {
+			const empty = input.value.trim() === '';
+			save.disabled = empty;
+			hint.hidden = !empty;
+		};
+		input.addEventListener('input', refresh);
+		const form = h('form', {class: 'customer-form'}, input, save);
+		form.addEventListener('submit', e => {
+			e.preventDefault();
+			if (input.value.trim() === '') return;
+			changeCustomer(input.value, order.version);
+		});
+		refresh();
+		$('customer').replaceChildren(form, hint);
+	}
+
 	function render(order) {
 		$('title').replaceChildren('주문 ', h('span', null, '#' + order.id), ' ',
 			h('span', {class: 'badge badge-' + order.status.name}, order.status.label));
 		$('meta').replaceChildren(
 			...[['확정 일시', order.confirmedAt], ['작성자', order.createdBy], ['경로', order.routeLabel],
-				['필요 납기', dueText(order)],
+				['고객사', order.customerName != null ? order.customerName : '-'], ['필요 납기', dueText(order)],
 				['메모', order.memo != null ? order.memo : '-']].map(([k, v]) => h('div', null, h('dt', null, k), h('dd', null, v))));
+		renderCustomer(order);
 		renderActions(order);
 		$('history').replaceChildren(...order.history.map(r => h('tr', null,
 			h('td', null, r.changedAt), h('td', null, r.from ? r.from.label : '-'), h('td', null, r.to.label),
@@ -74,6 +100,15 @@
 			await load({ok: res.message});
 		} catch (e) {
 			// 충돌이면 그 사이 바뀐 현재 상태를 함께 보여 준다
+			await load({error: e.message});
+		}
+	}
+
+	async function changeCustomer(customerName, version) {
+		try {
+			const res = await postJson('/api/orders/' + encodeURIComponent(id) + '/customer', {customerName, version});
+			await load({ok: res.message});
+		} catch (e) {
 			await load({error: e.message});
 		}
 	}

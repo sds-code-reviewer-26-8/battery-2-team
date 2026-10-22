@@ -38,6 +38,7 @@ test('No.18 시뮬레이션 뒤 기준값이 바뀌면 확정 거절', async ({ 
     await expect(tabB.locator('.alert.ok')).toHaveText('마스터 데이터를 저장했습니다');
 
     // 절차 3 / Pass 3 — 탭 A: 확정 거절 메시지, 주문 상세로 이동하지 않음
+    await page.locator('#customerName').fill('E2E 고객사');
     await page.locator('#confirmBtn').click();
     await expect(page.locator('#confirmError')).toBeVisible();
     await expect(page.locator('#confirmError')).toContainText(
@@ -50,6 +51,7 @@ test('No.18 시뮬레이션 뒤 기준값이 바뀌면 확정 거절', async ({ 
 
     // Pass — 다시 시뮬레이션한 뒤에는 확정 성공
     await runSimulation(page);
+    await page.locator('#customerName').fill('E2E 고객사');
     await page.locator('#confirmBtn').click();
     await expect(page).toHaveURL(/\/orders\/\d+$/);
     createdId = Number(new URL(page.url()).pathname.split('/').pop());

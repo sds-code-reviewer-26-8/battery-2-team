@@ -49,6 +49,10 @@ public class Order {
 	@Column(length = 1000)
 	private String memo;
 
+	/** 고객사 이름(필수). 필수화 이전에 확정된 기존 주문은 null */
+	@Column(length = 100)
+	private String customerName;
+
 	/** 확정 시점의 계획 스냅샷(주문 수량, 마스터 값, 경로, 일별 생산) JSON */
 	@Lob
 	@Column(nullable = false)
@@ -69,16 +73,10 @@ public class Order {
 	protected Order() {
 	}
 
+	/** 고객사와 필요 납기(dueAsap, dueDate, dueExceeded)는 확정 때 한 번만 정하므로 생성자로 받는다. 납기가 없으면 모두 null. */
 	public Order(LocalDateTime confirmedAt, String createdBy, int totalK, String routeType, String routeLabel,
-			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String planJson) {
-		this(confirmedAt, createdBy, totalK, routeType, routeLabel, totalDays, productionCost, shippingCost, totalCost,
-				memo, planJson, null, null, null);
-	}
-
-	/** 필요 납기(dueAsap, dueDate, dueExceeded)는 확정 때 한 번만 정하므로 생성자로만 받는다. 납기가 없으면 모두 null. */
-	public Order(LocalDateTime confirmedAt, String createdBy, int totalK, String routeType, String routeLabel,
-			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String planJson,
-			Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
+			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String customerName,
+			String planJson, Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
 		this.confirmedAt = confirmedAt;
 		this.createdBy = createdBy;
 		this.totalK = totalK;
@@ -89,6 +87,7 @@ public class Order {
 		this.shippingCost = shippingCost;
 		this.totalCost = totalCost;
 		this.memo = memo;
+		this.customerName = customerName;
 		this.planJson = planJson;
 		this.dueAsap = dueAsap;
 		this.dueDate = dueDate;
@@ -146,6 +145,15 @@ public class Order {
 
 	public String getMemo() {
 		return memo;
+	}
+
+	public String getCustomerName() {
+		return customerName;
+	}
+
+	/** 고객사만 바꾼다. 수정 가능 여부는 호출하는 쪽(OrderService)이 OrderStatus 로 확인한다. */
+	public void changeCustomerName(String customerName) {
+		this.customerName = customerName;
 	}
 
 	public String getPlanJson() {
