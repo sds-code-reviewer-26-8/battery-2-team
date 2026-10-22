@@ -97,7 +97,7 @@ class OrderFlowTests {
 		int version = com.jayway.jsonpath.JsonPath.read(sim.getResponse().getContentAsString(), "$.master.version");
 		MvcResult res = mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)
 						.content("{\"orders\":" + ORDERS + ",\"routeType\":\"FAST\",\"masterVersion\":" + version
-								+ ",\"memo\":\"테스트\"}"))
+								+ ",\"memo\":\"테스트\",\"customerName\":\"테스트고객\"}"))
 				.andExpect(status().isOk()).andReturn();
 		Integer id = com.jayway.jsonpath.JsonPath.read(res.getResponse().getContentAsString(), "$.id");
 		return id;
@@ -135,10 +135,30 @@ class OrderFlowTests {
 	}
 
 	@Test
+	void confirmWithoutCustomerIsRejectedAndNothingIsSaved() throws Exception {
+		MockHttpSession s = login();
+		int count = orderService.listOrders(null).size();
+		int version = currentMasterVersion(s);
+		for (String field : new String[] {"", ",\"customerName\":null", ",\"customerName\":\"  \""}) {
+			mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)
+							.content("{\"orders\":" + ORDERS + ",\"routeType\":\"FAST\",\"masterVersion\":" + version + field + "}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.error").exists());
+		}
+		assertThat(orderService.listOrders(null)).hasSize(count);
+	}
+
+	private int currentMasterVersion(MockHttpSession s) throws Exception {
+		MvcResult sim = mvc.perform(post("/api/simulate").session(s).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"orders\":" + ORDERS + "}")).andReturn();
+		return com.jayway.jsonpath.JsonPath.read(sim.getResponse().getContentAsString(), "$.master.version");
+	}
+
+	@Test
 	void confirmFailsWhenMasterChangedAfterSimulation() throws Exception {
 		MockHttpSession s = login();
 		mvc.perform(post("/api/orders").session(s).contentType(MediaType.APPLICATION_JSON)
-						.content("{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":-1}"))
+						.content("{\"orders\":" + ORDERS + ",\"routeType\":\"COST\",\"masterVersion\":-1,\"customerName\":\"테스트고객\"}"))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.conflict").value(true));
 	}

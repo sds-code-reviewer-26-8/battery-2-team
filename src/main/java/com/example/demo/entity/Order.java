@@ -48,7 +48,7 @@ public class Order {
 	@Column(length = 1000)
 	private String memo;
 
-	/** 고객사 이름(선택). 기존 주문은 null */
+	/** 고객사 이름(필수). 필수화 이전에 확정된 기존 주문은 null */
 	@Column(length = 100)
 	private String customerName;
 

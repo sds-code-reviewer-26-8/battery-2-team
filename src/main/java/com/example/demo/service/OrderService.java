@@ -126,7 +126,8 @@ public class OrderService {
 
 	/**
 	 * 고객사 이름을 바꾼다. 완료·취소된 주문은 거부하고, 상태 이력은 남기지 않는다.
-	 * 계획(planJson)과 비용 등 확정 내용은 건드리지 않는다.
+	 * 계획(planJson)과 비용 등 확정 내용은 건드리지 않는다. 빈 값은 거부하므로,
+	 * 고객사가 없던 기존 주문은 값을 처음 채울 수만 있고 한 번 채우면 지울 수 없다.
 	 */
 	@Transactional
 	public void changeCustomerName(Long id, String customerName, long expectedVersion, String user) {
@@ -147,10 +148,13 @@ public class OrderService {
 
 	private static String normalizeCustomer(String customerName) {
 		String name = customerName == null ? null : customerName.strip();
-		if (name != null && name.length() > MAX_CUSTOMER) {
+		if (name == null || name.isEmpty()) {
+			throw new BusinessException("고객사를 입력하세요");
+		}
+		if (name.length() > MAX_CUSTOMER) {
 			throw new BusinessException("고객사는 %d자 이하로 입력하세요".formatted(MAX_CUSTOMER));
 		}
-		return name == null || name.isEmpty() ? null : name;
+		return name;
 	}
 
 	private static BusinessException conflict() {

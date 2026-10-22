@@ -104,6 +104,7 @@ table.grid { width: 100%; border-collapse: collapse; background: #fff; margin-bo
 .status-form { margin: 0; }
 .customer-form { display: flex; gap: 8px; margin: 0; }
 .customer-form input { flex: 1; min-width: 0; }
+.required { color: #c0392b; font-weight: 700; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .stats div { background: #f4f6f9; border-radius: 8px; padding: 10px 14px; }

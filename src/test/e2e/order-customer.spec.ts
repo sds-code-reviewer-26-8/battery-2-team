@@ -1,27 +1,29 @@
 import { test, expect, type Page } from '@playwright/test';
-import { cancelOrderIfOpen, login } from './helpers';
+import { DEFAULT_ORDERS, cancelOrderIfOpen, login, orderTotalCount } from './helpers';
 import { changeStatus } from './ui-helpers';
 
 /**
  * 고객사 기능 시나리오 (주문 확정 때 고객사 입력, 확정 후 수정, 완료·취소 후 수정 불가)
  *
- * C1  확정 때 입력한 고객사가 상세에 보이고(앞뒤 공백 제거), 입력하지 않으면 '-' 로 보임
- * C2  확정·진행 상태에서는 고객사를 고칠 수 있고, 고쳐도 상태 이력은 늘지 않음
+ * C1  확정 때 입력한 고객사가 상세에 보이고(앞뒤 공백 제거), 입력하지 않으면 확정이 거절됨(필수)
+ * C2  확정·진행 상태에서는 고객사를 고칠 수 있고, 비우면 저장이 막히며, 고쳐도 상태 이력은 늘지 않음
  * C3  완료·취소된 주문은 화면에 수정 폼이 없고, 직접 요청해도 서버가 400 으로 거절함
  * C4  100자까지만 입력되고, 101자를 직접 요청하면 서버가 400 으로 거절함
  *
  * 기존 스펙은 고객사를 다루지 않으므로 새 파일로 둔다. 서버 규칙은 JUnit(ServiceBehaviorTest, WebBehaviorTest)에도 있다.
+ * 필수화 이전에 확정된 주문(고객사 null)의 '-' 표시와 처음 채우기는 화면으로 그런 주문을 만들 수 없으므로
+ * E2E 가 아니라 JUnit(ServiceBehaviorTest, WebBehaviorTest 의 legacyOrderWithoutCustomer...)에서 검증한다.
  * 전제  앱이 http://localhost:8080 에서 실행 중 (BASE_URL 로 변경 가능).
  *       주문은 취소해도 남으므로 인메모리 DB 로 새로 띄운 서버에서 실행한다 (playwright.config.ts 설명 참고).
  *       시나리오가 만든 주문은 끝에서 취소로 정리하며, 완료 주문(C3)은 최종 상태라 남는다.
  */
 
-/** 주문 추가 화면에서 고객사(null 이면 비움)를 넣고 확정한다. 확정되면 상세로 이동하며 주문 번호를 돌려준다. */
-async function createOrderWithCustomer(page: Page, customerName: string | null): Promise<number> {
+/** 주문 추가 화면에서 고객사를 넣고 확정한다. 확정되면 상세로 이동하며 주문 번호를 돌려준다. */
+async function createOrderWithCustomer(page: Page, customerName: string): Promise<number> {
   await page.goto('/orders/new');
   await page.locator('#runBtn').click();
   await expect(page.locator('#result')).toBeVisible();
-  if (customerName !== null) await page.locator('#customerName').fill(customerName);
+  await page.locator('#customerName').fill(customerName);
   await page.locator('#confirmBtn').click();
   await expect(page).toHaveURL(/\/orders\/\d+$/);
   await expect(page.locator('#content')).toBeVisible();
@@ -52,17 +54,38 @@ test.describe('고객사 입력·수정', () => {
     await login(page);
   });
 
-  test('C1 확정 때 입력한 고객사가 상세에 보이고, 입력하지 않으면 - 로 보임', async ({ page }) => {
+  test('C1 확정 때 입력한 고객사가 상세에 보이고, 입력하지 않으면 확정이 거절됨', async ({ page }) => {
     const ids: number[] = [];
     try {
       ids.push(await createOrderWithCustomer(page, '  ㈜한빛 배터리  '));
       await expect(customerValue(page)).toHaveText('㈜한빛 배터리'); // 앞뒤 공백은 저장하지 않는다
 
-      ids.push(await createOrderWithCustomer(page, null));
-      await expect(customerValue(page)).toHaveText('-');
+      // 입력하지 않으면(비움, 공백만) 확정 버튼이 막히고 안내가 보이며, 입력칸에는 필수 표시가 있다
+      await page.goto('/orders/new');
+      await page.locator('#runBtn').click();
+      await expect(page.locator('#result')).toBeVisible();
+      const input = page.locator('#customerName');
+      await expect(input).toHaveAttribute('required', '');
+      for (const blank of ['', '   ']) {
+        await input.fill(blank);
+        await expect(page.locator('#confirmBtn')).toBeDisabled();
+        await expect(page.locator('#customerHint')).toBeVisible();
+      }
+      await input.fill('입력함');
+      await expect(page.locator('#confirmBtn')).toBeEnabled();
+      await expect(page.locator('#customerHint')).toBeHidden();
 
-      ids.push(await createOrderWithCustomer(page, '   ')); // 공백만 입력해도 입력하지 않은 것과 같다
-      await expect(customerValue(page)).toHaveText('-');
+      // 화면을 우회해도 서버가 400 으로 거절하고 주문은 늘지 않는다
+      const before = await orderTotalCount(page);
+      const version = (await (await page.request.get('/api/master')).json()).version as number;
+      for (const customerName of [undefined, null, '   ']) {
+        const res = await page.request.post('/api/orders', {
+          data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, customerName },
+        });
+        expect(res.status()).toBe(400);
+        expect((await res.json()).error).toBe('고객사를 입력하세요');
+      }
+      expect(await orderTotalCount(page)).toBe(before);
     } finally {
       for (const id of ids) await cancelOrderIfOpen(page, id);
     }
@@ -87,9 +110,21 @@ test.describe('고객사 입력·수정', () => {
       await expect(page.locator('#flash .alert.ok')).toHaveText('고객사를 저장했습니다');
       await expect(customerValue(page)).toHaveText('대한 모빌리티');
 
-      // 비우면 '-' 로 돌아간다
-      await saveCustomer(page, '');
-      await expect(customerValue(page)).toHaveText('-');
+      // 비우거나 공백만 넣으면 저장 버튼이 막히고 안내가 보이며, 서버도 400 으로 거절한다
+      const input = page.locator('#customerInput');
+      await expect(input).toHaveAttribute('required', '');
+      for (const blank of ['', '   ']) {
+        await input.fill(blank);
+        await expect(page.locator('.customer-form button')).toBeDisabled();
+        await expect(page.locator('#customerHint')).toBeVisible();
+      }
+      const rejected = await page.request.post(`/api/orders/${id}/customer`, {
+        data: { customerName: '  ', version: await currentVersion(page, id) },
+      });
+      expect(rejected.status()).toBe(400);
+      expect((await rejected.json()).error).toBe('고객사를 입력하세요');
+      await page.goto(`/orders/${id}`);
+      await expect(customerValue(page)).toHaveText('대한 모빌리티'); // 값은 그대로
 
       // 이력은 확정, 진행 2건 그대로 (고객사 수정은 이력을 남기지 않는다)
       await expect(history).toHaveCount(2);
@@ -144,7 +179,7 @@ test.describe('고객사 입력·수정', () => {
   });
 
   test('C4 고객사는 100자까지만 입력되고, 101자 요청은 서버가 거절함', async ({ page }) => {
-    const id = await createOrderWithCustomer(page, null);
+    const id = await createOrderWithCustomer(page, '처음 고객사');
     try {
       // 화면: 입력칸이 100자에서 멈춘다
       const input = page.locator('#customerInput');

@@ -44,6 +44,8 @@ class ServiceBehaviorTest {
 	@Autowired
 	OrderService orderService;
 	@Autowired
+	com.example.demo.repository.OrderRepository orderRepository;
+	@Autowired
 	ObjectMapper json;
 
 	private Map<String, String> originalForm;
@@ -90,7 +92,7 @@ class ServiceBehaviorTest {
 
 	private Order confirmDefault(String routeType, String memo) {
 		Master master = masters.currentMaster();
-		return orderService.confirm(orders(3000, 3000, 3000, 3000), routeType, master.version(), memo, null, "tester");
+		return orderService.confirm(orders(3000, 3000, 3000, 3000), routeType, master.version(), memo, "테스트고객", "tester");
 	}
 
 	// ---------------------------------------------------------------- 마스터 데이터
@@ -328,7 +330,7 @@ class ServiceBehaviorTest {
 	void staleMasterVersionIsAConflictAndNothingIsSaved() {
 		long count = orderService.listOrders(null).size();
 		long stale = masters.currentMaster().version() - 1;
-		assertThatThrownBy(() -> orderService.confirm(orders(3000, 3000, 3000, 3000), "COST", stale, null, null, "tester"))
+		assertThatThrownBy(() -> orderService.confirm(orders(3000, 3000, 3000, 3000), "COST", stale, null, "테스트고객", "tester"))
 				.isInstanceOfSatisfying(BusinessException.class, e -> {
 					assertThat(e.isConflict()).isTrue();
 					assertThat(e.getMessage()).isEqualTo("시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요");
@@ -338,7 +340,7 @@ class ServiceBehaviorTest {
 
 	@Test
 	void confirmStillValidatesQuantities() {
-		assertThatThrownBy(() -> orderService.confirm(orders(0, 0, 0, 0), "COST", masters.currentMaster().version(), null, null, "tester"))
+		assertThatThrownBy(() -> orderService.confirm(orders(0, 0, 0, 0), "COST", masters.currentMaster().version(), null, "테스트고객", "tester"))
 				.isInstanceOf(BusinessException.class).hasMessage("총 생산 필요 수는 1K 이상이어야 합니다");
 	}
 
@@ -404,11 +406,23 @@ class ServiceBehaviorTest {
 	}
 
 	@Test
-	void blankCustomerNameBecomesNull() {
-		for (String blank : new String[] {null, "", "   "}) {
-			Order order = confirmWithCustomer(blank);
-			assertThat(orderService.getOrder(order.getId()).getCustomerName()).isNull();
+	void blankCustomerNameIsRejectedOnConfirm() {
+		int count = orderService.listOrders(null).size();
+		for (String blank : new String[] {null, "", "   ", "	"}) {
+			assertThatThrownBy(() -> confirmWithCustomer(blank)).isInstanceOf(BusinessException.class)
+					.isInstanceOfSatisfying(BusinessException.class, e -> {
+						assertThat(e.isConflict()).isFalse();
+						assertThat(e.getMessage()).isEqualTo("고객사를 입력하세요");
+					});
 		}
+		assertThat(orderService.listOrders(null)).hasSize(count);
+	}
+
+	@Test
+	void customerNameLengthBoundaryIncludesOneCharAndTrimmedHundred() {
+		assertThat(orderService.getOrder(confirmWithCustomer("가").getId()).getCustomerName()).isEqualTo("가");
+		assertThat(orderService.getOrder(confirmWithCustomer("  " + "가".repeat(100) + "  ").getId()).getCustomerName())
+				.hasSize(100);
 	}
 
 	@Test
@@ -423,7 +437,7 @@ class ServiceBehaviorTest {
 
 	@Test
 	void customerNameCanChangeWhileConfirmedOrInProgressWithoutTouchingThePlan() {
-		Order order = confirmWithCustomer(null);
+		Order order = confirmWithCustomer("처음");
 		Long id = order.getId();
 		String plan = order.getPlanJson();
 		orderService.changeCustomerName(id, "A사", order.getVersion(), "tester");
@@ -484,8 +498,49 @@ class ServiceBehaviorTest {
 		assertThatThrownBy(() -> orderService.changeCustomerName(id, "가".repeat(101), o.getVersion(), "u"))
 				.isInstanceOf(BusinessException.class).hasMessage("고객사는 100자 이하로 입력하세요");
 		assertThat(orderService.getOrder(id).getCustomerName()).hasSize(100);
-		orderService.changeCustomerName(id, "", o.getVersion(), "u");
-		assertThat(orderService.getOrder(id).getCustomerName()).isNull();
+	}
+
+	@Test
+	void blankCustomerNameIsRejectedOnChange() {
+		Order order = confirmWithCustomer("원래");
+		Long id = order.getId();
+		for (String blank : new String[] {"", "   ", null}) {
+			assertThatThrownBy(() -> orderService.changeCustomerName(id, blank, order.getVersion(), "u"))
+					.isInstanceOf(BusinessException.class).hasMessage("고객사를 입력하세요");
+		}
+		Order after = orderService.getOrder(id);
+		assertThat(after.getCustomerName()).isEqualTo("원래");
+		assertThat(after.getVersion()).isEqualTo(order.getVersion());
+	}
+
+	/** 필수화 이전에 확정된 주문(고객사 null)을 흉내 낸다 */
+	private Order legacyOrderWithoutCustomer() {
+		Order order = confirmWithCustomer("임시");
+		Order saved = orderService.getOrder(order.getId());
+		saved.changeCustomerName(null);
+		return orderRepository.saveAndFlush(saved);
+	}
+
+	@Test
+	void legacyOrderWithoutCustomerCanBeFilledOnceButNotCleared() {
+		Order legacy = legacyOrderWithoutCustomer();
+		Long id = legacy.getId();
+		assertThat(legacy.getCustomerName()).isNull();
+		assertThat(legacy.getStatus().isCustomerEditable()).isTrue();
+		String plan = legacy.getPlanJson();
+		int histories = orderService.history(id).size();
+
+		orderService.changeCustomerName(id, "신규사", legacy.getVersion(), "u");
+		Order filled = orderService.getOrder(id);
+		assertThat(filled.getCustomerName()).isEqualTo("신규사");
+
+		assertThatThrownBy(() -> orderService.changeCustomerName(id, "", filled.getVersion(), "u"))
+				.isInstanceOf(BusinessException.class).hasMessage("고객사를 입력하세요");
+		Order after = orderService.getOrder(id);
+		assertThat(after.getCustomerName()).isEqualTo("신규사");
+		assertThat(after.getPlanJson()).isEqualTo(plan);
+		assertThat(after.getTotalCost()).isEqualTo(legacy.getTotalCost());
+		assertThat(orderService.history(id)).hasSize(histories);
 	}
 
 	// ---------------------------------------------------------------- 상태 변경
