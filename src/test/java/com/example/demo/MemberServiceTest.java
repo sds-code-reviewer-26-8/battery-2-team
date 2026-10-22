@@ -30,6 +30,7 @@ class MemberServiceTest {
 
 	private static final String CODE = TestAccounts.CODE;
 	private static final String PW = TestAccounts.PASSWORD;
+	private static final String TOO_LONG = "비밀번호가 너무 깁니다. 영문·숫자는 72자, 한글은 24자까지 쓸 수 있습니다";
 
 	private Member signup(String username) {
 		return service.signup(username, PW, PW, CODE);
@@ -108,11 +109,10 @@ class MemberServiceTest {
 		Member m = signup(name);
 		assertThat(m.getRole()).isEqualTo(Role.ADMIN);
 		assertThat(repository.findByUsername(name).orElseThrow().getRole()).isEqualTo(Role.ADMIN);
-		assertThat(service.roleOf(name)).contains(Role.ADMIN);
-		assertThat(service.roleOf("  " + name.toUpperCase())).contains(Role.ADMIN);
-		assertThat(service.roleOf("admin")).contains(Role.ADMIN);
+		// 로그인 확인이 돌려주는 회원에도 권한이 담겨 있다(로그인할 때 세션에 담는 값)
+		assertThat(service.authenticate(name, PW).orElseThrow().getRole()).isEqualTo(Role.ADMIN);
+		assertThat(service.authenticate("admin", "admin").orElseThrow().getRole()).isEqualTo(Role.ADMIN);
 		assertThat(repository.findByUsername("admin").orElseThrow().getRole()).isEqualTo(Role.ADMIN);
-		assertThat(service.roleOf("nobody" + name)).isEmpty();
 	}
 
 	@Test
@@ -155,11 +155,39 @@ class MemberServiceTest {
 	void passwordRulesAreChecked() {
 		String name = TestAccounts.newUsername();
 		assertReasons(name, "short12", "short12", CODE, "비밀번호는 8자 이상이어야 합니다");
-		assertReasons(name, "p".repeat(51), "p".repeat(51), CODE, "비밀번호는 50자 이하여야 합니다");
+		assertReasons(name, "p".repeat(73), "p".repeat(73), CODE, TOO_LONG);
 		assertReasons(name, PW, "different1", CODE, "비밀번호 확인이 일치하지 않습니다");
 		assertReasons(name, PW, null, CODE, "비밀번호 확인이 일치하지 않습니다");
 		assertThat(service.signup(TestAccounts.newUsername(), "p".repeat(8), "p".repeat(8), CODE)).isNotNull();
-		assertThat(service.signup(TestAccounts.newUsername(), "p".repeat(50), "p".repeat(50), CODE)).isNotNull();
+		assertThat(service.signup(TestAccounts.newUsername(), "p".repeat(72), "p".repeat(72), CODE)).isNotNull();
+	}
+
+	/**
+	 * BCrypt 는 72바이트를 넘으면 예외를 던진다. 글자 수가 아니라 바이트 수로 검증해야 하므로,
+	 * 한글 25자(75바이트)는 서버 오류(500)가 아니라 안내 문구로 거절해야 한다.
+	 */
+	@Test
+	void passwordLengthIsCheckedInBytesNotCharacters() {
+		String name = TestAccounts.newUsername();
+		String hangul25 = "가".repeat(25); // 75바이트
+		String hangul30 = "가".repeat(30); // 90바이트
+		assertReasons(name, hangul25, hangul25, CODE, TOO_LONG);
+		assertReasons(name, hangul30, hangul30, CODE, TOO_LONG);
+		assertReasons(name, "a".repeat(71) + "가", "a".repeat(71) + "가", CODE, TOO_LONG); // 74바이트
+		// 경계: 72바이트는 된다 (한글 24자, 영문 69자 + 한글 1자)
+		Member m = service.signup(TestAccounts.newUsername(), "가".repeat(24), "가".repeat(24), CODE);
+		assertThat(service.authenticate(m.getUsername(), "가".repeat(24))).isPresent();
+		String mixed = "a".repeat(69) + "가";
+		assertThat(service.signup(TestAccounts.newUsername(), mixed, mixed, CODE)).isNotNull();
+	}
+
+	/** 너무 긴 비밀번호로 로그인을 시도해도 예외가 아니라 그냥 실패다. */
+	@Test
+	void veryLongPasswordCannotLogInButDoesNotCrash() {
+		String name = TestAccounts.newUsername();
+		signup(name);
+		assertThat(service.authenticate(name, "가".repeat(200))).isEmpty();
+		assertThat(service.authenticate("nobody" + name, "가".repeat(200))).isEmpty();
 	}
 
 	@Test
@@ -190,8 +218,8 @@ class MemberServiceTest {
 	void authenticateReturnsTheStoredUsernameOnlyForTheRightPassword() {
 		String name = TestAccounts.newUsername();
 		signup(name);
-		assertThat(service.authenticate(name, PW)).contains(name);
-		assertThat(service.authenticate("  " + name.toUpperCase() + " ", PW)).contains(name);
+		assertThat(service.authenticate(name, PW).map(Member::getUsername)).contains(name);
+		assertThat(service.authenticate("  " + name.toUpperCase() + " ", PW).map(Member::getUsername)).contains(name);
 		assertThat(service.authenticate(name, "wrong-password")).isEmpty();
 		assertThat(service.authenticate(name, "")).isEmpty();
 		assertThat(service.authenticate(name, null)).isEmpty();
@@ -201,7 +229,7 @@ class MemberServiceTest {
 
 	@Test
 	void defaultAdminIsCreatedAtStartupAndKeptAcrossRestarts() {
-		assertThat(service.authenticate("admin", "admin")).contains("admin");
+		assertThat(service.authenticate("admin", "admin").map(Member::getUsername)).contains("admin");
 		String before = repository.findByUsername("admin").orElseThrow().getPasswordHash();
 		service.initDefaultAdmin();
 		service.initDefaultAdmin();

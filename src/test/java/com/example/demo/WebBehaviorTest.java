@@ -213,6 +213,30 @@ class WebBehaviorTest {
 
 	// ---------------------------------------------------------------- 로그인
 
+	/**
+	 * 아이디만 있고 권한이 없는 세션(권한을 담기 전 코드로 로그인한 세션)은 로그인하지 않은 것으로 본다.
+	 * 다시 로그인하게 하고, 로그인 화면과 주문 목록 사이를 계속 오가는 일은 없어야 한다.
+	 */
+	@Test
+	void sessionWithoutRoleIsTreatedAsLoggedOutWithoutRedirectLoops() throws Exception {
+		MockHttpSession stale = new MockHttpSession();
+		stale.setAttribute(com.example.demo.config.LoginInterceptor.SESSION_USER, "admin");
+		mvc.perform(get("/orders").session(stale)).andExpect(redirectedUrl("/login"));
+		mvc.perform(get("/login").session(stale)).andExpect(status().isOk()).andExpect(forwardedUrl("/login.html"));
+		mvc.perform(get("/signup").session(stale)).andExpect(status().isOk()).andExpect(forwardedUrl("/signup.html"));
+		mvc.perform(get("/api/me").session(stale)).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/orders").session(stale)).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meReturnsTheRoleStoredInTheSession() throws Exception {
+		MockHttpSession session = login();
+		mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.role").value("ADMIN"));
+		// 세션에 담긴 값을 돌려줄 뿐 DB 를 다시 보지 않는다: 세션 값을 바꾸면 그대로 따라간다
+		session.setAttribute(com.example.demo.config.LoginInterceptor.SESSION_ROLE, "STAFF");
+		mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.role").value("STAFF"));
+	}
+
 	@Test
 	void loginSetsSessionAndMeReturnsTheUser() throws Exception {
 		MockHttpSession s = login();

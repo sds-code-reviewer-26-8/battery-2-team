@@ -44,6 +44,8 @@ class AuthApiControllerTest {
 		assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(res.getBody()).containsEntry("username", name);
 		assertThat(session.getAttribute(LoginInterceptor.SESSION_USER)).isEqualTo(name);
+		// 권한도 로그인할 때 세션에 담긴다(/api/me 가 화면을 열 때마다 DB 를 보지 않아도 되도록)
+		assertThat(session.getAttribute(LoginInterceptor.SESSION_ROLE)).isEqualTo("ADMIN");
 	}
 
 	@Test
@@ -64,6 +66,7 @@ class AuthApiControllerTest {
 			assertThat(res.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 			assertThat(res.getBody()).containsEntry("error", "아이디 또는 비밀번호가 올바르지 않습니다");
 			assertThat(session.getAttribute(LoginInterceptor.SESSION_USER)).isNull();
+			assertThat(session.getAttribute(LoginInterceptor.SESSION_ROLE)).isNull();
 		}
 	}
 

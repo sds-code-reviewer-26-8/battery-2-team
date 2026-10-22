@@ -37,8 +37,11 @@ public class MemberService {
 	static final int MIN_USERNAME = 4;
 	static final int MAX_USERNAME = 20;
 	static final int MIN_PASSWORD = 8;
-	/** BCrypt 는 72바이트까지만 보므로 그 안에서 여유 있게 제한한다. */
-	static final int MAX_PASSWORD = 50;
+	/**
+	 * BCrypt 는 비밀번호가 72바이트를 넘으면 예외를 던진다. 글자 수가 아니라 바이트 수로 제한해야 한다
+	 * (한글은 한 글자가 3바이트라 24자면 72바이트다).
+	 */
+	static final int MAX_PASSWORD_BYTES = 72;
 	private static final Pattern USERNAME = Pattern.compile("[a-z0-9_]+");
 
 	private final MemberRepository members;
@@ -99,8 +102,9 @@ public class MemberService {
 		if (pw.length() < MIN_PASSWORD) {
 			errors.add("비밀번호는 %d자 이상이어야 합니다".formatted(MIN_PASSWORD));
 		}
-		if (pw.length() > MAX_PASSWORD) {
-			errors.add("비밀번호는 %d자 이하여야 합니다".formatted(MAX_PASSWORD));
+		if (pw.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+			errors.add("비밀번호가 너무 깁니다. 영문·숫자는 %d자, 한글은 %d자까지 쓸 수 있습니다"
+					.formatted(MAX_PASSWORD_BYTES, MAX_PASSWORD_BYTES / 3));
 		}
 		if (!pw.isEmpty() && pw.equals(name)) {
 			errors.add("비밀번호는 아이디와 같을 수 없습니다");
@@ -125,19 +129,16 @@ public class MemberService {
 		}
 	}
 
-	/** 아이디와 비밀번호가 맞으면 저장된 아이디(소문자)를 돌려준다. 어느 쪽이 틀렸는지는 구분하지 않는다. */
+	/**
+	 * 아이디와 비밀번호가 맞으면 그 회원(저장된 아이디는 소문자, 권한 포함)을 돌려준다.
+	 * 어느 쪽이 틀렸는지는 구분하지 않는다.
+	 */
 	@Transactional(readOnly = true)
-	public Optional<String> authenticate(String username, String password) {
+	public Optional<Member> authenticate(String username, String password) {
 		String pw = password == null ? "" : password;
 		Optional<Member> member = members.findByUsername(normalize(username));
 		boolean ok = encoder.matches(pw, member.map(Member::getPasswordHash).orElse(dummyHash));
-		return ok ? member.map(Member::getUsername) : Optional.empty();
-	}
-
-	/** 아이디의 권한. 없는 아이디면 비어 있다. */
-	@Transactional(readOnly = true)
-	public Optional<Role> roleOf(String username) {
-		return members.findByUsername(normalize(username)).map(Member::getRole);
+		return ok ? member : Optional.empty();
 	}
 
 	private static String normalize(String username) {

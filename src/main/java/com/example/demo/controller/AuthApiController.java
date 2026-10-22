@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.config.LoginInterceptor;
+import com.example.demo.entity.Member;
 import com.example.demo.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -42,13 +43,14 @@ public class AuthApiController {
 
 	@PostMapping("/login")
 	public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpServletRequest http) {
-		Optional<String> username = members.authenticate(request.username(), request.password());
-		if (username.isPresent()) {
+		Optional<Member> member = members.authenticate(request.username(), request.password());
+		if (member.isPresent()) {
 			HttpSession session = http.getSession();
 			// 로그인 전에 알려진 세션 ID 로 로그인 상태를 가로채지 못하도록(세션 고정), 로그인할 때 세션 ID 를 새로 발급한다
 			http.changeSessionId();
-			session.setAttribute(LoginInterceptor.SESSION_USER, username.get());
-			return ResponseEntity.ok(Map.of("username", username.get()));
+			session.setAttribute(LoginInterceptor.SESSION_USER, member.get().getUsername());
+			session.setAttribute(LoginInterceptor.SESSION_ROLE, member.get().getRole().name());
+			return ResponseEntity.ok(Map.of("username", member.get().getUsername()));
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 				.body(Map.of("error", "아이디 또는 비밀번호가 올바르지 않습니다"));
@@ -61,9 +63,10 @@ public class AuthApiController {
 	}
 
 	@GetMapping("/me")
-	public Map<String, String> me(@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
+	public Map<String, String> me(@SessionAttribute(LoginInterceptor.SESSION_USER) String user,
+			@SessionAttribute(LoginInterceptor.SESSION_ROLE) String role) {
+		// 화면을 열 때마다 불리므로 DB 를 보지 않고 로그인할 때 세션에 담아 둔 값을 돌려준다.
 		// 권한은 아직 어떤 기능도 제한하지 않는다. 화면이 나중에 쓸 수 있도록 알려 주기만 한다.
-		String role = members.roleOf(user).orElse(MemberService.DEFAULT_ROLE).name();
 		return Map.of("username", user, "role", role);
 	}
 }

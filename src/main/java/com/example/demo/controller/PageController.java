@@ -20,7 +20,7 @@ public class PageController {
 	/** 이미 로그인했으면 로그인 화면 대신 주문 목록으로 보낸다. */
 	@GetMapping("/login")
 	public String login(HttpSession session) {
-		if (session.getAttribute(LoginInterceptor.SESSION_USER) != null) {
+		if (LoginInterceptor.isLoggedIn(session)) {
 			return "redirect:/orders";
 		}
 		return "forward:/login.html";
@@ -29,7 +29,7 @@ public class PageController {
 	/** 가입 화면은 로그인 전에 열려야 한다(G8 의 예외). 이미 로그인했으면 주문 목록으로 보낸다. */
 	@GetMapping("/signup")
 	public String signup(HttpSession session) {
-		if (session.getAttribute(LoginInterceptor.SESSION_USER) != null) {
+		if (LoginInterceptor.isLoggedIn(session)) {
 			return "redirect:/orders";
 		}
 		return "forward:/signup.html";
