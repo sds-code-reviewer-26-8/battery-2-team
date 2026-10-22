@@ -11,30 +11,20 @@ import jakarta.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.SessionAttribute;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class AppController {
 
 	private static final String ACCOUNT = "admin";
-
-	public record SimulateRequest(Map<Country, Integer> orders) {
-	}
-
-	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo) {
-	}
 
 	private final BatteryService service;
 
@@ -125,8 +115,7 @@ public class AppController {
 		if (!model.containsAttribute("form")) {
 			model.addAttribute("form", toForm(service.currentMaster()));
 		}
-		model.addAttribute("factories", Country.factories());
-		model.addAttribute("countries", Country.values());
+		addMasterChoices(model);
 		return "master";
 	}
 
@@ -137,12 +126,17 @@ public class AppController {
 		} catch (BusinessException e) {
 			model.addAttribute("errors", e.getMessages());
 			model.addAttribute("form", form);
-			model.addAttribute("factories", Country.factories());
-			model.addAttribute("countries", Country.values());
+			addMasterChoices(model);
 			return "master";
 		}
 		redirect.addFlashAttribute("message", "마스터 데이터를 저장했습니다");
 		return "redirect:/master";
+	}
+
+	/** 마스터 화면이 입력칸을 그릴 때 쓰는 나라 목록 */
+	private static void addMasterChoices(Model model) {
+		model.addAttribute("factories", Country.factories());
+		model.addAttribute("countries", Country.values());
 	}
 
 	/** 화면 입력칸 이름 → 값 */
@@ -160,41 +154,5 @@ public class AppController {
 		form.put("shipDailyCost", new BigDecimal(m.shipDailyCostWon())
 				.divide(BigDecimal.valueOf(BatteryService.WON_PER_EOK)).stripTrailingZeros().toPlainString());
 		return form;
-	}
-
-	// ---------------------------------------------------------------- JSON API
-
-	@GetMapping("/api/master")
-	@ResponseBody
-	public Master masterJson() {
-		return service.currentMaster();
-	}
-
-	@PostMapping("/api/simulate")
-	@ResponseBody
-	public ResponseEntity<?> simulate(@RequestBody SimulateRequest request) {
-		try {
-			return ResponseEntity.ok(service.simulate(request.orders()));
-		} catch (BusinessException e) {
-			return apiError(e);
-		}
-	}
-
-	@PostMapping("/api/orders")
-	@ResponseBody
-	public ResponseEntity<?> confirm(@RequestBody ConfirmRequest request,
-			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
-		try {
-			Order order = service.confirm(request.orders(), request.routeType(), request.masterVersion(),
-					request.memo(), user);
-			return ResponseEntity.ok(Map.of("id", order.getId()));
-		} catch (BusinessException e) {
-			return apiError(e);
-		}
-	}
-
-	private static ResponseEntity<Map<String, Object>> apiError(BusinessException e) {
-		HttpStatus status = e.isConflict() ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
-		return ResponseEntity.status(status).body(Map.of("error", e.getMessage(), "conflict", e.isConflict()));
 	}
 }
