@@ -4,6 +4,8 @@
 
 > **산출물 양식**: 구현 전 `precheck.html`과 구현 후 `report.html`은 팀 공용 템플릿(`docs/templates/`, PR #15)을 그대로 쓴다. 데이터 키와 작성법은 [`docs/templates/README.md`](../../templates/README.md)를 따르며, `loop/render.mjs`가 그 키가 빠지면 HTML을 만들지 않도록 강제한다.
 
+> **저장소에 올린 것**: 팀 방식대로 이 README와 `docs/evidence/ctkim1005/TASK-*/precheck.html`, `report.html`만 commit한다. 이 문서가 언급하는 Loop 구성 파일(`agents/*.md`, `command/impl-loop/SKILL.md`, `loop/impl-loop.js`, `loop/render.mjs`, `loop/summary-report.template.html`)과 라운드별 원본(`round-N/`)은 로컬 `.claude/`와 작업 branch `feature/ctkim1005-mission4-loop`에 있으며, 설계 설명을 위해 경로를 그대로 적어 둔다.
+
 ## 1. 한 줄 요약
 
 요청 하나를 **문서 규칙 대조 → 사전 점검 → 구현 → 보안·아키텍처 점검 → 검증** 여섯 에이전트가 처리하고, 검증이 FAIL이면 피드백을 들고 규칙 대조부터 되돌아간다. 라운드마다 팀 템플릿으로 `precheck.html`과 `report.html`을 남기며, PASS가 나오거나 최대 3라운드를 넘기면 멈춘다.
