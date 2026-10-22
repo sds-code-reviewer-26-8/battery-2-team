@@ -7,7 +7,9 @@ import com.example.demo.simulation.Plan.Stop;
 import com.example.demo.simulation.Plan.Trip;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -41,7 +43,7 @@ public final class Planner {
 		for (Country c : Country.factories()) {
 			int q = orders.getOrDefault(c, 0);
 			int limit = master.factory(c).stockLimit();
-			result.put(c, q <= 0 ? 0 : (q + limit - 1) / limit);
+			result.put(c, q <= 0 ? 0 : ceilDiv(q, limit));
 		}
 		return result;
 	}
@@ -59,7 +61,7 @@ public final class Planner {
 		for (List<List<Country>> partition : partitions(active, maxShips)) {
 			List<List<Country>> groups = sortGroups(master, partition);
 			for (List<List<List<Country>>> shipTrips : tripStructures(master, groups, amounts)) {
-				Candidate cand = schedule(master, orders, amounts, shipTrips);
+				Candidate cand = schedule(master, amounts, shipTrips);
 				if (cost == null || cand.shipping < cost.shipping
 						|| (cand.shipping == cost.shipping && cand.totalDays < cost.totalDays)) {
 					cost = cand;
@@ -70,7 +72,7 @@ public final class Planner {
 				}
 			}
 		}
-		Candidate near = nearest(master, orders, amounts, active, maxShips);
+		Candidate near = nearest(master, amounts, active, maxShips);
 
 		return List.of(
 				toPlan(master, orders, COST, "운항비 최소", cost),
@@ -86,7 +88,7 @@ public final class Planner {
 		for (Country c : active) {
 			int q = orders.get(c);
 			int limit = master.factory(c).stockLimit();
-			int v = (q + limit - 1) / limit;
+			int v = ceilDiv(q, limit);
 			int[] a = new int[v];
 			for (int j = 0; j < v - 1; j++) {
 				a[j] = limit;
@@ -245,15 +247,14 @@ public final class Planner {
 			return;
 		}
 		for (int i = k; i < a.size(); i++) {
-			java.util.Collections.swap(a, k, i);
+			Collections.swap(a, k, i);
 			permute(a, k + 1, out);
-			java.util.Collections.swap(a, k, i);
+			Collections.swap(a, k, i);
 		}
 	}
 
 	/** 가까운 곳부터: 한국에서 가까운 나라를 차례로 배에 돌려 가며 배정하고, 왕복마다 가까운 나라부터 방문 */
-	private static Candidate nearest(Master master, Map<Country, Integer> orders, Map<Country, int[]> amounts,
-			List<Country> active, int ships) {
+	private static Candidate nearest(Master master, Map<Country, int[]> amounts, List<Country> active, int ships) {
 		List<Country> byDistance = active.stream()
 				.sorted(Comparator.comparingInt((Country c) -> master.days(Country.KOREA, c))
 						.thenComparingInt(Enum::ordinal))
@@ -280,7 +281,7 @@ public final class Planner {
 			}
 			shipTrips.add(tripStops);
 		}
-		return schedule(master, orders, amounts, shipTrips);
+		return schedule(master, amounts, shipTrips);
 	}
 
 	// ---------------------------------------------------------------- 일정 계산
@@ -292,55 +293,78 @@ public final class Planner {
 	 * 배별 왕복 구성이 정해졌을 때 출항일을 계산한다. 각 방문지에서 재고가 필요한 양만큼 찰 때까지의
 	 * 날짜를 구해, 기다리지 않고 도착하도록 가능한 한 늦게 출항한다(한국 대기는 무료).
 	 */
-	private static Candidate schedule(Master master, Map<Country, Integer> orders, Map<Country, int[]> amounts,
+	private static Candidate schedule(Master master, Map<Country, int[]> amounts,
 			List<List<List<Country>>> shipTrips) {
 		List<ShipPlan> ships = new ArrayList<>();
 		int totalDays = 0;
 		long shipping = 0;
-		int no = 1;
 		for (List<List<Country>> trips : shipTrips) {
-			Map<Country, Integer> lastPickup = new EnumMap<>(Country.class);
-			Map<Country, Integer> visited = new EnumMap<>(Country.class);
-			List<Trip> planned = new ArrayList<>();
-			int free = 0;
-			int sail = 0;
-			for (List<Country> stops : trips) {
-				int[] offset = new int[stops.size()];
-				int off = 0;
-				Country prev = Country.KOREA;
-				for (int i = 0; i < stops.size(); i++) {
-					off += master.days(prev, stops.get(i));
-					offset[i] = off;
-					prev = stops.get(i);
-				}
-				int loop = off + master.days(prev, Country.KOREA);
-
-				int depart = free;
-				for (int i = 0; i < stops.size(); i++) {
-					Country c = stops.get(i);
-					int amount = amounts.get(c)[visited.getOrDefault(c, 0)];
-					int ready = lastPickup.getOrDefault(c, 0) + ceilDiv(amount, master.factory(c).maxDaily());
-					depart = Math.max(depart, ready - offset[i]);
-				}
-				List<Stop> planStops = new ArrayList<>();
-				for (int i = 0; i < stops.size(); i++) {
-					Country c = stops.get(i);
-					int v = visited.getOrDefault(c, 0);
-					int arrive = depart + offset[i];
-					planStops.add(new Stop(c, arrive, arrive, amounts.get(c)[v]));
-					lastPickup.put(c, arrive);
-					visited.put(c, v + 1);
-				}
-				int back = depart + loop;
-				planned.add(new Trip(depart, back, planStops));
-				sail += loop;
-				free = back;
-			}
-			ships.add(new ShipPlan(no++, planned, sail));
-			totalDays = Math.max(totalDays, free);
-			shipping += (long) sail * master.shipDailyCostWon();
+			ShipPlan ship = scheduleShip(master, amounts, trips, ships.size() + 1);
+			ships.add(ship);
+			totalDays = Math.max(totalDays, ship.trips().isEmpty() ? 0 : ship.trips().get(ship.trips().size() - 1).returnDay());
+			shipping += (long) ship.sailDays() * master.shipDailyCostWon();
 		}
 		return new Candidate(ships, totalDays, shipping);
+	}
+
+	/** 배 한 척의 왕복들을 차례로 일정에 올린다. 앞 왕복이 끝나야(한국 귀환) 다음 왕복을 출항할 수 있다. */
+	private static ShipPlan scheduleShip(Master master, Map<Country, int[]> amounts, List<List<Country>> trips,
+			int shipNo) {
+		Map<Country, Integer> lastPickup = new EnumMap<>(Country.class);
+		Map<Country, Integer> visited = new EnumMap<>(Country.class);
+		List<Trip> planned = new ArrayList<>();
+		int free = 0;
+		int sail = 0;
+		for (List<Country> stops : trips) {
+			Loop loop = loopOf(master, stops);
+			int depart = departDay(master, amounts, stops, loop, free, lastPickup, visited);
+			List<Stop> planStops = new ArrayList<>();
+			for (int i = 0; i < stops.size(); i++) {
+				Country c = stops.get(i);
+				int v = visited.getOrDefault(c, 0);
+				int arrive = depart + loop.offset()[i];
+				planStops.add(new Stop(c, arrive, arrive, amounts.get(c)[v]));
+				lastPickup.put(c, arrive);
+				visited.put(c, v + 1);
+			}
+			int back = depart + loop.days();
+			planned.add(new Trip(depart, back, planStops));
+			sail += loop.days();
+			free = back;
+		}
+		return new ShipPlan(shipNo, planned, sail);
+	}
+
+	/** 한 번의 왕복: 한국 출항 후 각 방문지에 닿기까지의 일수(offset)와 한국 귀환까지 걸리는 전체 일수 */
+	private record Loop(int[] offset, int days) {
+	}
+
+	private static Loop loopOf(Master master, List<Country> stops) {
+		int[] offset = new int[stops.size()];
+		int elapsed = 0;
+		Country prev = Country.KOREA;
+		for (int i = 0; i < stops.size(); i++) {
+			elapsed += master.days(prev, stops.get(i));
+			offset[i] = elapsed;
+			prev = stops.get(i);
+		}
+		return new Loop(offset, elapsed + master.days(prev, Country.KOREA));
+	}
+
+	/**
+	 * 이 왕복의 출항일. 배가 비는 날(freeDay)보다 빠르지 않고, 각 방문지에 도착할 때 실을 양이 모두
+	 * 생산되어 있도록(직전 수거일 + 필요한 양을 만드는 일수) 정한다.
+	 */
+	private static int departDay(Master master, Map<Country, int[]> amounts, List<Country> stops, Loop loop,
+			int freeDay, Map<Country, Integer> lastPickup, Map<Country, Integer> visited) {
+		int depart = freeDay;
+		for (int i = 0; i < stops.size(); i++) {
+			Country c = stops.get(i);
+			int amount = amounts.get(c)[visited.getOrDefault(c, 0)];
+			int ready = lastPickup.getOrDefault(c, 0) + ceilDiv(amount, master.factory(c).maxDaily());
+			depart = Math.max(depart, ready - loop.offset()[i]);
+		}
+		return depart;
 	}
 
 	private static int ceilDiv(int a, int b) {
@@ -369,7 +393,7 @@ public final class Planner {
 	}
 
 	private static Map<Integer, Integer> pickups(Candidate cand, Country c) {
-		Map<Integer, Integer> result = new java.util.HashMap<>();
+		Map<Integer, Integer> result = new HashMap<>();
 		for (ShipPlan ship : cand.ships) {
 			for (Trip trip : ship.trips()) {
 				for (Stop s : trip.stops()) {
