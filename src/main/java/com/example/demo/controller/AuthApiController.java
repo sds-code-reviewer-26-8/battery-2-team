@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.config.LoginInterceptor;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -43,8 +44,11 @@ public class AuthApiController {
 	}
 
 	@PostMapping("/login")
-	public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpSession session) {
+	public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpServletRequest http) {
 		if (accountUsername.equals(request.username()) && accountPassword.equals(request.password())) {
+			HttpSession session = http.getSession();
+			// 로그인 전에 알려진 세션 ID 로 로그인 상태를 가로채지 못하도록(세션 고정), 로그인할 때 세션 ID 를 새로 발급한다
+			http.changeSessionId();
 			session.setAttribute(LoginInterceptor.SESSION_USER, request.username());
 			return ResponseEntity.ok(Map.of("username", request.username()));
 		}
