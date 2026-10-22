@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createOrder, login, removeOrder } from './helpers';
+import { createOrder, login, cancelOrderIfOpen } from './helpers';
 
 /**
  * No.       20
@@ -52,6 +52,6 @@ test('No.20 목록 화면 구성과 이동(주문 추가, 행 클릭)', async ({
     await row.locator('td').nth(1).click(); // 확정 일시 칸 (번호 링크가 아님)
     await expect(page).toHaveURL(new RegExp(`/orders/${id}$`));
   } finally {
-    await removeOrder(page, id);
+    await cancelOrderIfOpen(page, id);
   }
 });

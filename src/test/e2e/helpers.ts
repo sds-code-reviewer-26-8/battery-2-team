@@ -56,10 +56,12 @@ export async function orderVersion(page: Page, id: number): Promise<number> {
 }
 
 /**
- * 테스트가 만든 주문을 정리한다. 이 앱은 "취소"해도 주문을 지우지 않고 '취소' 상태로 남기므로 취소로 정리한다.
- * 이미 없거나 더 바꿀 수 없는 상태(완료·취소)이면 조용히 넘어간다. 화면을 거치지 않고 API 로 처리한다.
+ * 테스트가 만든 주문이 아직 취소할 수 있는 상태(확정·진행)이면 취소한다. 주문을 지우는 것이 아니다:
+ * 이 앱은 취소해도 주문을 지우지 않고 '취소' 상태로 남기므로, 실행할 때마다 취소 주문이 DB 에 쌓인다.
+ * 그래서 E2E 는 매번 새로 띄운 인메모리 DB 서버에서 실행한다(playwright.config.ts 설명 참고).
+ * 이미 없거나 더 바꿀 수 없는 상태(완료·취소)이면 건너뛴다. 화면을 거치지 않고 API 로 처리한다.
  */
-export async function removeOrder(page: Page, id: number): Promise<void> {
+export async function cancelOrderIfOpen(page: Page, id: number): Promise<void> {
   try {
     const res = await page.request.get(`/api/orders/${id}`);
     if (!res.ok()) return;
@@ -68,7 +70,8 @@ export async function removeOrder(page: Page, id: number): Promise<void> {
     await page.request.post(`/api/orders/${id}/status`, {
       data: { status: 'CANCELED', version: order.version },
     });
-  } catch {
-    /* 정리 실패는 테스트 결과에 영향을 주지 않는다 */
+  } catch (e) {
+    // 정리 실패는 테스트 결과에 영향을 주지 않지만, 원인을 알 수 있게 남긴다
+    console.warn(`주문 #${id} 정리(취소) 실패: ${e}`);
   }
 }

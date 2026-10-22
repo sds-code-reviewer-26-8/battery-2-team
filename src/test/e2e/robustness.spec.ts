@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, orderVersion, removeOrder } from './helpers';
+import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, orderVersion, cancelOrderIfOpen } from './helpers';
 
 /**
  * 견고성 테스트 (docs/e2e/sy9169/test-senarios.xlsx 의 시나리오 10개)
@@ -7,7 +7,7 @@ import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, ord
  * - 이미 실행 중인 서버(playwright.config.ts 의 baseURL)를 대상으로 한다.
  * - 시나리오마다 20초 이내(시나리오 표의 기준)에 끝나야 하므로 테스트 제한 시간을 20초로 둔다.
  * - 화면에 입력칸이 없는 시나리오(2, 4, 5)와 화면 제한을 우회하는 단계는 page.request(로그인 세션 공유)로 요청한다.
- * - 주문을 만드는 시나리오(8)는 끝나면 취소(=삭제)로 정리한다. 시나리오 7 은 기준값 번호만 올린다.
+ * - 주문을 만드는 시나리오(8)는 끝나면 취소로 정리한다(주문은 삭제되지 않고 '취소' 상태로 남는다). 시나리오 7 은 기준값 번호만 올린다.
  * - S2, S6, S9 는 팀 통합 시나리오 14, 30, 25 로 scenarios-sy9169park.spec.ts 로 옮겼다.
  */
 test.describe.configure({ timeout: 20_000 });
@@ -142,7 +142,7 @@ test.describe('견고성', () => {
         .locator('tbody tr');
       await expect(history).toHaveCount(1);
     } finally {
-      await removeOrder(page, id);
+      await cancelOrderIfOpen(page, id);
     }
   });
 

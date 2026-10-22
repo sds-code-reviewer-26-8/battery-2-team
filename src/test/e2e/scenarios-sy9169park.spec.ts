@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { chipCount, createOrder, login, orderTotalCount, removeOrder } from './helpers';
+import { chipCount, createOrder, login, orderTotalCount, cancelOrderIfOpen } from './helpers';
 
 /**
  * 담당자: sy9169park — 팀 통합 시나리오 (docs/e2e/team/test-senarios.xlsx) 중 배정된 9개
@@ -7,7 +7,7 @@ import { chipCount, createOrder, login, orderTotalCount, removeOrder } from './h
  *
  * - 테스트 제목의 [T번호] 는 통합 시나리오의 No. 와 같다.
  * - 이미 실행 중인 서버(playwright.config.ts 의 baseURL)를 대상으로 하며, 시나리오당 20초 이내(표의 기준)에 끝나야 한다.
- * - 주문을 만드는 시나리오(16, 23, 25)는 끝나면 취소(=삭제)로 정리한다.
+ * - 주문을 만드는 시나리오(16, 23, 25)는 끝나면 취소로 정리한다(주문은 삭제되지 않고 '취소' 상태로 남는다).
  * - 기준값을 바꾸는 시나리오(31)는 끝에서 원래 값으로 되돌린다. 30은 저장되지 않는 것이 Pass 조건이다.
  */
 test.describe.configure({ timeout: 20_000 });
@@ -144,7 +144,7 @@ test.describe('sy9169park 담당 시나리오', () => {
       expect(await chipCount(page, '전체')).toBe(totalBefore + 1);
       expect(await chipCount(page, '확정')).toBe(confirmedBefore + 1);
     } finally {
-      await removeOrder(page, id);
+      await cancelOrderIfOpen(page, id);
     }
   });
 
@@ -171,7 +171,7 @@ test.describe('sy9169park 담당 시나리오', () => {
       await expect(historyRows(page)).toHaveCount(1);
       await expect(page.locator('.alert')).toHaveCount(0);
     } finally {
-      await removeOrder(page, id);
+      await cancelOrderIfOpen(page, id);
     }
   });
 
@@ -201,7 +201,7 @@ test.describe('sy9169park 담당 시나리오', () => {
       await expect(historyRows(tabB)).toHaveCount(2);
     } finally {
       await tabB.close();
-      await removeOrder(page, id);
+      await cancelOrderIfOpen(page, id);
     }
   });
 

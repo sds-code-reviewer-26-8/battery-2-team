@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, orderTotalCount, removeOrder } from './helpers';
+import { login, orderTotalCount, cancelOrderIfOpen } from './helpers';
 import { runSimulation } from './ui-helpers';
 
 /**
@@ -55,6 +55,6 @@ test('No.18 시뮬레이션 뒤 기준값이 바뀌면 확정 거절', async ({ 
     createdId = Number(new URL(page.url()).pathname.split('/').pop());
     await tabB.close();
   } finally {
-    if (createdId !== undefined) await removeOrder(page, createdId); // 만든 주문 정리
+    if (createdId !== undefined) await cancelOrderIfOpen(page, createdId); // 만든 주문 정리
   }
 });

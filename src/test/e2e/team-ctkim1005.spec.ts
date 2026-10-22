@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, orderVersion, removeOrder } from './helpers';
+import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, orderVersion, cancelOrderIfOpen } from './helpers';
 
 /**
  * 팀 통합 시나리오(docs/e2e/team/test-senarios.xlsx) 중 ctkim1005 담당 9건
@@ -7,7 +7,7 @@ import { DEFAULT_ORDERS, createOrder, login, masterVersion, orderTotalCount, ord
  *
  * - 이미 실행 중인 서버(playwright.config.ts 의 baseURL)를 대상으로 한다.
  * - 시나리오당 20초 이내(팀 기준)로 제한 시간을 둔다.
- * - 주문을 만드는 시나리오(15, 26)는 끝나면 취소(=삭제)로 정리하고,
+ * - 주문을 만드는 시나리오(15, 26)는 끝나면 취소로 정리하고(주문은 삭제되지 않고 '취소' 상태로 남는다),
  *   기준값을 바꾸는 시나리오(29, 34)는 finally 에서 원래 값으로 되돌린다.
  * - No. 26, 27 은 현재 앱 결함 후보라 Pass 조건(설명 자료 기준)대로 실행하면 Fail 이 예상된다.
  *   known-issue 로 표시하고 soft assertion 으로 끝까지 실행한다.
@@ -78,7 +78,7 @@ async function saveMasterField(page: Page, name: string, value: string): Promise
 /** 주문이 있을 때만 취소로 정리한다. 없는 주문이면 건너뛴다. */
 async function removeIfExists(page: Page, id: number): Promise<void> {
   const res = await page.request.get(`/api/orders/${id}`);
-  if (res.status() === 200) await removeOrder(page, id);
+  if (res.status() === 200) await cancelOrderIfOpen(page, id);
 }
 
 // ---------------------------------------------------------------- 시나리오
@@ -208,7 +208,7 @@ test.describe('ctkim1005 담당', () => {
       // 주문 1건 생성
       expect(await orderTotalCount(page)).toBe(before + 1);
     } finally {
-      if (id) await removeOrder(page, id);
+      if (id) await cancelOrderIfOpen(page, id);
     }
   });
 
