@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 /** 이 앱의 로그인 계정은 admin / admin 하나뿐이다. */
 export const ADMIN = { username: 'admin', password: 'admin' };
@@ -14,6 +14,14 @@ export async function login(page: Page): Promise<void> {
   await page.getByRole('button', { name: '로그인' }).click();
   await expect(page).toHaveURL(/\/orders(;.*)?$/);
 }
+
+/**
+ * 주문 목록에서 주문 번호가 정확히 id 인 행. 목록 화면에 있는 상태에서 쓴다.
+ * 글자로 찾으면(hasText: '#42') '#142' 같은 번호도 걸리므로, 취소 주문이 남아 번호가 커진 뒤에는 어긋난다.
+ * 그래서 그 주문으로 가는 링크(/orders/{id})가 들어 있는 행을 찾는다.
+ */
+export const orderRow = (page: Page, id: number): Locator =>
+  page.locator('table.grid tbody tr.clickable').filter({ has: page.locator(`a[href="/orders/${id}"]`) });
 
 /** 주문 목록의 "전체" 건수를 읽는다. (목록 화면으로 이동한다) */
 export async function orderTotalCount(page: Page): Promise<number> {
@@ -56,16 +64,22 @@ export async function orderVersion(page: Page, id: number): Promise<number> {
 }
 
 /**
- * 테스트가 만든 주문을 정리한다. 이 앱은 "취소"하면 주문을 지우므로 취소로 정리한다.
- * 이미 없거나 더 바꿀 수 없는 상태이면 조용히 넘어간다.
+ * 테스트가 만든 주문이 아직 취소할 수 있는 상태(확정·진행)이면 취소한다. 주문을 지우는 것이 아니다:
+ * 이 앱은 취소해도 주문을 지우지 않고 '취소' 상태로 남기므로, 실행할 때마다 취소 주문이 DB 에 쌓인다.
+ * 그래서 E2E 는 매번 새로 띄운 인메모리 DB 서버에서 실행한다(playwright.config.ts 설명 참고).
+ * 이미 없거나 더 바꿀 수 없는 상태(완료·취소)이면 건너뛴다. 화면을 거치지 않고 API 로 처리한다.
  */
-export async function removeOrder(page: Page, id: number): Promise<void> {
+export async function cancelOrderIfOpen(page: Page, id: number): Promise<void> {
   try {
-    const version = await orderVersion(page, id);
+    const res = await page.request.get(`/api/orders/${id}`);
+    if (!res.ok()) return;
+    const order = await res.json();
+    if (order.nextStatuses.length === 0) return;
     await page.request.post(`/api/orders/${id}/status`, {
-      data: { status: 'CANCELED', version },
+      data: { status: 'CANCELED', version: order.version },
     });
-  } catch {
-    /* 정리 실패는 테스트 결과에 영향을 주지 않는다 */
+  } catch (e) {
+    // 정리 실패는 테스트 결과에 영향을 주지 않지만, 원인을 알 수 있게 남긴다
+    console.warn(`주문 #${id} 정리(취소) 실패: ${e}`);
   }
 }

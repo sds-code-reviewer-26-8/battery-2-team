@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { DEFAULT_ORDERS, createOrder, login, orderTotalCount, orderVersion, removeOrder } from './helpers';
+import { DEFAULT_ORDERS, createOrder, login, orderTotalCount, orderVersion, cancelOrderIfOpen } from './helpers';
 
 /**
  * 담당자 ssw60040-prog 의 E2E 시나리오 9개 (docs/e2e/team/test-senarios.xlsx 의 No. 4, 9, 13, 19, 21, 24, 32, 33, 36)
@@ -7,7 +7,7 @@ import { DEFAULT_ORDERS, createOrder, login, orderTotalCount, orderVersion, remo
  * - 이미 실행 중인 서버(playwright.config.ts 의 baseURL)를 대상으로 한다.
  * - 시나리오마다 20초 이내(시나리오 표의 기준)에 끝나야 하므로 테스트 제한 시간을 20초로 둔다.
  * - 화면에 입력칸이 없거나 화면 제한을 우회하는 단계는 page.request(로그인 세션 공유)로 요청한다.
- * - 주문을 만드는 시나리오(19, 21, 24)는 끝나면 취소(=삭제)로 정리한다. "완료"는 최종 상태라 정리할 수 없어
+ * - 주문을 만드는 시나리오(19, 21, 24)는 끝나면 취소로 정리한다(주문은 삭제되지 않고 '취소' 상태로 남는다). "완료"는 최종 상태라 정리할 수 없어
  *   시나리오 21 이 만든 완료 주문 1건은 남는다.
  * - 기준값을 바꾸는 시나리오(32, 33)는 끝에서 원래 값으로 되돌린다. 순차 실행(workers=1)이 전제이다.
  * - 안내 시트에 따라 robustness.spec.ts 의 S3(No.13), S8(No.24), S5(No.36), S6 일부(No.32)와 같은 흐름을
@@ -131,7 +131,7 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
       await expect.poll(() => page.locator('#summary').innerText()).toBe(summary);
       await expect.poll(() => page.locator('#details').innerText()).toBe(details);
     } finally {
-      await removeOrder(page, id);
+      await cancelOrderIfOpen(page, id);
     }
   });
 
@@ -139,6 +139,10 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
     await login(page);
     const created: number[] = [];
     try {
+      // 화면에 나올 수 있는 상태. 취소한 주문도 목록에 남는다.
+      const OPEN_AND_DONE = ['확정', '진행', '완료'];
+      const ALL_STATUSES = [...OPEN_AND_DONE, '취소'];
+
       // [사전 조건] 확정·진행·완료 상태의 주문이 각각 1건 이상
       const confirmed = await createOrder(page);
       created.push(confirmed);
@@ -174,11 +178,14 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
       // 3. '전체' 칩 클릭 → 모든 주문 표시
       await chip('전체').click();
       await expect(page).not.toHaveURL(/status=/);
-      expect(await rowStatuses()).toEqual(new Set(['확정', '진행', '완료']));
+      // 취소한 주문도 목록에 남으므로(다른 시나리오가 정리하며 취소한 주문 포함) '취소'가 섞여 있을 수 있다
+      const allStatuses = await rowStatuses();
+      for (const label of OPEN_AND_DONE) expect(allStatuses.has(label), `'${label}' 주문이 전체 목록에 있어야 한다`).toBe(true);
+      expect([...allStatuses].filter((s) => !ALL_STATUSES.includes(s))).toEqual([]);
 
       // 4. 각 칩의 건수 = 필터링된 행 수, 전체 = 상태별 건수의 합
       const counts: Record<string, number> = {};
-      for (const label of ['확정', '진행', '완료', '취소']) {
+      for (const label of ALL_STATUSES) {
         await chip(label).click();
         counts[label] = await chipCount(label);
         expect(await rows.count(), `'${label}' 칩 건수와 행 수`).toBe(counts[label]);
@@ -188,9 +195,8 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
       expect(await rows.count()).toBe(total);
       expect(total).toBe(Object.values(counts).reduce((a, b) => a + b, 0));
     } finally {
-      // 확정·진행 주문만 취소(=삭제)로 정리한다. 완료 주문은 더 바꿀 수 없고, 상세 화면에 상태 변경 폼이 없어
-      // removeOrder 가 버전 입력칸을 기다리다 멈추므로 정리 대상에서 뺀다(완료 주문 1건이 남는다).
-      for (const id of created.slice(0, 2)) await removeOrder(page, id);
+      // 만든 주문을 모두 정리한다. 완료 주문처럼 더 바꿀 수 없는 주문은 cancelOrderIfOpen 이 알아서 건너뛴다.
+      for (const id of created) await cancelOrderIfOpen(page, id);
     }
   });
 
@@ -216,7 +222,7 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
         .locator('tbody tr');
       await expect(history).toHaveCount(1);
     } finally {
-      await removeOrder(page, id);
+      await cancelOrderIfOpen(page, id);
     }
   });
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { chipCount, login } from './helpers';
+import { chipCount, login, orderRow } from './helpers';
 import { changeStatus, runSimulation } from './ui-helpers';
 
 /**
@@ -73,5 +73,5 @@ test('No.22 핵심 업무 흐름: 확정 → 진행 → 완료, 완료는 최종
   // 절차 5 / Pass 5 — 목록의 '완료' 칩 건수 +1, 해당 주문 상태 '완료'
   await page.goto('/orders');
   expect(await chipCount(page, '완료')).toBe(doneBefore + 1);
-  await expect(page.locator('table.grid tbody tr.clickable', { hasText: `#${id}` }).locator('.badge')).toHaveText('완료');
+  await expect(orderRow(page, id).locator('.badge')).toHaveText('완료');
 });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createOrder, login, removeOrder } from './helpers';
+import { createOrder, login, cancelOrderIfOpen } from './helpers';
 import { readMasterForm, runSimulation, saveMasterForm } from './ui-helpers';
 
 /**
@@ -66,7 +66,7 @@ test('No.35 기준값 변경은 이미 확정된 주문의 계획을 바꾸지 �
   } finally {
     // 절차 4 / Pass 3 — 기준값을 원래대로 되돌려 저장하고, 만든 주문을 정리
     await saveMasterForm(page, original);
-    if (id !== undefined) await removeOrder(page, id);
+    if (id !== undefined) await cancelOrderIfOpen(page, id);
   }
 
   expect(await readMasterForm(page)).toEqual(original); // 원래 값으로 복원되었는지 확인

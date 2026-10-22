@@ -5,6 +5,7 @@
 	const form = document.getElementById('masterForm');
 	const body = document.getElementById('masterBody');
 	const alerts = document.getElementById('alerts');
+	const saveBtn = document.getElementById('saveBtn');
 
 	function input(name, values, attrs) {
 		return h('input', {name, value: values[name], ...attrs});
@@ -42,6 +43,7 @@
 
 	function render(values) {
 		body.replaceChildren(factoryTable(values), shipSection(values), routeMatrix(values));
+		saveBtn.disabled = false;
 	}
 
 	function showErrors(e) {
@@ -55,12 +57,20 @@
 		setAlert(alerts, null);
 		const values = {};
 		form.querySelectorAll('input[name]').forEach(i => { values[i.name] = i.value; });
+		let res;
 		try {
-			const res = await postJson('/api/master', values);
-			render(await getJson('/api/master/form'));   // 저장된 값(쉼표 제거 등)을 다시 보여 준다
-			setAlert(alerts, okAlert(res.message));
+			res = await postJson('/api/master', values);
 		} catch (err) {
 			showErrors(err);   // 입력한 값은 그대로 두고 이유만 알린다
+			return;
+		}
+		// 여기부터는 저장이 끝난 상태다. 저장된 값(쉼표 제거 등)을 다시 읽어 보여 주고,
+		// 읽기에 실패해도 "저장하지 않았습니다"로 알리지 않는다.
+		try {
+			render(await getJson('/api/master/form'));
+			setAlert(alerts, okAlert(res.message));
+		} catch (err) {
+			setAlert(alerts, okAlert(res.message + ' 다만 저장된 값을 화면에 다시 불러오지 못했습니다. 화면을 새로 고쳐 확인하세요.'));
 		}
 	});
 

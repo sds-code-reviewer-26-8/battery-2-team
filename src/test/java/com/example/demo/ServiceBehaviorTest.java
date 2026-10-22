@@ -9,6 +9,7 @@ import com.example.demo.entity.OrderStatus;
 import com.example.demo.entity.OrderStatusHistory;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.MasterService;
+import com.example.demo.service.NotFoundException;
 import com.example.demo.service.OrderService;
 import com.example.demo.service.SimulationService;
 import com.example.demo.service.SimulationService.SimulationResult;
@@ -384,8 +385,8 @@ class ServiceBehaviorTest {
 
 	@Test
 	void unknownOrderIsReportedWithReason() {
-		assertThatThrownBy(() -> orderService.getOrder(-12345L)).isInstanceOf(BusinessException.class)
-				.hasMessage("주문을 찾을 수 없습니다");
+		assertThatThrownBy(() -> orderService.getOrder(-12345L)).isInstanceOf(NotFoundException.class)
+				.isInstanceOf(BusinessException.class).hasMessage("주문을 찾을 수 없습니다");
 		assertThat(orderService.history(-12345L)).isEmpty();
 	}
 
@@ -444,16 +445,20 @@ class ServiceBehaviorTest {
 	}
 
 	@Test
-	void cancelDeletesTheOrderButKeepsTheHistory() {
+	void cancelKeepsTheOrderWithCanceledStatusAndHistory() {
 		Order order = confirmDefault("COST", null);
 		Long id = order.getId();
-		long confirmedBefore = orderService.countByStatus().get(OrderStatus.CONFIRMED);
+		Map<OrderStatus, Long> before = orderService.countByStatus();
 		orderService.changeStatus(id, OrderStatus.CANCELED, order.getVersion(), "canceller");
 
-		assertThatThrownBy(() -> orderService.getOrder(id)).isInstanceOf(BusinessException.class)
-				.hasMessage("주문을 찾을 수 없습니다");
-		assertThat(orderService.countByStatus().get(OrderStatus.CONFIRMED)).isEqualTo(confirmedBefore - 1);
-		assertThat(orderService.countByStatus().get(OrderStatus.CANCELED)).isEqualTo(0L);
+		Order canceled = orderService.getOrder(id);
+		assertThat(canceled.getStatus()).isEqualTo(OrderStatus.CANCELED);
+		assertThat(canceled.getStatus().next()).isEmpty();
+		Map<OrderStatus, Long> after = orderService.countByStatus();
+		assertThat(after.get(OrderStatus.CONFIRMED)).isEqualTo(before.get(OrderStatus.CONFIRMED) - 1);
+		assertThat(after.get(OrderStatus.CANCELED)).isEqualTo(before.get(OrderStatus.CANCELED) + 1);
+		assertThat(orderService.listOrders(OrderStatus.CANCELED)).extracting(Order::getId).contains(id);
+		assertThat(orderService.listOrders(null)).extracting(Order::getId).contains(id);
 		List<OrderStatusHistory> history = orderService.history(id);
 		assertThat(history).hasSize(2);
 		assertThat(history.get(1).getFromStatus()).isEqualTo(OrderStatus.CONFIRMED);
@@ -462,8 +467,31 @@ class ServiceBehaviorTest {
 	}
 
 	@Test
+	void inProgressOrderCanBeCanceledToo() {
+		Order order = confirmDefault("COST", null);
+		orderService.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "u");
+		long version = orderService.getOrder(order.getId()).getVersion();
+		orderService.changeStatus(order.getId(), OrderStatus.CANCELED, version, "u");
+		assertThat(orderService.getOrder(order.getId()).getStatus()).isEqualTo(OrderStatus.CANCELED);
+		assertThat(orderService.history(order.getId())).hasSize(3);
+	}
+
+	@Test
+	void canceledOrderIsFinalAndCannotBeChangedAgain() {
+		Order order = confirmDefault("COST", null);
+		orderService.changeStatus(order.getId(), OrderStatus.CANCELED, order.getVersion(), "u");
+		long version = orderService.getOrder(order.getId()).getVersion();
+		for (OrderStatus target : OrderStatus.values()) {
+			assertThatThrownBy(() -> orderService.changeStatus(order.getId(), target, version, "u"))
+					.isInstanceOf(BusinessException.class)
+					.hasMessage("취소 상태에서는 %s(으)로 바꿀 수 없습니다".formatted(target.getLabel()));
+		}
+		assertThat(orderService.history(order.getId())).hasSize(2);
+	}
+
+	@Test
 	void changingStatusOfUnknownOrderIsReported() {
 		assertThatThrownBy(() -> orderService.changeStatus(-12345L, OrderStatus.IN_PROGRESS, 0, "u"))
-				.isInstanceOf(BusinessException.class).hasMessage("주문을 찾을 수 없습니다");
+				.isInstanceOf(NotFoundException.class).hasMessage("주문을 찾을 수 없습니다");
 	}
 }

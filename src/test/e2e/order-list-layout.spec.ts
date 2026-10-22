@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createOrder, login, removeOrder } from './helpers';
+import { createOrder, login, cancelOrderIfOpen, orderRow } from './helpers';
 
 /**
  * No.       20
@@ -48,10 +48,10 @@ test('No.20 목록 화면 구성과 이동(주문 추가, 행 클릭)', async ({
 
     // 절차 3 / Pass 5 — 목록으로 돌아와 번호 링크가 아닌 칸을 누르면 해당 주문 상세로 이동
     await page.goto('/orders');
-    const row = page.locator('table.grid tbody tr.clickable', { hasText: `#${id}` });
+    const row = orderRow(page, id);
     await row.locator('td').nth(1).click(); // 확정 일시 칸 (번호 링크가 아님)
     await expect(page).toHaveURL(new RegExp(`/orders/${id}$`));
   } finally {
-    await removeOrder(page, id);
+    await cancelOrderIfOpen(page, id);
   }
 });
