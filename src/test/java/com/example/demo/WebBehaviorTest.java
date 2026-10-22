@@ -83,7 +83,7 @@ class WebBehaviorTest {
 
 	private Order confirm(String memo) {
 		return orderService.confirm(ServiceBehaviorTest.orders(3000, 3000, 3000, 3000), "COST",
-				masters.currentMaster().version(), memo, "admin");
+				masters.currentMaster().version(), memo, null, "admin");
 	}
 
 	// ---------------------------------------------------------------- 화면 주소
@@ -252,6 +252,59 @@ class WebBehaviorTest {
 		assertThat(order.getTotalCostEok()).isEqualTo(String.format("%.2f", order.getTotalCost() / 1e8));
 		assertThat(order.getProductionCostEok()).matches("\\d+\\.\\d{2}");
 		assertThat(order.getShippingCostEok()).matches("\\d+\\.\\d{2}");
+	}
+
+	// ---------------------------------------------------------------- 고객사
+
+	private String customerBody(String name, long version) {
+		return "{\"customerName\":" + (name == null ? "null" : "\"" + name + "\"") + ",\"version\":" + version + "}";
+	}
+
+	@Test
+	void customerNameShowsInDetailAndCanBeChangedWhileInProgress() throws Exception {
+		Order order = confirm(null);
+		orderService.changeStatus(order.getId(), OrderStatus.IN_PROGRESS, order.getVersion(), "admin");
+		long v = orderService.getOrder(order.getId()).getVersion();
+		mvc.perform(get("/api/orders/" + order.getId()).session(login())).andExpect(status().isOk())
+				.andExpect(jsonPath("$.customerName").isEmpty()).andExpect(jsonPath("$.customerEditable").value(true));
+		mvc.perform(postJson("/api/orders/" + order.getId() + "/customer", login(), customerBody("한빛", v)))
+				.andExpect(status().isOk());
+		mvc.perform(get("/api/orders/" + order.getId()).session(login()))
+				.andExpect(jsonPath("$.customerName").value("한빛")).andExpect(jsonPath("$.customerEditable").value(true));
+	}
+
+	@Test
+	void customerNameChangeIsRejectedWithReasonForCompletedAndCanceled() throws Exception {
+		Order done = confirm(null);
+		orderService.changeStatus(done.getId(), OrderStatus.IN_PROGRESS, done.getVersion(), "admin");
+		orderService.changeStatus(done.getId(), OrderStatus.COMPLETED,
+				orderService.getOrder(done.getId()).getVersion(), "admin");
+		Order canceled = confirm(null);
+		orderService.changeStatus(canceled.getId(), OrderStatus.CANCELED, canceled.getVersion(), "admin");
+		for (Order o : new Order[] {done, canceled}) {
+			long v = orderService.getOrder(o.getId()).getVersion();
+			mvc.perform(get("/api/orders/" + o.getId()).session(login()))
+					.andExpect(jsonPath("$.customerEditable").value(false));
+			mvc.perform(postJson("/api/orders/" + o.getId() + "/customer", login(), customerBody("새", v)))
+					.andExpect(status().is4xxClientError())
+					.andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("고객사를 수정할 수 없습니다")))
+					.andExpect(jsonPath("$.trace").doesNotExist());
+			assertThat(orderService.getOrder(o.getId()).getCustomerName()).isNull();
+		}
+	}
+
+	@Test
+	void customerNameChangeNeedsLogin() throws Exception {
+		mvc.perform(postJson("/api/orders/1/customer", null, customerBody("x", 0))).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void confirmRequestWithoutCustomerNameStillWorks() throws Exception {
+		MvcResult res = mvc.perform(postJson("/api/orders", login(), "{\"orders\":" + ORDERS
+				+ ",\"routeType\":\"COST\",\"masterVersion\":" + masters.currentMaster().version()
+				+ ",\"memo\":\"기존\"}")).andExpect(status().isOk()).andReturn();
+		long id = json.readTree(res.getResponse().getContentAsString(StandardCharsets.UTF_8)).get("id").asLong();
+		assertThat(orderService.getOrder(id).getCustomerName()).isNull();
 	}
 
 	// ---------------------------------------------------------------- 상태 변경
