@@ -1,6 +1,6 @@
 package com.example.demo.config;
 
-import com.example.demo.service.BatteryService;
+import com.example.demo.service.MasterService;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class DataInitializer implements ApplicationRunner {
 
-	private final BatteryService service;
+	private final MasterService masters;
 
-	public DataInitializer(BatteryService service) {
-		this.service = service;
+	public DataInitializer(MasterService masters) {
+		this.masters = masters;
 	}
 
 	@Override
 	public void run(ApplicationArguments args) {
-		service.initDefaults();
+		masters.initDefaults();
 	}
 }

@@ -1,0 +1,284 @@
+{
+  "master" : {
+    "shipCount" : 3,
+    "shipDailyCostWon" : 100000000,
+    "factories" : [ {
+      "country" : "CHINA",
+      "maxDaily" : 400,
+      "stockLimit" : 4000,
+      "unitCost" : 700
+    }, {
+      "country" : "JAPAN",
+      "maxDaily" : 800,
+      "stockLimit" : 2000,
+      "unitCost" : 900
+    }, {
+      "country" : "VIETNAM",
+      "maxDaily" : 200,
+      "stockLimit" : 10000,
+      "unitCost" : 550
+    }, {
+      "country" : "INDONESIA",
+      "maxDaily" : 300,
+      "stockLimit" : 7000,
+      "unitCost" : 450
+    } ],
+    "routes" : [ {
+      "from" : "KOREA",
+      "to" : "CHINA",
+      "days" : 1
+    }, {
+      "from" : "KOREA",
+      "to" : "JAPAN",
+      "days" : 2
+    }, {
+      "from" : "KOREA",
+      "to" : "VIETNAM",
+      "days" : 5
+    }, {
+      "from" : "KOREA",
+      "to" : "INDONESIA",
+      "days" : 7
+    }, {
+      "from" : "CHINA",
+      "to" : "JAPAN",
+      "days" : 2
+    }, {
+      "from" : "CHINA",
+      "to" : "VIETNAM",
+      "days" : 4
+    }, {
+      "from" : "CHINA",
+      "to" : "INDONESIA",
+      "days" : 6
+    }, {
+      "from" : "JAPAN",
+      "to" : "VIETNAM",
+      "days" : 5
+    }, {
+      "from" : "JAPAN",
+      "to" : "INDONESIA",
+      "days" : 7
+    }, {
+      "from" : "VIETNAM",
+      "to" : "INDONESIA",
+      "days" : 2
+    } ]
+  },
+  "orders" : {
+    "CHINA" : 3000,
+    "JAPAN" : 3000,
+    "VIETNAM" : 3000,
+    "INDONESIA" : 3000
+  },
+  "visits" : {
+    "CHINA" : 1,
+    "JAPAN" : 2,
+    "VIETNAM" : 1,
+    "INDONESIA" : 1
+  },
+  "options" : [ {
+    "type" : "COST",
+    "label" : "운항비 최소",
+    "totalDays" : 26,
+    "productionCost" : 7800000000,
+    "shippingCost" : 2000000000,
+    "totalCost" : 9800000000,
+    "ships" : [ {
+      "no" : 1,
+      "trips" : [ {
+        "departDay" : 1,
+        "returnDay" : 5,
+        "stops" : [ {
+          "country" : "JAPAN",
+          "arriveDay" : 3,
+          "leaveDay" : 3,
+          "loadK" : 2000
+        } ]
+      }, {
+        "departDay" : 10,
+        "returnDay" : 26,
+        "stops" : [ {
+          "country" : "CHINA",
+          "arriveDay" : 11,
+          "leaveDay" : 11,
+          "loadK" : 3000
+        }, {
+          "country" : "VIETNAM",
+          "arriveDay" : 15,
+          "leaveDay" : 15,
+          "loadK" : 3000
+        }, {
+          "country" : "INDONESIA",
+          "arriveDay" : 17,
+          "leaveDay" : 17,
+          "loadK" : 3000
+        }, {
+          "country" : "JAPAN",
+          "arriveDay" : 24,
+          "leaveDay" : 24,
+          "loadK" : 1000
+        } ]
+      } ],
+      "sailDays" : 20
+    } ],
+    "stock" : {
+      "CHINA" : [ 0, 400, 800, 1200, 1600, 2000, 2400, 2800, 3000, 3000, 3000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "JAPAN" : [ 0, 800, 1600, 0, 800, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 0, 0, 0 ],
+      "VIETNAM" : [ 0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "INDONESIA" : [ 0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    },
+    "production" : {
+      "CHINA" : [ 400, 400, 400, 400, 400, 400, 400, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "JAPAN" : [ 800, 800, 400, 800, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "VIETNAM" : [ 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "INDONESIA" : [ 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    }
+  }, {
+    "type" : "FAST",
+    "label" : "가장 빠르게",
+    "totalDays" : 20,
+    "productionCost" : 7800000000,
+    "shippingCost" : 3200000000,
+    "totalCost" : 11000000000,
+    "ships" : [ {
+      "no" : 1,
+      "trips" : [ {
+        "departDay" : 10,
+        "returnDay" : 20,
+        "stops" : [ {
+          "country" : "CHINA",
+          "arriveDay" : 11,
+          "leaveDay" : 11,
+          "loadK" : 3000
+        }, {
+          "country" : "VIETNAM",
+          "arriveDay" : 15,
+          "leaveDay" : 15,
+          "loadK" : 3000
+        } ]
+      } ],
+      "sailDays" : 10
+    }, {
+      "no" : 2,
+      "trips" : [ {
+        "departDay" : 1,
+        "returnDay" : 5,
+        "stops" : [ {
+          "country" : "JAPAN",
+          "arriveDay" : 3,
+          "leaveDay" : 3,
+          "loadK" : 2000
+        } ]
+      }, {
+        "departDay" : 5,
+        "returnDay" : 9,
+        "stops" : [ {
+          "country" : "JAPAN",
+          "arriveDay" : 7,
+          "leaveDay" : 7,
+          "loadK" : 1000
+        } ]
+      } ],
+      "sailDays" : 8
+    }, {
+      "no" : 3,
+      "trips" : [ {
+        "departDay" : 3,
+        "returnDay" : 17,
+        "stops" : [ {
+          "country" : "INDONESIA",
+          "arriveDay" : 10,
+          "leaveDay" : 10,
+          "loadK" : 3000
+        } ]
+      } ],
+      "sailDays" : 14
+    } ],
+    "stock" : {
+      "CHINA" : [ 0, 400, 800, 1200, 1600, 2000, 2400, 2800, 3000, 3000, 3000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "JAPAN" : [ 0, 800, 1600, 0, 800, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "VIETNAM" : [ 0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 0, 0, 0, 0, 0, 0 ],
+      "INDONESIA" : [ 0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    },
+    "production" : {
+      "CHINA" : [ 400, 400, 400, 400, 400, 400, 400, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "JAPAN" : [ 800, 800, 400, 800, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "VIETNAM" : [ 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 0, 0, 0, 0, 0 ],
+      "INDONESIA" : [ 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    }
+  }, {
+    "type" : "NEAR",
+    "label" : "가까운 곳부터",
+    "totalDays" : 21,
+    "productionCost" : 7800000000,
+    "shippingCost" : 3200000000,
+    "totalCost" : 11000000000,
+    "ships" : [ {
+      "no" : 1,
+      "trips" : [ {
+        "departDay" : 7,
+        "returnDay" : 21,
+        "stops" : [ {
+          "country" : "CHINA",
+          "arriveDay" : 8,
+          "leaveDay" : 8,
+          "loadK" : 3000
+        }, {
+          "country" : "INDONESIA",
+          "arriveDay" : 14,
+          "leaveDay" : 14,
+          "loadK" : 3000
+        } ]
+      } ],
+      "sailDays" : 14
+    }, {
+      "no" : 2,
+      "trips" : [ {
+        "departDay" : 1,
+        "returnDay" : 5,
+        "stops" : [ {
+          "country" : "JAPAN",
+          "arriveDay" : 3,
+          "leaveDay" : 3,
+          "loadK" : 2000
+        } ]
+      }, {
+        "departDay" : 5,
+        "returnDay" : 9,
+        "stops" : [ {
+          "country" : "JAPAN",
+          "arriveDay" : 7,
+          "leaveDay" : 7,
+          "loadK" : 1000
+        } ]
+      } ],
+      "sailDays" : 8
+    }, {
+      "no" : 3,
+      "trips" : [ {
+        "departDay" : 10,
+        "returnDay" : 20,
+        "stops" : [ {
+          "country" : "VIETNAM",
+          "arriveDay" : 15,
+          "leaveDay" : 15,
+          "loadK" : 3000
+        } ]
+      } ],
+      "sailDays" : 10
+    } ],
+    "stock" : {
+      "CHINA" : [ 0, 400, 800, 1200, 1600, 2000, 2400, 2800, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "JAPAN" : [ 0, 800, 1600, 0, 800, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "VIETNAM" : [ 0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 0, 0, 0, 0, 0, 0, 0 ],
+      "INDONESIA" : [ 0, 300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3000, 3000, 3000, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    },
+    "production" : {
+      "CHINA" : [ 400, 400, 400, 400, 400, 400, 400, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "JAPAN" : [ 800, 800, 400, 800, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ],
+      "VIETNAM" : [ 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 0, 0, 0, 0, 0, 0 ],
+      "INDONESIA" : [ 300, 300, 300, 300, 300, 300, 300, 300, 300, 300, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    }
+  } ]
+}
