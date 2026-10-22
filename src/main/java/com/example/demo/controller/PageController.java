@@ -26,6 +26,15 @@ public class PageController {
 		return "forward:/login.html";
 	}
 
+	/** 가입 화면은 로그인 전에 열려야 한다(G8 의 예외). 이미 로그인했으면 주문 목록으로 보낸다. */
+	@GetMapping("/signup")
+	public String signup(HttpSession session) {
+		if (session.getAttribute(LoginInterceptor.SESSION_USER) != null) {
+			return "redirect:/orders";
+		}
+		return "forward:/signup.html";
+	}
+
 	@GetMapping("/orders")
 	public String orders() {
 		return "forward:/orders.html";
