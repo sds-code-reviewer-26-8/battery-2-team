@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.demo.entity.Member;
+import com.example.demo.entity.Role;
 import com.example.demo.repository.MemberRepository;
 import com.example.demo.service.BusinessException;
 import com.example.demo.service.MemberService;
@@ -87,8 +88,8 @@ class MemberServiceTest {
 	@Test
 	void databaseKeepsUsernamesUnique() {
 		String name = TestAccounts.newUsername();
-		repository.saveAndFlush(new Member(name, "hash", LocalDateTime.now()));
-		assertThatThrownBy(() -> repository.saveAndFlush(new Member(name, "hash", LocalDateTime.now())))
+		repository.saveAndFlush(new Member(name, "hash", Role.ADMIN, LocalDateTime.now()));
+		assertThatThrownBy(() -> repository.saveAndFlush(new Member(name, "hash", Role.ADMIN, LocalDateTime.now())))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
@@ -96,6 +97,28 @@ class MemberServiceTest {
 	void adminAccountCannotBeTakenOver() {
 		assertThatThrownBy(() -> signup("admin")).isInstanceOfSatisfying(BusinessException.class,
 				e -> assertThat(e.isConflict()).isTrue());
+	}
+
+	// ---------------------------------------------------------------- 권한
+
+	/** 권한을 아직 나누지 않았으므로 가입한 회원은 admin 과 같은 ADMIN 권한을 갖는다. */
+	@Test
+	void signedUpMemberGetsTheSameRoleAsAdmin() {
+		String name = TestAccounts.newUsername();
+		Member m = signup(name);
+		assertThat(m.getRole()).isEqualTo(Role.ADMIN);
+		assertThat(repository.findByUsername(name).orElseThrow().getRole()).isEqualTo(Role.ADMIN);
+		assertThat(service.roleOf(name)).contains(Role.ADMIN);
+		assertThat(service.roleOf("  " + name.toUpperCase())).contains(Role.ADMIN);
+		assertThat(service.roleOf("admin")).contains(Role.ADMIN);
+		assertThat(repository.findByUsername("admin").orElseThrow().getRole()).isEqualTo(Role.ADMIN);
+		assertThat(service.roleOf("nobody" + name)).isEmpty();
+	}
+
+	@Test
+	void everyMemberInTheDatabaseHasARole() {
+		signup(TestAccounts.newUsername());
+		assertThat(repository.findAll()).isNotEmpty().allMatch(m -> m.getRole() == Role.ADMIN);
 	}
 
 	// ---------------------------------------------------------------- 입력 검증

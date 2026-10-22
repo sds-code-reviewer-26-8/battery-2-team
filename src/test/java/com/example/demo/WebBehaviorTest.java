@@ -216,7 +216,8 @@ class WebBehaviorTest {
 	@Test
 	void loginSetsSessionAndMeReturnsTheUser() throws Exception {
 		MockHttpSession s = login();
-		mvc.perform(get("/api/me").session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin"));
+		mvc.perform(get("/api/me").session(s)).andExpect(status().isOk()).andExpect(jsonPath("$.username").value("admin"))
+				.andExpect(jsonPath("$.role").value("ADMIN"));
 	}
 
 	@Test

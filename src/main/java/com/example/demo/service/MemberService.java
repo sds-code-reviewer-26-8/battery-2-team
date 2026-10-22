@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.Member;
+import com.example.demo.entity.Role;
 import com.example.demo.repository.MemberRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -29,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
 	public static final String DEFAULT_SIGNUP_CODE = "signup";
+	/** 권한을 아직 나누지 않았으므로 가입한 회원도 처음 만든 admin 과 같은 권한을 갖는다. */
+	public static final Role DEFAULT_ROLE = Role.ADMIN;
 	private static final Logger log = LoggerFactory.getLogger(MemberService.class);
 
 	static final int MIN_USERNAME = 4;
@@ -71,7 +74,7 @@ public class MemberService {
 		if (members.existsByUsername(username)) {
 			return;
 		}
-		members.save(new Member(username, encoder.encode(initialPassword), LocalDateTime.now()));
+		members.save(new Member(username, encoder.encode(initialPassword), Role.ADMIN, LocalDateTime.now()));
 		if ("admin".equals(username) && "admin".equals(initialPassword)) {
 			log.warn("로그인 계정이 기본값(admin/admin)입니다. 운영 환경에서는 app.login.username / app.login.password 를 설정하세요.");
 		}
@@ -115,7 +118,7 @@ public class MemberService {
 			throw duplicate();
 		}
 		try {
-			return members.saveAndFlush(new Member(name, encoder.encode(pw), LocalDateTime.now()));
+			return members.saveAndFlush(new Member(name, encoder.encode(pw), DEFAULT_ROLE, LocalDateTime.now()));
 		} catch (DataIntegrityViolationException e) {
 			// 같은 아이디로 동시에 가입한 경우(유일 제약)
 			throw duplicate();
@@ -129,6 +132,12 @@ public class MemberService {
 		Optional<Member> member = members.findByUsername(normalize(username));
 		boolean ok = encoder.matches(pw, member.map(Member::getPasswordHash).orElse(dummyHash));
 		return ok ? member.map(Member::getUsername) : Optional.empty();
+	}
+
+	/** 아이디의 권한. 없는 아이디면 비어 있다. */
+	@Transactional(readOnly = true)
+	public Optional<Role> roleOf(String username) {
+		return members.findByUsername(normalize(username)).map(Member::getRole);
 	}
 
 	private static String normalize(String username) {

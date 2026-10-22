@@ -62,6 +62,8 @@ public class AuthApiController {
 
 	@GetMapping("/me")
 	public Map<String, String> me(@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
-		return Map.of("username", user);
+		// 권한은 아직 어떤 기능도 제한하지 않는다. 화면이 나중에 쓸 수 있도록 알려 주기만 한다.
+		String role = members.roleOf(user).orElse(MemberService.DEFAULT_ROLE).name();
+		return Map.of("username", user, "role", role);
 	}
 }

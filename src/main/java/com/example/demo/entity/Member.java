@@ -2,6 +2,8 @@ package com.example.demo.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -25,15 +27,24 @@ public class Member {
 	@Column(nullable = false, length = 100)
 	private String passwordHash;
 
+	/**
+	 * 권한. 지금은 모든 회원이 ADMIN 이다(권한별 제한은 아직 없음).
+	 * 기존 DB 의 회원 행에도 열이 추가될 때 ADMIN 이 채워지도록 기본값을 DB 에 둔다.
+	 */
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'ADMIN' not null")
+	private Role role;
+
 	@Column(nullable = false)
 	private LocalDateTime createdAt;
 
 	protected Member() {
 	}
 
-	public Member(String username, String passwordHash, LocalDateTime createdAt) {
+	public Member(String username, String passwordHash, Role role, LocalDateTime createdAt) {
 		this.username = username;
 		this.passwordHash = passwordHash;
+		this.role = role;
 		this.createdAt = createdAt;
 	}
 
@@ -47,6 +58,10 @@ public class Member {
 
 	public String getPasswordHash() {
 		return passwordHash;
+	}
+
+	public Role getRole() {
+		return role;
 	}
 
 	public LocalDateTime getCreatedAt() {
