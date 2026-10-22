@@ -58,7 +58,7 @@ test('No.35 기준값 변경은 이미 확정된 주문의 계획을 바꾸지 �
     // Pass 2 — 새 시뮬레이션은 변경된 값으로 계산된다 (배 1척, 총 비용 증가)
     await page.goto('/orders/new');
     await runSimulation(page);
-    const cost = await page.locator('#options .option', { hasText: '운항비 최소' }).innerText();
+    const cost = await page.locator('#options .option', { hasText: '총 비용 최소' }).innerText();
     expect(cost).toContain('배 1척');
     const oldCost = Number(before.summary.match(/총 비용 ([\d.]+)억원/)![1]);
     const newCost = Number(cost.match(/총 비용 ([\d.]+)억원/)![1]);

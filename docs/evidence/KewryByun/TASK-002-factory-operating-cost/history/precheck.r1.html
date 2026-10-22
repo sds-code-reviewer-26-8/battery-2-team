@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 사전 점검</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; padding: 28px 16px 64px; }
+  .hero.hilp { background: linear-gradient(135deg, #d97706, #dc2626); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.2); font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.55rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .9; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: .82rem; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid2 .card { margin-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  ul.ev { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem; }
+  .meter { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .meter i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }
+  .meter i.on.low { background: var(--ok); } .meter i.on.medium { background: var(--warn); } .meter i.on.high { background: var(--bad); }
+  .risk { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; background: var(--bg); border-radius: 0 10px 10px 0; }
+  .risk.low { border-color: var(--ok); } .risk.medium { border-color: var(--warn); } .risk.high { border-color: var(--bad); }
+  .alert { border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  .tc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .tc header { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .tc code { font-size: .85rem; color: var(--muted); }
+  .tc dl { margin: 8px 0 0; display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; font-size: .88rem; }
+  .tc dt { color: var(--muted); } .tc dd { margin: 0; white-space: pre-wrap; }
+  .check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .check:first-of-type { border-top: 0; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .check b { display: block; } .check.done b { text-decoration: line-through; color: var(--muted); }
+  .progress { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .plan { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 14px; font-size: .9rem; }
+  details summary { cursor: pointer; font-weight: 700; }
+  ol.q { margin: 8px 0 0; padding-left: 20px; } ol.q li { margin-bottom: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero">
+  <div class="wrap">
+    <span class="badge" id="badge"></span>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="hilpBox"></div>
+  <div class="grid2">
+    <section class="card"><h2>🧭 배경 이해</h2><div id="bg"></div></section>
+    <section class="card"><h2>🎯 목적 이해</h2><div id="pu"></div></section>
+  </div>
+  <section class="card" style="margin-top:16px"><h2>⚠️ 변경 규모와 위험</h2><div id="risk"></div></section>
+  <section class="card"><h2>🧪 테스트 점검</h2>
+    <div class="chips" id="chips"></div>
+    <div id="tcs"></div>
+  </section>
+  <section class="card"><h2>✅ 구현 후 꼭 확인할 3가지</h2>
+    <div class="progress"><i id="bar"></i></div><div class="small muted" id="barTxt"></div>
+    <div id="checks"></div>
+  </section>
+  <section class="card" id="planCard"><h2>🗺️ 구현 계획</h2><div class="plan" id="plan"></div></section>
+</main>
+<footer>impl-plan 사전 점검 · 이 페이지는 계획 단계의 점검 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"공장 운영비(기본 하루 10억)를 master 화면에서 설정하고, 시뮬레이션 알고리즘이 이를 고려하게 한다","round":1,"status":"HILP","reason":"(1) 운영비 계산 방식이 INTENT §7-3에서 [미결]이고 요청만으로 기대 동작이 둘 이상으로 갈린다. (2) G6에 따라 PRD §5·F12·§10-3 수정이 선행되어야 하는데 docs/PRD-INTENT/* 는 팀 공용 파일이다. (3) 운영비 10억/일은 선박비 1억/일의 10배라 3가지 안의 결과가 크게 바뀌므로 위험도 high.","questions":["Q1. 운영비는 어느 기간에 얼마가 드는가? 선택지: (A) 4개 공장 모두 주문일(0일차)부터 총 소요일(마지막 배 귀환)까지 매일 부과, (B) 주문이 있는 공장만 0일차부터 총 소요일까지 매일 부과, (C) 주문이 있는 공장만 그 공장의 마지막 수거일까지 부과. 추천: (B). 주문이 없는 공장에는 비용이 없고, 빨리 끝낼수록 유리하다는 INTENT §5의 설명과 맞으며 규칙이 단순하다.","Q2. 10억은 공장 1곳당 하루 값인가, 전체 합계인가? 국가별로 다르게 둘 수 있어야 하는가(PRD F12는 국가별로 다름)? 선택지: (A) 공장별 입력칸 4개, 기본값 각 10억, (B) 전체 공통 입력칸 1개. 추천: (A). F12의 국가별 서술과 맞고 나중에 값을 따로 조정할 수 있다.","Q3. 3가지 안의 선택 기준에 운영비를 넣는가? 선택지: (A) COST 안은 총 비용(생산원가+운항비+운영비) 기준으로 고르고 FAST는 그대로, (B) COST 안의 기준은 운항비 그대로 두고 운영비는 표시만 한다. 추천: (A). 요청이 알고리즘이 운영비를 고려하라는 것이고 INTENT §5도 가장 좋은 경로가 달라질 수 있다고 적었다. 이 경우 PRD §5-10의 '운항비 최소' 정의와 이름도 함께 바꿔야 한다.","Q4. 팀 공용 문서(docs/PRD-INTENT/team/PRD.md, INTENT.md) 수정을 이번 작업에서 해도 되는가? G6은 계산 규칙을 바꾸면 PRD §5와 예시 숫자를 먼저 고치라고 한다. 수정 대상: §4 F12 상태, §5-8 비용 정의, §5-10, 숫자 예시, §9, §10-3, INTENT §5·§7-3. 추천: 허용하고 같은 PR에 포함한다.","Q5. 기존 확정 주문은 어떻게 보이는가? 추천: 기존 주문은 운영비 0원으로 표시하고 합계를 다시 계산하지 않는다(G1). 이에 동의하는가? 또 총 비용에 운영비 항목이 새로 생기므로 주문 목록·상세·시뮬레이션 화면에 운영비 행을 추가해도 되는가?"],"background":{"understood":true,"summary":"DSD는 4개국 자체 공장을 직접 운영하며 운영비가 든다. 현재 총 비용은 생산원가+운항비뿐이라 실제보다 작게 나온다. PRD는 이를 F12 [미구현]으로 두었고, 운영비가 들어오면 빨리 끝내는 경로가 유리해져 최적 경로가 달라질 수 있다고 INTENT §5에 적었다.","evidence":["docs/PRD-INTENT/team/PRD.md §4 F12, §5-8, §9, §10-3","docs/PRD-INTENT/team/INTENT.md §5 공장 운영비 미반영, §7-3 [미결]","src/main/java/com/example/demo/simulation/Planner.java schedule()/toPlan(): 총 비용 = productionCost + shipping","src/main/java/com/example/demo/entity/Setting.java: 선박 값만 있고 운영비 필드 없음"]},"purpose":{"understood":true,"summary":"master 화면에서 운영비를 억 원 단위로 입력·저장하고(기본 10억/일), 시뮬레이션 비용 계산과 경로 선택에 반영해 담당자가 실제에 가까운 비용으로 3가지 안을 비교하게 한다. 확정 주문은 불변이고 확정 시 서버가 같은 기준으로 재계산해야 한다.","evidence":["docs/PRD-INTENT/team/INTENT.md I1, I3, I8, G1, G2, G3, G5, G6, G7","src/main/java/com/example/demo/service/MasterService.java updateMaster(): 오류를 모아 전부 거절, 저장 시 masterVersion 증가","src/main/java/com/example/demo/service/OrderService.java: 확정 시 서버 재계산, planJson에 master 스냅샷 저장","src/main/resources/static/js/master.js, planview.js, anim.js: 운항비 입력·표시·애니메이션 비용 계산"]},"risk":{"size":"large","severity":"high","userAware":true,"warning":"운영비 10억/일은 선박비 1억/일의 10배라 추가하면 3가지 안의 순위와 총 비용이 크게 달라진다. 확정된 기존 주문은 바뀌면 안 된다.","items":[{"title":"팀 공용 문서 수정 필요","detail":"G6 때문에 PRD §5와 예시 숫자, F12, INTENT §7-3을 먼저 고쳐야 한다. docs/PRD-INTENT/* 는 팀 공용 파일이라 사람의 승인이 필요하다.","severity":"high"},{"title":"계산 방식 미결","detail":"일 단위인지 건당인지, 어느 공장에 어느 기간 부과하는지가 정해지지 않았다. 구현 방식에 따라 3가지 안의 결과가 달라진다.","severity":"high"},{"title":"확정 주문 불변(G1, I4)","detail":"StoredPlan에 저장된 master 스냅샷에는 운영비 필드가 없다. 새 필드를 record에 추가하면 과거 planJson 역직렬화가 실패하거나 0으로 읽혀 화면 합계가 어긋날 수 있다. 과거 주문을 재계산하면 안 된다.","severity":"high"},{"title":"알고리즘 선택 기준 변경","detail":"Planner.plan()의 COST 선택이 shipping 기준이다. 총 비용 기준으로 바꾸면 INTENT §5의 순서 성질과 PlannerTest의 일부 단언이 깨질 수 있다. 동률 우선순위는 유지해야 한다.","severity":"medium"},{"title":"기준값 검증·버전 충돌(D2, D5, G3)","detail":"운영비 입력도 오류를 모아 한 번에 알리고 저장하지 않아야 하며, 저장하면 masterVersion이 증가해 이전 시뮬레이션의 확정이 거절되어야 한다. 억 단위 입력과 원 단위 저장(WON_PER_EOK)을 지켜야 한다.","severity":"medium"},{"title":"스키마·기존 DB","detail":"ddl-auto=update 로 컬럼을 추가하면 기존 H2 행의 값이 null/0이 된다. 기본값 10억 보정 방법이 필요하다(primitive 컬럼 추가 시 기동 실패 가능).","severity":"medium"},{"title":"기존 e2e·화면 영향","detail":"master-default-values.spec.ts 는 입력칸을 이름으로 검증하므로 새 칸 추가는 호환되지만, 총 비용 표시 화면은 영향받는다. Plan record 필드가 늘면 orders.js, planview.js, order-new.js, anim.js도 고쳐야 한다.","severity":"medium"}]},"testCases":[{"id":"TC-1","origin":"existing","kind":"regression","target":"PlannerTest.productionCostIsCellsTimesUnitCost, singleSmallOrderTakesProductionPlusRoundTrip, defaultOrderSummary","description":"기존 생산원가·운항비·소요일 계산이 운영비 추가 후에도 유지되는지 확인 (운영비 0으로 두면 기존 숫자와 같아야 한다)","input":"기본 기준값, 운영비 0","expected":"기존 단언이 그대로 통과"},{"id":"TC-2","origin":"existing","kind":"regression","target":"PlannerTest.costOptionIsNotMoreExpensiveAndFastOptionIsNotSlower, everyOptionCollectsExactlyWhatWasOrdered, usesAtMostAvailableShips","description":"3가지 안의 순서 성질과 항상 지켜져야 하는 조건이 유지되는지","input":"기본 기준값 + 운영비 10억","expected":"수거량 합=주문량, 총 비용은 구성 요소의 합, 선택 기준 정의에 맞는 순서"},{"id":"TC-3","origin":"existing","kind":"regression","target":"OrderFlowTests.confirmFailsWhenMasterChangedAfterSimulation, masterUpdateBumpsVersionAndKeepsConfirmedPlans, invalidMasterIsNotSaved","description":"운영비 변경이 masterVersion을 올리고 기존 확정 주문은 유지, 잘못된 입력은 저장 안 됨","input":"운영비 변경 후 확정 / 잘못된 값 저장","expected":"확정 409 거절, 기존 주문 계획 불변, 오류 시 전체 미저장"},{"id":"TC-4","origin":"existing","kind":"regression","target":"master-default-values.spec.ts (No.28), master-change-keeps-order.spec.ts (No.35), master-change-confirm-conflict.spec.ts (No.18)","description":"master 화면 기본값 표시, 기준값 변경 후에도 확정 주문 불변, 변경 후 확정 거절","input":"E2E 시나리오","expected":"기존 pass 조건 유지, 새 운영비 입력칸이 기본 10억으로 보임"},{"id":"TC-5","origin":"new","kind":"feature","target":"Planner 총 비용 = 생산원가 + 운항비 + 운영비","description":"베트남 2,000K 단독 주문(소요 15일, 배 1척)에서 운영비가 정해진 기간·단가대로 더해지는지 (Q1 답에 따라 일수 확정)","input":"VIETNAM 2000, 운영비 10억/일","expected":"totalCost = productionCost + shippingCost + operatingCost, 운영비 = 기간 x 10억"},{"id":"TC-6","origin":"new","kind":"boundary","target":"운영비 입력 검증 (MasterService.updateMaster)","description":"경계값: 0, 음수, 문자, 소수 억 단위(0.5), 원 단위로 안 떨어지는 값, 매우 큰 값","input":"0 / -1 / abc / 0.5 / 0.000000001 / 1000000","expected":"허용 범위 안은 저장, 밖은 이유를 알려 주고 아무것도 저장하지 않음(다른 오류와 함께 모두 표시)"},{"id":"TC-7","origin":"new","kind":"feature","target":"운영비가 경로 선택을 바꾸는지 (Planner)","description":"운영비가 0이면 기존과 같은 경로, 크면 더 빨리 끝나는 경로가 선택되는지","input":"여러 나라 주문, 운영비 0 vs 10억 vs 100억","expected":"운영비가 클수록 COST 안의 총 소요일이 같거나 짧아짐, 동률이면 더 빠른 쪽"},{"id":"TC-8","origin":"new","kind":"regression","target":"과거 확정 주문 역직렬화 (OrderService, StoredPlan)","description":"운영비 필드가 없는 과거 planJson으로 상세 화면이 정상 표시되고 합계가 재계산되지 않는지(G1)","input":"운영비 필드 없는 planJson이 저장된 주문 조회","expected":"오류 없이 표시, 저장된 총 비용 그대로"},{"id":"TC-9","origin":"new","kind":"feature","target":"서버 재계산(G2) 주문 확정 API","description":"확정할 때 클라이언트가 보낸 값과 무관하게 운영비를 포함해 서버가 다시 계산해 저장하는지","input":"시뮬레이션 후 확정, 저장된 주문의 totalCost 조회","expected":"시뮬레이션 화면의 총 비용과 저장 값이 같고 운영비 포함"},{"id":"TC-10","origin":"new","kind":"feature","target":"factory-operating-cost.spec.ts (E2E)","description":"master 화면에서 기본 10억 확인, 값 변경 저장, 시뮬레이션에 운영비가 보임, 원래 값으로 복구","input":"/master, /orders/new","expected":"입력칸 기본 10, 변경 후 시뮬레이션 총 비용에 운영비 반영, 테스트 끝에서 값 원복"}],"checklist":[{"title":"운영비가 3가지 안 비용과 경로 선택에 반영된다","detail":"총 비용에 운영비가 별도 항목으로 보이고 합이 맞으며, 운영비 0이면 기존 결과와 같다. Q1·Q3 답대로 일수·선택 기준이 구현되고 동률 우선순위가 유지된다."},{"title":"master 입력·검증·버전이 기존 규칙을 따른다","detail":"기본값 10억이 표시되고 잘못된 값은 이유와 함께 전체 거절(미저장)되며, 저장하면 masterVersion이 올라 이전 시뮬레이션 확정이 409로 거절된다. 억 단위 표시와 원 단위 저장이 유지된다."},{"title":"확정 주문은 불변이고 서버가 재계산한다","detail":"운영비 필드가 없는 과거 주문이 오류 없이 같은 값으로 보이고, 새 주문은 서버 재계산 값이 저장된다. PlannerTest·OrderFlowTests·관련 e2e 회귀가 통과하고 PRD/INTENT 갱신 내용과 PR Description의 Green/Yellow/Red가 일치한다."}],"plan":""}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">점검 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pill(text, kind) { return el('span', 'pill ' + kind, text); }
+
+  var hilp = D.status === 'HILP';
+  $('hero').classList.toggle('hilp', hilp);
+  $('badge').textContent = hilp ? '⏸ HILP — 사람의 판단이 필요합니다' : '✔ READY — 구현을 진행할 수 있습니다';
+  $('title').textContent = D.request || '구현 사전 점검';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (hilp ? (D.reason || '') : '배경·목적·위험·테스트를 점검했습니다');
+  document.title = (hilp ? '[HILP] ' : '[READY] ') + '구현 사전 점검';
+
+  var tcs = D.testCases || [];
+  var tiles = [
+    ['점검 결과', hilp ? 'HILP' : 'READY'],
+    ['테스트 케이스', tcs.length],
+    ['신규 작성', tcs.filter(function (t) { return t.origin === 'new'; }).length],
+    ['위험도', ({ low: '낮음', medium: '보통', high: '높음' })[(D.risk || {}).severity] || '-']
+  ];
+  tiles.forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  if (hilp) {
+    var box = el('section', 'card'); box.style.borderColor = 'var(--bad)';
+    box.appendChild(el('h2', '', '🙋 사람이 답해야 할 질문'));
+    if (D.risk && D.risk.warning && !D.risk.userAware) box.appendChild(el('div', 'alert', '경고: ' + D.risk.warning));
+    var ol = el('ol', 'q'); (D.questions || []).forEach(function (q) { ol.appendChild(el('li', '', q)); });
+    box.appendChild(ol); $('hilpBox').appendChild(box);
+  }
+
+  function understanding(root, u) {
+    u = u || {};
+    root.appendChild(pill(u.understood ? '이해함' : '이해하지 못함', u.understood ? 'ok' : 'bad'));
+    root.appendChild(el('p', '', u.summary || '(내용 없음)'));
+    if ((u.evidence || []).length) { var ul = el('ul', 'ev'); u.evidence.forEach(function (x) { ul.appendChild(el('li', '', x)); }); root.appendChild(ul); }
+  }
+  understanding($('bg'), D.background); understanding($('pu'), D.purpose);
+
+  var R = D.risk || {}, lv = { low: 1, medium: 2, high: 3 }[R.severity] || 0;
+  var sz = ({ small: '작음', medium: '보통', large: '큼' })[R.size] || '-';
+  var rr = $('risk');
+  rr.appendChild(pill('변경 규모: ' + sz, 'info')); rr.appendChild(document.createTextNode(' '));
+  rr.appendChild(pill('위험도: ' + (({ low: '낮음', medium: '보통', high: '높음' })[R.severity] || '-'), R.severity === 'high' ? 'bad' : R.severity === 'medium' ? 'warn' : 'ok'));
+  rr.appendChild(document.createTextNode(' ')); rr.appendChild(pill(R.userAware ? '사용자가 인지함' : '사용자 인지 여부 불명', R.userAware ? 'ok' : 'warn'));
+  var m = el('div', 'meter'); for (var i = 1; i <= 3; i++) m.appendChild(el('i', i <= lv ? 'on ' + R.severity : '')); rr.appendChild(m);
+  if (R.warning) rr.appendChild(el('div', 'alert warn', R.warning));
+  (R.items || []).forEach(function (x) { var b = el('div', 'risk ' + (x.severity || '')); b.appendChild(el('b', '', x.title || '')); if (x.detail) b.appendChild(el('div', 'small muted', x.detail)); rr.appendChild(b); });
+  if (!R.warning && !(R.items || []).length) rr.appendChild(el('p', 'muted', '특별한 위험 요소를 찾지 못했습니다.'));
+
+  var filter = 'all', q = '';
+  var defs = [['all', '전체'], ['existing', '기존'], ['new', '신규'], ['regression', '회귀'], ['boundary', '경계값']];
+  function match(t) {
+    if (filter === 'existing' || filter === 'new') { if (t.origin !== filter) return false; }
+    else if (filter !== 'all' && t.kind !== filter) return false;
+    var s = (t.id + ' ' + t.target + ' ' + t.description + ' ' + t.input + ' ' + t.expected).toLowerCase();
+    return !q || s.indexOf(q) >= 0;
+  }
+  function drawTcs() {
+    var root = $('tcs'); root.textContent = '';
+    var list = tcs.filter(match);
+    if (!list.length) { root.appendChild(el('div', 'empty', '조건에 맞는 테스트 케이스가 없습니다.')); return; }
+    list.forEach(function (t) {
+      var c = el('div', 'tc'), h = el('header');
+      h.appendChild(pill(t.origin === 'new' ? '신규' : '기존', t.origin === 'new' ? 'acc' : 'info'));
+      h.appendChild(pill(({ regression: '회귀', boundary: '경계값', feature: '기능' })[t.kind] || t.kind || '', t.kind === 'boundary' ? 'warn' : t.kind === 'regression' ? 'ok' : 'info'));
+      h.appendChild(el('code', '', t.id || '')); c.appendChild(h);
+      c.appendChild(el('b', '', t.description || ''));
+      var dl = el('dl');
+      [['대상', t.target], ['입력', t.input], ['기대', t.expected]].forEach(function (p) { if (p[1]) { dl.appendChild(el('dt', '', p[0])); dl.appendChild(el('dd', '', p[1])); } });
+      c.appendChild(dl); root.appendChild(c);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); drawTcs(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 케이스 검색'; s.oninput = function () { q = s.value.toLowerCase(); drawTcs(); }; $('chips').appendChild(s);
+  drawTcs();
+
+  var key = 'precheck:' + (D.request || '') + ':' + (D.round || 0), saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  var cl = D.checklist || [];
+  function progress() {
+    var n = cl.filter(function (_, i) { return saved[i]; }).length;
+    $('bar').style.width = (cl.length ? n / cl.length * 100 : 0) + '%';
+    $('barTxt').textContent = n + ' / ' + cl.length + ' 확인함';
+  }
+  cl.forEach(function (c, i) {
+    var lab = el('label', 'check' + (saved[i] ? ' done' : '')), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!saved[i];
+    var box = el('div'); box.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); if (c.detail) box.appendChild(el('span', 'small muted', c.detail));
+    cb.onchange = function () { saved[i] = cb.checked; lab.classList.toggle('done', cb.checked); try { localStorage.setItem(key, JSON.stringify(saved)); } catch (e) {} progress(); };
+    lab.appendChild(cb); lab.appendChild(box); $('checks').appendChild(lab);
+  });
+  progress();
+
+  if (D.plan) $('plan').textContent = D.plan; else $('planCard').hidden = true;
+})();
+</script>
+</body>
+</html>

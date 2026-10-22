@@ -8,7 +8,7 @@ import { changeStatus, runSimulation } from './ui-helpers';
  * 시나리오  핵심 업무 흐름: 확정 → 진행 → 완료, 완료는 최종 상태
  * 절차      [사전 조건] 로그인 상태, 완료 건수 기록
  *           1. 기본값(12,000K)으로 시뮬레이션 실행
- *           2. '운항비 최소' 선택, 메모 입력 후 주문 확정
+ *           2. '총 비용 최소' 선택, 메모 입력 후 주문 확정
  *           3. 상세에서 '진행(으)로 변경' → 확인창 수락
  *           4. '완료(으)로 변경' → 확인창 수락
  *           5. 주문 목록으로 이동
@@ -40,8 +40,8 @@ test('No.22 핵심 업무 흐름: 확정 → 진행 → 완료, 완료는 최종
   await expect(page.locator('#total')).toHaveValue('12000');
   await runSimulation(page);
 
-  // 절차 2 — '운항비 최소' 선택, 메모 입력 후 주문 확정
-  await page.locator('#options .option', { hasText: '운항비 최소' }).click();
+  // 절차 2 — '총 비용 최소' 선택, 메모 입력 후 주문 확정
+  await page.locator('#options .option', { hasText: '총 비용 최소' }).click();
   await page.locator('#memo').fill('No.22 핵심 업무 흐름 테스트');
   await page.locator('#confirmBtn').click();
 

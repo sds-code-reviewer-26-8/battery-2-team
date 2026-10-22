@@ -27,6 +27,11 @@ public class Factory {
 	@Column(nullable = false)
 	private long unitCost;
 
+	public static final long DEFAULT_OPERATING_COST = 1_000_000_000L;
+
+	/** 하루 운영비(원). 이 컬럼이 생기기 전의 행(null)은 기본값 10억으로 본다. */
+	private Long operatingCost;
+
 	protected Factory() {
 	}
 
@@ -35,6 +40,12 @@ public class Factory {
 		this.maxDaily = maxDaily;
 		this.stockLimit = stockLimit;
 		this.unitCost = unitCost;
+		this.operatingCost = DEFAULT_OPERATING_COST;
+	}
+
+	public Factory(Country country, int maxDaily, int stockLimit, long unitCost, long operatingCost) {
+		this(country, maxDaily, stockLimit, unitCost);
+		this.operatingCost = operatingCost;
 	}
 
 	public Country getCountry() {
@@ -63,5 +74,13 @@ public class Factory {
 
 	public void setUnitCost(long unitCost) {
 		this.unitCost = unitCost;
+	}
+
+	public long getOperatingCost() {
+		return operatingCost == null ? DEFAULT_OPERATING_COST : operatingCost;
+	}
+
+	public void setOperatingCost(long operatingCost) {
+		this.operatingCost = operatingCost;
 	}
 }

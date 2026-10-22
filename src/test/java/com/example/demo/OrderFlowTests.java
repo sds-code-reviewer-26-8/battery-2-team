@@ -157,6 +157,7 @@ class OrderFlowTests {
 			form.put("maxDaily_" + c, "500");
 			form.put("stockLimit_" + c, "5000");
 			form.put("unitCost_" + c, "600");
+			form.put("operatingCost_" + c, "10");
 		}
 		String[] all = {"KOREA", "CHINA", "JAPAN", "VIETNAM", "INDONESIA"};
 		for (int i = 0; i < all.length; i++) {

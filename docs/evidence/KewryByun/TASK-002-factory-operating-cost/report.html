@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 검증 리포트</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, #059669, #0891b2); color: #fff; padding: 28px 16px 64px; }
+  .hero.fail { background: linear-gradient(135deg, #dc2626, #9333ea); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; gap: 8px; padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.2);
+    font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.5rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .92; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; } .tile span { color: var(--muted); font-size: .82rem; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); } .pill.info { background: var(--info-soft); color: var(--info); }
+  .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; border-left-width: 4px; }
+  .item.ok { border-left-color: var(--ok); } .item.bad { border-left-color: var(--bad); } .item.warn { border-left-color: var(--warn); }
+  .item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .item p { margin: 6px 0 0; font-size: .9rem; white-space: pre-wrap; }
+  .bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0; }
+  .bar i { display: block; height: 100%; } .bar .p { background: var(--ok); } .bar .f { background: var(--bad); } .bar .s { background: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; } td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feedback { border: 2px dashed var(--bad); border-radius: 14px; padding: 14px 16px; background: var(--bad-soft); }
+  .feedback h3 { margin: 0 0 6px; color: var(--bad); font-size: 1rem; } .feedback ul { margin: 4px 0 8px; padding-left: 20px; }
+  pre { background: var(--bg); border-radius: 10px; padding: 10px 12px; overflow: auto; font-size: .82rem; margin: 6px 0 0; white-space: pre-wrap; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  a { color: var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero"><div class="wrap">
+  <span class="badge" id="badge"></span><h1 id="title"></h1><p id="sub"></p>
+</div></div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="feedbackBox"></div>
+  <section class="card"><h2>✅ 체크리스트 점검</h2><div id="checks"></div></section>
+  <section class="card"><h2>🧪 회귀 테스트</h2>
+    <div class="bar" id="bar"></div><div class="small muted" id="barTxt"></div>
+    <div class="chips" id="chips" style="margin-top:12px"></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>결과</th><th>테스트</th><th class="num">시간</th><th>메시지</th></tr></thead><tbody id="tests"></tbody></table></div>
+    <div class="small muted" id="e2e" style="margin-top:10px"></div>
+  </section>
+  <section class="card" id="issuesCard"><h2>🔎 발견한 문제</h2><div id="issues"></div></section>
+  <section class="card" id="cmdCard"><details><summary>실행한 명령</summary><div id="cmds"></div></details></section>
+  <section class="card" id="evCard" hidden><h2>🔗 관련 산출물</h2><div id="ev"></div></section>
+</main>
+<footer>impl-verify 검증 리포트 · 이 페이지는 검증 단계의 점검·피드백 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"공장 운영비(기본 하루 10억)를 master 화면에서 공장별로 설정하고, Planner가 COST 안 선택 시 운영비를 반영하게 한다","round":3,"verdict":"PASS","loop_action":"END","summary":"Factory/Order 에 nullable 운영비 컬럼을 추가하고 master 화면에서 공장별 하루 운영비(기본 10억, 억 단위, 0~1000억 검증)를 설정하게 했으며, Planner 가 주문 있는 공장의 운영비를 총 소요일만큼 합산해 COST 안을 총 비용(생산원가+운항비+운영비) 최소로 고르고 동률이면 빠른 쪽을 택하게 했다. 화면(시뮬레이션·목록·상세)·골든·PRD/INTENT 도 같은 정의로 갱신했다. 검증은 gradlew test 103/103(LegacyDbMigrationTest 와 OperatingCostTest 포함), 아키텍처·스타일·린트 통과, 별도 인스턴스 e2e 3건 통과이며 코드 리뷰 결함은 포맷 취향 minor 1건뿐이다. 남은 위험은 기본 10억/일이 선박비보다 훨씬 커 COST 안이 FAST 와 같아지기 쉽다는 점과, 옛 주문이 0원으로 보이는 점(의도된 동작)이다. [판정 근거: 모든 자동 검증·체크리스트 통과, blocker/major 이슈 없음] (시도 2/3)","checklist":[{"title":"운영비 계산과 COST 선택이 결정과 일치한다","detail":"주문 있는 공장만 0일차~총 소요일 부과, 총비용=생산원가+운항비+운영비, COST 총비용 최소(동률 시 빠른 쪽), FAST/NEAR 불변, 운영비 0이면 기존과 같음","result":"pass","evidence":"Planner.java: schedule() 에서 amounts.keySet()(주문 있는 공장)의 운영비 합 x totalDays, toPlan 합계=productionCost+shipping+operating, COST 는 variableCost 최소 후 동률 시 totalDays 짧은 쪽. verify.json unit 103/103 통과: OperatingCostTest.operatingCostIsChargedForOrderedFactoriesFromDayZeroToTotalDays, costOptionMinimizesTotalCostAndTiesGoToTheFasterRoute, zeroOperatingCostLeavesTotalAsProductionPlusShipping, operatingCostDiffersPerFactory, hugeOperatingCostMakesCostOptionAsFastAsFastOption, PlannerGoldenTest.resultsMatchTheRecordedGolden. planner.txt 골든 diff 는 라벨 '운항비 최소'->'총 비용 최소'뿐(합계 불변=운영비 0 기준)."},{"title":"기존 주문과 기존 DB가 깨지지 않는다(G1)","detail":"이전 스키마 H2 파일로 기동해 컬럼 추가 성공, 옛 주문 0원 표시·합계 비재계산, 마스터 변경 시 버전 상승으로 409","result":"pass","evidence":"LegacyDbMigrationTest.legacyDatabaseGetsOperatingCostColumnsAndOldDataStaysIntact 통과(verify.json unit, 실제 옛 스키마 H2 파일). OperatingCostTest.oldOrderWithoutOperatingCostIsShownAsZeroAndTotalIsNotRecalculated, oldStoredPlanJsonWithoutOperatingCostIsReadAsZero, defaultOperatingCostIsTenEokPerFactoryAndSavingBumpsVersion 통과. e2e master-change-confirm-conflict.spec.ts(No.18 기준값 변경 후 확정 거절) 통과. Factory/Order 컬럼은 nullable Long."},{"title":"화면·저장·문서가 같은 숫자와 이름을 쓴다","detail":"master 공장별 4칸(기본 10억, 억 단위, 오류 이유), 시뮬레이션·목록·상세 운영비 행과 합계가 서버 저장값과 같음, PRD/INTENT 갱신, 골든 diff 가 의도 범위","result":"pass","evidence":"MasterService.parseOperatingCost: 0~1000억·원 단위·숫자 오류를 이유 문구와 함께 모아 거부(OperatingCostTest.invalidOperatingCostsAreRejectedWithReasonAndNothingIsSaved 통과), 폼키 operatingCost_\u003c국가> 4개. e2e factory-operating-cost.spec.ts 및 master-default-values.spec.ts 통과(포트 8081). OperatingCostTest.confirmStoresServerCalculatedOperatingCost 로 저장값=계산값 확인. git diff HEAD 에 PRD.md/INTENT.md 변경 포함, 골든은 planner.txt 라벨과 simulate-default.json 변경."}],"regression":{"command":"./gradlew test","total":103,"passed":103,"failed":0,"skipped":0,"duration":"21.1s","tests":[{"suite":"AuthApiControllerAccountTest","name":"usernameAndPasswordMustBothMatch()","result":"pass","time":"0.18s","message":""},{"suite":"AuthApiControllerAccountTest","name":"configuredAccountCanLogIn()","result":"pass","time":"0.01s","message":""},{"suite":"AuthApiControllerAccountTest","name":"successfulLoginIssuesANewSessionId()","result":"pass","time":"0.00s","message":""},{"suite":"AuthApiControllerAccountTest","name":"failedLoginKeepsTheSessionId()","result":"pass","time":"0.00s","message":""},{"suite":"AuthApiControllerAccountTest","name":"defaultAccountIsNotAcceptedWhenAnotherOneIsConfigured()","result":"pass","time":"0.00s","message":""},{"suite":"DemoApplicationTests","name":"contextLoads()","result":"pass","time":"0.73s","message":""},{"suite":"LegacyDbMigrationTest","name":"legacyDatabaseGetsOperatingCostColumnsAndOldDataStaysIntact()","result":"pass","time":"0.71s","message":""},{"suite":"OperatingCostTest","name":"operatingCostIsChargedForOrderedFactoriesFromDayZeroToTotalDays()","result":"pass","time":"0.02s","message":""},{"suite":"OperatingCostTest","name":"invalidOperatingCostsAreRejectedWithReasonAndNothingIsSaved()","result":"pass","time":"0.06s","message":""},{"suite":"OperatingCostTest","name":"hugeOperatingCostMakesCostOptionAsFastAsFastOption()","result":"pass","time":"0.02s","message":""},{"suite":"OperatingCostTest","name":"oldStoredPlanJsonWithoutOperatingCostIsReadAsZero()","result":"pass","time":"0.02s","message":""},{"suite":"OperatingCostTest","name":"costOptionMinimizesTotalCostAndTiesGoToTheFasterRoute()","result":"pass","time":"0.02s","message":""},{"suite":"OperatingCostTest","name":"defaultOperatingCostIsTenEokPerFactoryAndSavingBumpsVersion()","result":"pass","time":"0.03s","message":""},{"suite":"OperatingCostTest","name":"confirmStoresServerCalculatedOperatingCost()","result":"pass","time":"0.06s","message":""},{"suite":"OperatingCostTest","name":"zeroOperatingCostLeavesTotalAsProductionPlusShipping()","result":"pass","time":"0.02s","message":""},{"suite":"OperatingCostTest","name":"operatingCostDiffersPerFactory()","result":"pass","time":"0.01s","message":""},{"suite":"OperatingCostTest","name":"oldOrderWithoutOperatingCostIsShownAsZeroAndTotalIsNotRecalculated()","result":"pass","time":"0.02s","message":""},{"suite":"OrderFlowTests","name":"confirmFailsWhenMasterChangedAfterSimulation()","result":"pass","time":"0.03s","message":""},{"suite":"OrderFlowTests","name":"pagesRender()","result":"pass","time":"0.02s","message":""},{"suite":"OrderFlowTests","name":"confirmThenDetailAndStatusFlow()","result":"pass","time":"0.10s","message":""},{"suite":"OrderFlowTests","name":"wrongPasswordIsRejected()","result":"pass","time":"0.01s","message":""},{"suite":"OrderFlowTests","name":"simulateReturnsThreeOptions()","result":"pass","time":"0.04s","message":""},{"suite":"OrderFlowTests","name":"invalidMasterIsNotSaved()","result":"pass","time":"0.04s","message":""},{"suite":"OrderFlowTests","name":"masterUpdateBumpsVersionAndKeepsConfirmedPlans()","result":"pass","time":"0.09s","message":""},{"suite":"OrderFlowTests","name":"emptyOrderIsRejectedWithReason()","result":"pass","time":"0.01s","message":""},{"suite":"OrderFlowTests","name":"anonymousUserIsSentToLogin()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"staleVersionIsAConflictEvenWhenTransitionIsAllowed()","result":"pass","time":"0.05s","message":""},{"suite":"ServiceBehaviorTest","name":"routesAreSortedByFromThenTo()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"boundaryValuesAreAccepted()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"changingStatusOfUnknownOrderIsReported()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"emptyFormReportsEveryProblemAtOnceAndSavesNothing()","result":"pass","time":"0.02s","message":""},{"suite":"ServiceBehaviorTest","name":"simulateResultEqualsPlannerOutput()","result":"pass","time":"0.02s","message":""},{"suite":"ServiceBehaviorTest","name":"canceledOrderIsFinalAndCannotBeChangedAgain()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"routeKeyDoesNotDependOnArgumentOrder()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"simulateIgnoresKorea()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"memoIsTrimmedAndBlankBecomesNull()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"confirmedPlanDoesNotChangeWhenMasterChangesLater()","result":"pass","time":"0.02s","message":""},{"suite":"ServiceBehaviorTest","name":"simulateRejectsBadQuantitiesWithReason()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"confirmStillValidatesQuantities()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"confirmStoresServerSidePlanAndFirstHistory()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"shipDailyCostIsEokAndMustBePositiveWholeWon()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"staleMasterVersionIsAConflictAndNothingIsSaved()","result":"pass","time":"0.02s","message":""},{"suite":"ServiceBehaviorTest","name":"simulateReturnsThreeOptionsInFixedOrderWithSameMasterVersion()","result":"pass","time":"0.02s","message":""},{"suite":"ServiceBehaviorTest","name":"versionIsCheckedBeforeTransition()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"initialMasterHasDefaultValues()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"notAllowedTransitionIsRejectedWithBothLabels()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"inProgressOrderCanBeCanceledToo()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"numberRangesAreChecked()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"listIsNewestFirstAndCanBeFilteredByStatus()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"statusFollowsFixedOrderAndEveryChangeIsRecorded()","result":"pass","time":"0.03s","message":""},{"suite":"ServiceBehaviorTest","name":"simulateFillsMissingCountriesWithZero()","result":"pass","time":"0.02s","message":""},{"suite":"ServiceBehaviorTest","name":"countByStatusHasAllStatusesAndFollowsChanges()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"unknownRouteTypeIsRejected()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"memoLengthLimitIsOneThousandAfterTrim()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"cancelKeepsTheOrderWithCanceledStatusAndHistory()","result":"pass","time":"0.04s","message":""},{"suite":"ServiceBehaviorTest","name":"unknownOrderIsReportedWithReason()","result":"pass","time":"0.01s","message":""},{"suite":"ServiceBehaviorTest","name":"validMasterUpdateIsSavedAndBumpsVersionByOne()","result":"pass","time":"0.02s","message":""},{"suite":"PlannerGoldenTest","name":"resultsMatchTheRecordedGolden()","result":"pass","time":"0.05s","message":""},{"suite":"PlannerGoldenTest","name":"resultIsDeterministic()","result":"pass","time":"0.04s","message":""},{"suite":"PlannerTest","name":"usesAtMostAvailableShips()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"costOptionIsNotMoreExpensiveAndFastOptionIsNotSlower()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"defaultOrderSummary()","result":"pass","time":"0.01s","message":""},{"suite":"PlannerTest","name":"productionCostIsCellsTimesUnitCost()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"everyOptionCollectsExactlyWhatWasOrdered()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"productionStopsAtStockLimitUntilPickup()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"singleSmallOrderTakesProductionPlusRoundTrip()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"eachCountryIsVisitedByOneShipOnly()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"rejectsEmptyOrder()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"shipDepartsLateSoItDoesNotWaitAtPort()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"visitsAreCeilOfOrderOverStockLimit()","result":"pass","time":"0.00s","message":""},{"suite":"PlannerTest","name":"overStockLimitOrderIsCollectedInSeveralRoundTrips()","result":"pass","time":"0.00s","message":""},{"suite":"WebBehaviorTest","name":"costGettersAreFormattedInEokWithTwoDecimals()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"detailHasOrderHistoryNextStatusesAndStoredPlan()","result":"pass","time":"0.04s","message":""},{"suite":"WebBehaviorTest","name":"simulateErrorsAreBadRequestWithoutConflictFlag()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"statusChangeReturnsMessageAndChangesTheOrder()","result":"pass","time":"0.04s","message":""},{"suite":"WebBehaviorTest","name":"wrongLoginIsUnauthorizedWithMessage()","result":"pass","time":"0.03s","message":""},{"suite":"WebBehaviorTest","name":"staleVersionIsAConflict()","result":"pass","time":"0.04s","message":""},{"suite":"WebBehaviorTest","name":"finalStatusHasNoNextStatusesAndMemoMayBeNull()","result":"pass","time":"0.04s","message":""},{"suite":"WebBehaviorTest","name":"apiMasterReturnsSnapshotFields()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"pageUrlsServeStaticHtmlWhenLoggedIn()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"listHasOrdersCountsTotalAndStatuses()","result":"pass","time":"0.05s","message":""},{"suite":"WebBehaviorTest","name":"unknownStatusFilterIsABadRequest()","result":"pass","time":"0.03s","message":""},{"suite":"WebBehaviorTest","name":"unknownOrderIsNotFoundWithMessage()","result":"pass","time":"0.03s","message":""},{"suite":"WebBehaviorTest","name":"everyPageNeedsLoginExceptTheLoginPage()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"loginSetsSessionAndMeReturnsTheUser()","result":"pass","time":"0.01s","message":""},{"suite":"WebBehaviorTest","name":"unknownStatusValueIsABadRequest()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"storedPlanOfConfirmedOrderKeepsTheSameJsonShape()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"invalidMasterReportsEveryReasonAndSavesNothing()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"everyApiNeedsLoginExceptLogin()","result":"pass","time":"0.01s","message":""},{"suite":"WebBehaviorTest","name":"statusChangeOfUnknownOrderIsNotFound()","result":"pass","time":"0.01s","message":""},{"suite":"WebBehaviorTest","name":"confirmReturnsIdAndSavesOrder()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"confirmErrorsMapToStatusCodes()","result":"pass","time":"0.05s","message":""},{"suite":"WebBehaviorTest","name":"logoutEndsTheSession()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"simulateResponseMatchesTheRecordedGolden()","result":"pass","time":"0.03s","message":""},{"suite":"WebBehaviorTest","name":"notAllowedStatusChangeIsABadRequestWithReason()","result":"pass","time":"0.03s","message":""},{"suite":"WebBehaviorTest","name":"validMasterIsSavedWithMessage()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"statusChangeRecordsTheLoggedInUser()","result":"pass","time":"0.04s","message":""},{"suite":"WebBehaviorTest","name":"listCanBeFilteredByStatusButCountsStayOverall()","result":"pass","time":"0.04s","message":""},{"suite":"WebBehaviorTest","name":"detailPlanEqualsTheStoredPlanJson()","result":"pass","time":"0.02s","message":""},{"suite":"WebBehaviorTest","name":"masterFormHasCurrentValues()","result":"pass","time":"0.01s","message":""},{"suite":"WebBehaviorTest","name":"canceledOrderStaysVisibleAsFinalState()","result":"pass","time":"0.05s","message":""},{"suite":"WebBehaviorTest","name":"masterFormShowsEokWithoutTrailingZeros()","result":"pass","time":"0.03s","message":""},{"suite":"WebBehaviorTest","name":"loginPageRedirectsWhenAlreadyLoggedIn()","result":"pass","time":"0.01s","message":""}]},"e2e":{"ran":true,"note":"3/3 통과 · 20.3s · spec: master-default-values.spec.ts, master-change-confirm-conflict.spec.ts, factory-operating-cost.spec.ts — 별도 인스턴스(포트 8081, 인메모리 DB)에서 실행. 개발 서버(8080)와 data/battery 는 건드리지 않음."},"issues":[{"severity":"minor","location":"src/main/java/com/example/demo/service/OrderService.java:65","problem":"Order 생성자 호출 한 줄이 길어짐(포맷 취향).","reproduce":"코드 확인"},{"severity":"minor","location":"src/main/java/com/example/demo/service/OrderService.java:65","problem":"Order 생성자 호출 한 줄이 길어짐(포맷 취향)","reproduce":"파일 확인"}],"plan_feedback":{"summary":"","failed_checklist":[],"failed_tests":[],"suggested_focus":[]},"commands":[{"cmd":"architecture + java style + prettier --check (변경 파일)","result":"17.5s"},{"cmd":"gradlew compileJava compileTestJava test --rerun-tasks (-Xlint:all)","result":"exit 0, 21.1s"},{"cmd":"BASE_URL=http://127.0.0.1:8081 npx playwright test master-default-values.spec.ts master-change-confirm-conflict.spec.ts factory-operating-cost.spec.ts","result":"exit 0, 20.3s"}],"precheck_link":"precheck.html"}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">리포트 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function pill(x, k) { return el('span', 'pill ' + k, x); }
+  var RES = { pass: ['통과', 'ok'], fail: ['실패', 'bad'], skipped: ['건너뜀', 'warn'], unverified: ['확인 못함', 'warn'] };
+
+  var pass = D.verdict === 'PASS';
+  $('hero').classList.toggle('fail', !pass);
+  $('badge').textContent = pass ? '✔ PASS — 루프를 종료합니다' : '✖ FAIL — 계획 단계로 되돌아갑니다';
+  $('title').textContent = D.request || '구현 검증 리포트';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (D.summary || '');
+  document.title = (pass ? '[PASS] ' : '[FAIL] ') + '구현 검증 리포트';
+
+  var cl = D.checklist || [], R = D.regression || {}, tests = R.tests || [];
+  var okCl = cl.filter(function (c) { return c.result === 'pass'; }).length;
+  [['판정', pass ? 'PASS' : 'FAIL'], ['체크리스트', okCl + ' / ' + cl.length], ['회귀 테스트', (R.passed || 0) + ' / ' + (R.total || 0)], ['실패', (R.failed || 0) + (cl.length - okCl)]]
+    .forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  var F = D.plan_feedback;
+  if (!pass && F) {
+    var fb = el('div', 'feedback'); fb.appendChild(el('h3', '', '↩ 계획 단계로 되돌아가기 위한 값'));
+    if (F.summary) fb.appendChild(el('p', '', F.summary));
+    [['실패한 체크리스트', F.failed_checklist], ['실패한 테스트', F.failed_tests], ['계획이 집중할 점', F.suggested_focus]].forEach(function (g) {
+      if (!(g[1] || []).length) return; fb.appendChild(el('b', 'small', g[0]));
+      var ul = el('ul'); g[1].forEach(function (x) { ul.appendChild(el('li', '', x)); }); fb.appendChild(ul);
+    });
+    var w = el('div', 'card'); w.style.borderColor = 'var(--bad)'; w.appendChild(fb); $('feedbackBox').appendChild(w);
+  }
+
+  cl.forEach(function (c, i) {
+    var r = RES[c.result] || RES.unverified, d = el('div', 'item ' + r[1]), h = el('header');
+    h.appendChild(pill(r[0], r[1])); h.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); d.appendChild(h);
+    if (c.detail) d.appendChild(el('p', 'muted', '확인 방법: ' + c.detail));
+    if (c.evidence) d.appendChild(el('p', '', '근거: ' + c.evidence));
+    $('checks').appendChild(d);
+  });
+  if (!cl.length) $('checks').appendChild(el('div', 'empty', '체크리스트가 전달되지 않았습니다.'));
+
+  var tot = R.total || 0;
+  function seg(c, n) { var i = el('i', c); i.style.width = (tot ? n / tot * 100 : 0) + '%'; $('bar').appendChild(i); }
+  seg('p', R.passed || 0); seg('f', R.failed || 0); seg('s', R.skipped || 0);
+  $('barTxt').textContent = '통과 ' + (R.passed || 0) + ' · 실패 ' + (R.failed || 0) + ' · 건너뜀 ' + (R.skipped || 0) + ' / 전체 ' + tot + (R.duration ? ' · ' + R.duration : '');
+  var filter = 'all', q = '', defs = [['all', '전체'], ['pass', '통과'], ['fail', '실패'], ['skipped', '건너뜀']];
+  function draw() {
+    var tb = $('tests'); tb.textContent = '';
+    var list = tests.filter(function (t) { return (filter === 'all' || t.result === filter) && (!q || ((t.suite || '') + ' ' + t.name + ' ' + (t.message || '')).toLowerCase().indexOf(q) >= 0); });
+    if (!list.length) { var tr = el('tr'), td = el('td', 'empty', '표시할 테스트가 없습니다.'); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr); return; }
+    list.forEach(function (t) {
+      var r = RES[t.result] || RES.skipped, tr = el('tr'), a = el('td'); a.appendChild(pill(r[0], r[1])); tr.appendChild(a);
+      var b = el('td'); b.appendChild(el('b', '', t.name || '')); if (t.suite) b.appendChild(el('div', 'small muted', t.suite)); tr.appendChild(b);
+      tr.appendChild(el('td', 'num', t.time || '')); tr.appendChild(el('td', 'small', t.message || '')); tb.appendChild(tr);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); draw(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 검색'; s.oninput = function () { q = s.value.toLowerCase(); draw(); }; $('chips').appendChild(s);
+  draw();
+  if (D.e2e) $('e2e').textContent = 'E2E(Playwright): ' + (D.e2e.ran ? '실행함' : '실행하지 않음') + (D.e2e.note ? ' — ' + D.e2e.note : '');
+  if (R.command) $('e2e').textContent = '실행: ' + R.command + (D.e2e ? ' · ' + $('e2e').textContent : '');
+
+  var iss = D.issues || [];
+  if (!iss.length) $('issues').appendChild(el('div', 'empty', '발견한 문제가 없습니다.'));
+  iss.forEach(function (x) {
+    var k = x.severity === 'blocker' ? 'bad' : x.severity === 'major' ? 'warn' : 'info', d = el('div', 'item ' + (k === 'info' ? 'ok' : k)), h = el('header');
+    h.appendChild(pill(x.severity || '', k)); h.appendChild(el('b', '', x.location || '')); d.appendChild(h);
+    d.appendChild(el('p', '', x.problem || '')); if (x.reproduce) d.appendChild(el('p', 'muted', '재현/확인: ' + x.reproduce)); $('issues').appendChild(d);
+  });
+
+  var cm = D.commands || [];
+  if (!cm.length) $('cmdCard').hidden = true;
+  cm.forEach(function (c) { $('cmds').appendChild(el('pre', '', '$ ' + c.cmd + '\n→ ' + (c.result || ''))); });
+
+  if (D.precheck_link) { $('evCard').hidden = false; var a = el('a', '', '계획 점검 보기 (' + D.precheck_link + ')'); a.href = D.precheck_link; $('ev').appendChild(a); }
+})();
+</script>
+</body>
+</html>

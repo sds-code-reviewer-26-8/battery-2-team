@@ -169,7 +169,7 @@ class WebBehaviorTest {
 		assertThat(first.get("id").asLong()).isEqualTo(order.getId());
 		assertThat(first.get("confirmedAt").asString()).matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}");
 		assertThat(first.get("totalK").asInt()).isEqualTo(12000);
-		assertThat(first.get("routeLabel").asString()).isEqualTo("운항비 최소");
+		assertThat(first.get("routeLabel").asString()).isEqualTo("총 비용 최소");
 		assertThat(first.get("totalCostEok").asString()).isEqualTo(order.getTotalCostEok());
 		assertThat(first.get("status").get("name").asString()).isEqualTo("CONFIRMED");
 		assertThat(first.get("status").get("label").asString()).isEqualTo("확정");
@@ -202,7 +202,7 @@ class WebBehaviorTest {
 		long version = orderService.getOrder(order.getId()).getVersion();
 		mvc.perform(get("/api/orders/" + order.getId()).session(login())).andExpect(status().isOk())
 				.andExpect(jsonPath("$.id").value(order.getId())).andExpect(jsonPath("$.memo").value("상세 확인용 메모"))
-				.andExpect(jsonPath("$.createdBy").value("admin")).andExpect(jsonPath("$.routeLabel").value("운항비 최소"))
+				.andExpect(jsonPath("$.createdBy").value("admin")).andExpect(jsonPath("$.routeLabel").value("총 비용 최소"))
 				.andExpect(jsonPath("$.status.name").value("IN_PROGRESS")).andExpect(jsonPath("$.status.label").value("진행"))
 				.andExpect(jsonPath("$.version").value(version))
 				.andExpect(jsonPath("$.nextStatuses.length()").value(2))
@@ -340,7 +340,7 @@ class WebBehaviorTest {
 		assertThat(form.get("maxDaily_JAPAN").asString()).isEqualTo("800");
 		assertThat(form.get("days_KOREA_CHINA").asString()).isEqualTo("1");
 		assertThat(form.get("days_VIETNAM_INDONESIA").asString()).isEqualTo("2");
-		assertThat(form.size()).isEqualTo(1 + 1 + 4 * 3 + 10);
+		assertThat(form.size()).isEqualTo(1 + 1 + 4 * 4 + 10);
 	}
 
 	@Test
@@ -368,7 +368,7 @@ class WebBehaviorTest {
 		long before = masters.currentMaster().version();
 		mvc.perform(postJson("/api/master", login(), "{\"shipCount\":\"9\",\"shipDailyCost\":\"abc\"}"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.conflict").value(false))
-				.andExpect(jsonPath("$.errors.length()").value(24))
+				.andExpect(jsonPath("$.errors.length()").value(28))
 				.andExpect(jsonPath("$.errors[0]").value("배 척수은(는) 1 이상 4 이하의 정수여야 합니다"))
 				.andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.startsWith("배 척수은(는) 1 이상 4 이하의 정수여야 합니다 / ")));
 		assertThat(masters.currentMaster().version()).isEqualTo(before);
@@ -455,7 +455,7 @@ class WebBehaviorTest {
 		JsonNode stored = json.readTree(order.getPlanJson());
 		assertThat(stored.propertyNames()).containsExactlyInAnyOrder("master", "orders", "visits", "plan");
 		assertThat(stored.get("plan").propertyNames()).containsExactlyInAnyOrder("type", "label", "totalDays",
-				"productionCost", "shippingCost", "totalCost", "ships", "stock", "production");
+				"productionCost", "shippingCost", "operatingCost", "totalCost", "ships", "stock", "production");
 		assertThat(stored.get("master").get("version").asLong()).isEqualTo(masters.currentMaster().version());
 	}
 
