@@ -174,7 +174,10 @@ test.describe('ssw60040-prog 담당 시나리오', () => {
       // 3. '전체' 칩 클릭 → 모든 주문 표시
       await chip('전체').click();
       await expect(page).not.toHaveURL(/status=/);
-      expect(await rowStatuses()).toEqual(new Set(['확정', '진행', '완료']));
+      // 취소한 주문도 목록에 남으므로(다른 시나리오가 정리하며 취소한 주문 포함) '취소'가 섞여 있을 수 있다
+      const allStatuses = await rowStatuses();
+      for (const label of ['확정', '진행', '완료']) expect(allStatuses.has(label), `'${label}' 주문이 전체 목록에 있어야 한다`).toBe(true);
+      expect([...allStatuses].filter((s) => !['확정', '진행', '완료', '취소'].includes(s))).toEqual([]);
 
       // 4. 각 칩의 건수 = 필터링된 행 수, 전체 = 상태별 건수의 합
       const counts: Record<string, number> = {};

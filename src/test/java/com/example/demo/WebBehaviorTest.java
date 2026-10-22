@@ -281,12 +281,35 @@ class WebBehaviorTest {
 	}
 
 	@Test
-	void statusChangeRecordsTheLoggedInUserAndCancelDeletesTheOrder() throws Exception {
+	void statusChangeRecordsTheLoggedInUser() throws Exception {
 		Order order = confirm(null);
-		mvc.perform(postJson("/api/orders/" + order.getId() + "/status", login(), statusBody("CANCELED", order.getVersion())))
+		mvc.perform(postJson("/api/orders/" + order.getId() + "/status", login(), statusBody("IN_PROGRESS", order.getVersion())))
+				.andExpect(status().isOk());
+		assertThat(orderService.history(order.getId()).get(1).getChangedBy()).isEqualTo("admin");
+	}
+
+	/** 취소해도 주문은 지워지지 않고 '취소' 상태의 최종 상태로 남아, 상세·목록에서 계속 볼 수 있다. */
+	@Test
+	void canceledOrderStaysVisibleAsFinalState() throws Exception {
+		Order order = confirm("취소할 주문");
+		MockHttpSession s = login();
+		mvc.perform(postJson("/api/orders/" + order.getId() + "/status", s, statusBody("CANCELED", order.getVersion())))
 				.andExpect(status().isOk()).andExpect(jsonPath("$.message").value("상태를 '취소'(으)로 바꿨습니다"));
 		assertThat(orderService.history(order.getId()).get(1).getChangedBy()).isEqualTo("admin");
-		mvc.perform(get("/api/orders/" + order.getId()).session(login())).andExpect(status().isBadRequest());
+
+		mvc.perform(get("/api/orders/" + order.getId()).session(s)).andExpect(status().isOk())
+				.andExpect(jsonPath("$.status.name").value("CANCELED")).andExpect(jsonPath("$.status.label").value("취소"))
+				.andExpect(jsonPath("$.nextStatuses").isEmpty()).andExpect(jsonPath("$.memo").value("취소할 주문"))
+				.andExpect(jsonPath("$.history.length()").value(2))
+				.andExpect(jsonPath("$.history[1].to.label").value("취소"));
+		MvcResult res = mvc.perform(get("/api/orders").param("status", "CANCELED").session(s)).andExpect(status().isOk()).andReturn();
+		JsonNode body = json.readTree(res.getResponse().getContentAsString(StandardCharsets.UTF_8));
+		assertThat(body.get("counts").get("CANCELED").asLong()).isGreaterThanOrEqualTo(1);
+		assertThat(body.get("orders")).anyMatch(o -> o.get("id").asLong() == order.getId());
+		// 취소된 주문은 다시 바꿀 수 없다
+		mvc.perform(postJson("/api/orders/" + order.getId() + "/status", s, statusBody("IN_PROGRESS", orderService.getOrder(order.getId()).getVersion())))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.error").value("취소 상태에서는 진행(으)로 바꿀 수 없습니다"));
 	}
 
 	@Test

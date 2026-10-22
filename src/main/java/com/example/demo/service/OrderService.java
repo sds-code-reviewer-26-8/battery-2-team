@@ -99,6 +99,7 @@ public class OrderService {
 
 	/**
 	 * 상태를 바꾼다. 화면에서 본 시점의 version 과 다르면(= 그 사이 다른 사람이 바꿈) 거부한다.
+	 * 취소(CANCELED)해도 주문은 지우지 않고 '취소' 상태의 최종 상태로 남긴다.
 	 */
 	@Transactional
 	public void changeStatus(Long id, OrderStatus target, long expectedVersion, String user) {
@@ -118,9 +119,6 @@ public class OrderService {
 			throw conflict();
 		}
 		histories.save(new OrderStatusHistory(id, from, target, user, LocalDateTime.now()));
-		if (target == OrderStatus.CANCELED) {
-			orders.delete(order);
-		}
 	}
 
 	private static BusinessException conflict() {

@@ -60,12 +60,6 @@
 	async function changeStatus(status, version) {
 		try {
 			const res = await postJson('/api/orders/' + encodeURIComponent(id) + '/status', {status, version});
-			if (status === 'CANCELED') {
-				// 취소한 주문은 삭제되므로 더 보여 줄 상세가 없다
-				$('content').hidden = true;
-				setAlert($('pageAlerts'), okAlert(res.message));
-				return;
-			}
 			await load({ok: res.message});
 		} catch (e) {
 			// 충돌이면 그 사이 바뀐 현재 상태를 함께 보여 준다
