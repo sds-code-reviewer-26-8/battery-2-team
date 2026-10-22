@@ -9,6 +9,8 @@
 	const optionsEl = document.getElementById('options');
 	const confirmBtn = document.getElementById('confirmBtn');
 	const confirmError = document.getElementById('confirmError');
+	const customerInput = document.getElementById('customerName');
+	const customerHint = document.getElementById('customerHint');
 
 	let master = null;                 // 게이지 옆 방문 횟수 표시용
 	let values = {};                   // 나라별 주문 수량(K)
@@ -152,8 +154,17 @@
 
 	// ---- 주문 확정
 
+	/** 고객사가 비었거나 공백뿐이면 확정 버튼을 막고 안내한다 */
+	function refreshConfirmGuard() {
+		const empty = customerInput.value.trim() === '';
+		confirmBtn.disabled = empty;
+		customerHint.hidden = !empty;
+	}
+	customerInput.addEventListener('input', refreshConfirmGuard);
+	refreshConfirmGuard();
+
 	confirmBtn.addEventListener('click', async () => {
-		if (!result) return;
+		if (!result || customerInput.value.trim() === '') return;
 		confirmError.hidden = true;
 		confirmBtn.disabled = true;
 		try {
@@ -161,12 +172,13 @@
 				orders: values,
 				routeType: selected,
 				masterVersion: result.master.version,
-				memo: document.getElementById('memo').value
+				memo: document.getElementById('memo').value,
+				customerName: customerInput.value
 			});
 			location.href = '/orders/' + res.id;
 		} catch (e) {
 			showError(confirmError, e.message);
-			confirmBtn.disabled = false;
+			refreshConfirmGuard();
 		}
 	});
 

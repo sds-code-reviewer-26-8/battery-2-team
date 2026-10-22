@@ -26,10 +26,14 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 @RequestMapping("/api/orders")
 public class OrderApiController {
 
-	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo) {
+	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo,
+			String customerName) {
 	}
 
 	public record StatusRequest(OrderStatus status, long version) {
+	}
+
+	public record CustomerRequest(String customerName, long version) {
 	}
 
 	private final OrderService orders;
@@ -60,7 +64,7 @@ public class OrderApiController {
 	public Map<String, Long> confirm(@RequestBody ConfirmRequest request,
 			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		Order order = orders.confirm(request.orders(), request.routeType(), request.masterVersion(), request.memo(),
-				user);
+				request.customerName(), user);
 		return Map.of("id", order.getId());
 	}
 
@@ -69,5 +73,12 @@ public class OrderApiController {
 			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		orders.changeStatus(id, request.status(), request.version(), user);
 		return Map.of("message", "상태를 '" + request.status().getLabel() + "'(으)로 바꿨습니다");
+	}
+
+	@PostMapping("/{id}/customer")
+	public Map<String, String> changeCustomer(@PathVariable Long id, @RequestBody CustomerRequest request,
+			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
+		orders.changeCustomerName(id, request.customerName(), request.version(), user);
+		return Map.of("message", "고객사를 저장했습니다");
 	}
 }

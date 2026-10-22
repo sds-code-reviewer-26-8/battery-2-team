@@ -60,7 +60,7 @@ test.describe('견고성', () => {
 
     // 화면의 메모 입력칸은 1,000자로 막혀 있으므로 요청으로 직접 보낸다
     const res = await page.request.post('/api/orders', {
-      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, memo: 'a'.repeat(1001) },
+      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, memo: 'a'.repeat(1001), customerName: 'E2E 고객사' },
     });
     expect(res.status()).toBe(400);
     expect((await res.json()).error).toBe('메모는 1000자 이하로 입력하세요');
@@ -111,6 +111,7 @@ test.describe('견고성', () => {
     await expect(other.locator('.alert.ok')).toContainText('마스터 데이터를 저장했습니다');
 
     // 3. 처음 탭에서 확정하면 거절된다
+    await page.locator('#customerName').fill('E2E 고객사');
     await page.locator('#confirmBtn').click();
     await expect(page.locator('#confirmError')).toBeVisible();
     await expect(page.locator('#confirmError')).toContainText(

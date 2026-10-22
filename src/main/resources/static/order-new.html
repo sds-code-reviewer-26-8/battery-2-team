@@ -41,6 +41,9 @@
 
 		<section class="card">
 			<h2>3. 주문 확정</h2>
+			<label class="stack"><span>고객사 <span class="required" title="필수">*</span></span>
+				<input type="text" id="customerName" maxlength="100" required aria-required="true"></label>
+			<p id="customerHint" class="muted hint" hidden>고객사를 입력해야 주문을 확정할 수 있습니다.</p>
 			<label class="stack">메모 (선택)
 				<textarea id="memo" rows="2" maxlength="1000"></textarea></label>
 			<p id="confirmError" class="alert error" hidden></p>
