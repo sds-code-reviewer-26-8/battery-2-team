@@ -275,8 +275,9 @@ public class BatteryService {
 	public Map<OrderStatus, Long> countByStatus() {
 		Map<OrderStatus, Long> counts = new EnumMap<>(OrderStatus.class);
 		for (OrderStatus s : OrderStatus.values()) {
-			counts.put(s, orders.countByStatus(s));
+			counts.put(s, 0L);
 		}
+		orders.countGroupedByStatus().forEach(row -> counts.put(row.getStatus(), row.getTotal()));
 		return counts;
 	}
 

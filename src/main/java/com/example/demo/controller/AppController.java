@@ -76,11 +76,13 @@ public class AppController {
 
 	@GetMapping("/orders")
 	public String list(@RequestParam(required = false) OrderStatus status, Model model) {
+		Map<OrderStatus, Long> counts = service.countByStatus();
 		model.addAttribute("orders", service.listOrders(status));
-		model.addAttribute("counts", service.countByStatus());
+		model.addAttribute("counts", counts);
 		model.addAttribute("status", status);
 		model.addAttribute("statuses", OrderStatus.values());
-		model.addAttribute("total", service.listOrders(null).size());
+		// 취소된 주문은 삭제되므로 상태별 개수의 합이 전체 주문 수이다
+		model.addAttribute("total", (int) counts.values().stream().mapToLong(Long::longValue).sum());
 		return "orders";
 	}
 
