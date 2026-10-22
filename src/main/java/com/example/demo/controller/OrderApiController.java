@@ -26,7 +26,9 @@ import org.springframework.web.bind.annotation.SessionAttribute;
 @RequestMapping("/api/orders")
 public class OrderApiController {
 
-	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo) {
+	/** asap('가능한 빨리'), dueDate(yyyy-MM-dd) 는 없어도 된다. dueDate 를 문자열로 받아 형식 오류도 400 이유로 돌려준다. */
+	public record ConfirmRequest(Map<Country, Integer> orders, String routeType, long masterVersion, String memo,
+			Boolean asap, String dueDate) {
 	}
 
 	public record StatusRequest(OrderStatus status, long version) {
@@ -60,7 +62,7 @@ public class OrderApiController {
 	public Map<String, Long> confirm(@RequestBody ConfirmRequest request,
 			@SessionAttribute(LoginInterceptor.SESSION_USER) String user) {
 		Order order = orders.confirm(request.orders(), request.routeType(), request.masterVersion(), request.memo(),
-				user);
+				request.asap(), request.dueDate(), user);
 		return Map.of("id", order.getId());
 	}
 

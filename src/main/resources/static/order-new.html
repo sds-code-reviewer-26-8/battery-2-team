@@ -20,6 +20,13 @@
 				합계는 항상 총 생산 필요 수와 같습니다.</p>
 		</div>
 		<div id="gauges" class="gauges"></div>
+		<div class="due" id="dueBox">
+			<strong>필요 납기</strong>
+			<label class="inline"><input type="checkbox" id="dueAsap" checked> 가능한 빨리</label>
+			<label class="inline">납기일 <input type="date" id="dueDate" disabled></label>
+			<p class="muted hint" id="dueHint">'가능한 빨리'를 해제하면 오늘부터 5~50일 사이의 납기일을 고를 수 있습니다.
+				납기일까지의 일수보다 총 소요일이 긴 경로안은 빨간색으로 표시됩니다(확정은 가능).</p>
+		</div>
 		<p id="inputError" class="alert error" hidden></p>
 		<button type="button" id="runBtn" class="primary">시뮬레이션 실행</button>
 	</section>

@@ -129,6 +129,15 @@ details summary { cursor: pointer; color: var(--primary); margin: 4px 0 8px; }
 .option { text-align: left; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; border-width: 2px; }
 .option strong { font-size: 15px; }
 .option.selected { border-color: var(--primary); background: #f0f6ff; }
+/* 필요 납기 */
+.due { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0; }
+.due label.inline { display: inline-flex; align-items: center; gap: 6px; }
+.due label.inline input { margin-top: 0; }
+.due .hint { flex-basis: 100%; margin: 0; }
+.option.over-due { border-color: var(--danger); background: #fdecea; color: #8a1f1b; }
+.option.over-due.selected { box-shadow: 0 0 0 2px var(--primary); }
+.due-tag { color: var(--danger); font-weight: 700; }
+.due-ok { color: #14562a; font-weight: 600; }
 
 /* 애니메이션 */
 .anim-stage { position: relative; width: 100%; aspect-ratio: 1536 / 1024; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #5bbcff; }

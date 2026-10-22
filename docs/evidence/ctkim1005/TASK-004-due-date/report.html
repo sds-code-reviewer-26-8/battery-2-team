@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 검증 리포트</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, #059669, #0891b2); color: #fff; padding: 28px 16px 64px; }
+  .hero.fail { background: linear-gradient(135deg, #dc2626, #9333ea); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; gap: 8px; padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.2);
+    font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.5rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .92; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; } .tile span { color: var(--muted); font-size: .82rem; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); } .pill.info { background: var(--info-soft); color: var(--info); }
+  .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; border-left-width: 4px; }
+  .item.ok { border-left-color: var(--ok); } .item.bad { border-left-color: var(--bad); } .item.warn { border-left-color: var(--warn); }
+  .item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .item p { margin: 6px 0 0; font-size: .9rem; white-space: pre-wrap; }
+  .bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0; }
+  .bar i { display: block; height: 100%; } .bar .p { background: var(--ok); } .bar .f { background: var(--bad); } .bar .s { background: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; } td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feedback { border: 2px dashed var(--bad); border-radius: 14px; padding: 14px 16px; background: var(--bad-soft); }
+  .feedback h3 { margin: 0 0 6px; color: var(--bad); font-size: 1rem; } .feedback ul { margin: 4px 0 8px; padding-left: 20px; }
+  pre { background: var(--bg); border-radius: 10px; padding: 10px 12px; overflow: auto; font-size: .82rem; margin: 6px 0 0; white-space: pre-wrap; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  a { color: var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero"><div class="wrap">
+  <span class="badge" id="badge"></span><h1 id="title"></h1><p id="sub"></p>
+</div></div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="feedbackBox"></div>
+  <section class="card"><h2>✅ 체크리스트 점검</h2><div id="checks"></div></section>
+  <section class="card"><h2>🧪 회귀 테스트</h2>
+    <div class="bar" id="bar"></div><div class="small muted" id="barTxt"></div>
+    <div class="chips" id="chips" style="margin-top:12px"></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>결과</th><th>테스트</th><th class="num">시간</th><th>메시지</th></tr></thead><tbody id="tests"></tbody></table></div>
+    <div class="small muted" id="e2e" style="margin-top:10px"></div>
+  </section>
+  <section class="card" id="issuesCard"><h2>🔎 발견한 문제</h2><div id="issues"></div></section>
+  <section class="card" id="cmdCard"><details><summary>실행한 명령</summary><div id="cmds"></div></details></section>
+  <section class="card" id="evCard" hidden><h2>🔗 관련 산출물</h2><div id="ev"></div></section>
+</main>
+<footer>impl-verify 검증 리포트 · 이 페이지는 검증 단계의 점검·피드백 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{
+  "request": "주문 추가 화면에 '필요 납기일' 지정을 추가한다. (1) '가능한 빨리' 체크박스를 체크하면 납기 제한 없음. (2) 체크하지 않으면 오늘(주문일=0일차) 기준 5~50일 사이의 날짜를 선택한다(화면 date 입력 min/max 와 서버 검증 모두; 범위 밖이면 400 과 이유). (3) 시뮬레이션 결과의 경로안 3개 중 총 소요일(PRD §5-9: 마지막 배가 한국에 돌아오는 날)이 '오늘→납기일' 일수를 넘는 경로안은 빨간색과 '납기 초과' 문구로 표시한다. '가능한 빨리'면 표시하지 않는다. 납기 조건을 바꾸면 결과 표시도 즉시 갱신한다. (4) 빨간 경로안도 확정은 막지 않는다(요구가 '표시'이므로). (5) 확정 시 납기 조건(가능한 빨리 여부, 납기일)을 주문에 저장하고, 주문 상세에 '필요 납기' 와 선택한 경로의 납기 초과 여부를 보여 준다. 납기 정보가 없는 기존 주문은 '-' 로 정상 표시한다(INTENT G1, 기존 확정 주문 불변). 경로 계산 규칙과 3가지 안의 정의는 바꾸지 않는다. 화면은 정적 HTML + JS(textContent 원칙), 데이터는 /api JSON. 범위 결정: PRD F4 의 '고객사' 입력과 납기 기준 경로 필터링·자동 추천은 이번 범위 밖이며, INTENT §7 미결 4 를 '입력·저장·표시 + 초과 경로 빨간 표시'로 결정함. PR 위험 영역은 Yellow 로 본다.",
+  "round": 1,
+  "verdict": "PASS",
+  "loop_action": "END",
+  "summary": "체크리스트 3개가 모두 pass 입니다. JUnit 98건이 모두 통과했고, E2E 48건도 모두 통과했습니다(known-issue 실패 0). 대상 테스트 T-DUE, T-DUE2, T06, T15, T17, No.12 가 통과했습니다. 보안 finding 은 0건이고, 아키텍처는 minor 2건뿐이라 layersOk 입니다. 납기 4일, 51일, 과거 날짜, 형식 오류, 날짜 없음은 curl 로 보내 400 과 이유 문구를 직접 확인했고, 이때 주문 건수는 늘지 않았습니다. 5일과 50일은 200 입니다. 기존 API 키와 시뮬레이션 결과(26/20/21일)는 바뀌지 않았습니다. 리뷰 로그: D:/work/battery-2-team/docs/logs/verify/review_20261022_160651.log",
+  "checklist": [
+    {
+      "title": "① 납기 입력·빨간 표시·저장이 실제로 동작한다",
+      "detail": "date min/max=오늘+5/+50, 체크 시 비활성, 오늘+20일이면 COST·NEAR 빨간 표시+'납기 초과', FAST 정상, 체크 시 즉시 사라짐, 빨간 안 확정과 상세 표시, 4/51/과거/형식 오류 400, 5/50일 200",
+      "result": "pass",
+      "evidence": "curl(마스터 version 140): 2026-10-26(+4), 2026-12-12(+51), 2026-10-21(과거) → 400 '필요 납기일은 오늘부터 5~50일 사이로 선택하세요'. 2026/11/30 → 400 '필요 납기일 형식이 올바르지 않습니다(yyyy-MM-dd)'. 날짜 없음 → 400. 주문 건수 78→78. +5 → 200 {id:227}, +50 → 200 {id:228}. COST+오늘+20 → 상세 dueDate=2026-11-11, dueExceeded=true. E2E T-DUE 통과(min/max, disabled, COST·NEAR .over-due, '납기 초과', 빨간 테두리 rgb(209,52,47), FAST 정상, 체크 시 0건, COST 확정 후 상세 '날짜 납기 초과', API 4/51일 400 + 건수 불변)."
+    },
+    {
+      "title": "② 기존 동작·API 응답이 바뀌지 않았다",
+      "detail": "납기 필드 없는 요청 200, 메모 1,001자 400, 버전 불일치 409, simulate 결과 불변, 상세 기존 키 유지와 새 키 추가, 기존 주문 '-'",
+      "result": "pass",
+      "evidence": "납기 필드 없는 POST → 200 {id:231}, 납기 3개 null. 메모 1,001자 → 400 '메모는 1000자 이하로 입력하세요'. masterVersion -1 → 409 conflict:true. 비로그인 → 401. simulate 결과는 COST 26, FAST 20, NEAR 21. GET /api/orders/{id} 키는 기존 10개 순서 그대로이고 뒤에 dueAsap, dueDate, dueExceeded 만 붙음. 기존 주문 173 API 의 납기는 null. 화면 '-' 표시는 같은 경로(납기 null)를 쓰는 E2E T-DUE2 로 확인함."
+    },
+    {
+      "title": "③ JUnit 전체와 대상 E2E 가 통과한다",
+      "detail": "gradlew test 전체(신규 납기 JUnit 포함), T06·T15·T17·No.12·신규 납기 E2E 통과, 다른 팀원 spec 미수정",
+      "result": "pass",
+      "evidence": "./gradlew.bat test --console=plain → BUILD SUCCESSFUL, XML 집계 98/98 통과(OrderFlowTests 신규 6건 포함). npx playwright test --reporter=list → 48 passed(57.0s), T06, T15, T17, No.12, T-DUE, T-DUE2 ok. git status 상 수정된 spec 은 team-ctkim1005.spec.ts 하나."
+    }
+  ],
+  "regression": {
+    "command": "./gradlew.bat test --console=plain",
+    "total": 98,
+    "passed": 98,
+    "failed": 0,
+    "skipped": 0,
+    "duration": "11.2s (테스트 합계), 빌드 14s",
+    "tests": [
+      {
+        "suite": "AuthApiControllerAccountTest",
+        "name": "usernameAndPasswordMustBothMatch()",
+        "result": "pass",
+        "time": "0.134s",
+        "message": ""
+      },
+      {
+        "suite": "AuthApiControllerAccountTest",
+        "name": "configuredAccountCanLogIn()",
+        "result": "pass",
+        "time": "0.009s",
+        "message": ""
+      },
+      {
+        "suite": "AuthApiControllerAccountTest",
+        "name": "successfulLoginIssuesANewSessionId()",
+        "result": "pass",
+        "time": "0.004s",
+        "message": ""
+      },
+      {
+        "suite": "AuthApiControllerAccountTest",
+        "name": "failedLoginKeepsTheSessionId()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "AuthApiControllerAccountTest",
+        "name": "defaultAccountIsNotAcceptedWhenAnotherOneIsConfigured()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "DemoApplicationTests",
+        "name": "contextLoads()",
+        "result": "pass",
+        "time": "0.982s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "requestWithoutDueFieldsStillConfirmsAndDetailHasNullDue()",
+        "result": "pass",
+        "time": "0.513s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "confirmFailsWhenMasterChangedAfterSimulation()",
+        "result": "pass",
+        "time": "0.031s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "dueValidationKeepsExistingErrorOrder()",
+        "result": "pass",
+        "time": "0.024s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "pagesRender()",
+        "result": "pass",
+        "time": "0.017s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "dueDateOutOfRangeOrMalformedIsRejectedWithReasonAndNotSaved()",
+        "result": "pass",
+        "time": "0.149s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "confirmThenDetailAndStatusFlow()",
+        "result": "pass",
+        "time": "0.083s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "asapConfirmsWithoutDueDateAndDetailShowsIt()",
+        "result": "pass",
+        "time": "0.044s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "wrongPasswordIsRejected()",
+        "result": "pass",
+        "time": "0.005s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "simulateReturnsThreeOptions()",
+        "result": "pass",
+        "time": "0.021s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "dueDateBoundariesFiveAndFiftyDaysAreAccepted()",
+        "result": "pass",
+        "time": "0.048s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "invalidMasterIsNotSaved()",
+        "result": "pass",
+        "time": "0.023s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "masterUpdateBumpsVersionAndKeepsConfirmedPlans()",
+        "result": "pass",
+        "time": "0.087s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "exceededRouteIsStillConfirmedAndExceededFlagIsComputedByServer()",
+        "result": "pass",
+        "time": "0.111s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "emptyOrderIsRejectedWithReason()",
+        "result": "pass",
+        "time": "0.008s",
+        "message": ""
+      },
+      {
+        "suite": "OrderFlowTests",
+        "name": "anonymousUserIsSentToLogin()",
+        "result": "pass",
+        "time": "0.006s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "staleVersionIsAConflictEvenWhenTransitionIsAllowed()",
+        "result": "pass",
+        "time": "0.042s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "routesAreSortedByFromThenTo()",
+        "result": "pass",
+        "time": "0.022s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "boundaryValuesAreAccepted()",
+        "result": "pass",
+        "time": "0.024s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "changingStatusOfUnknownOrderIsReported()",
+        "result": "pass",
+        "time": "0.013s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "emptyFormReportsEveryProblemAtOnceAndSavesNothing()",
+        "result": "pass",
+        "time": "0.02s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "simulateResultEqualsPlannerOutput()",
+        "result": "pass",
+        "time": "0.018s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "canceledOrderIsFinalAndCannotBeChangedAgain()",
+        "result": "pass",
+        "time": "0.038s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "routeKeyDoesNotDependOnArgumentOrder()",
+        "result": "pass",
+        "time": "0.011s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "simulateIgnoresKorea()",
+        "result": "pass",
+        "time": "0.013s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "memoIsTrimmedAndBlankBecomesNull()",
+        "result": "pass",
+        "time": "0.041s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "confirmedPlanDoesNotChangeWhenMasterChangesLater()",
+        "result": "pass",
+        "time": "0.034s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "simulateRejectsBadQuantitiesWithReason()",
+        "result": "pass",
+        "time": "0.013s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "confirmStillValidatesQuantities()",
+        "result": "pass",
+        "time": "0.016s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "confirmStoresServerSidePlanAndFirstHistory()",
+        "result": "pass",
+        "time": "0.029s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "shipDailyCostIsEokAndMustBePositiveWholeWon()",
+        "result": "pass",
+        "time": "0.039s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "staleMasterVersionIsAConflictAndNothingIsSaved()",
+        "result": "pass",
+        "time": "0.027s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "simulateReturnsThreeOptionsInFixedOrderWithSameMasterVersion()",
+        "result": "pass",
+        "time": "0.018s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "versionIsCheckedBeforeTransition()",
+        "result": "pass",
+        "time": "0.019s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "initialMasterHasDefaultValues()",
+        "result": "pass",
+        "time": "0.012s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "notAllowedTransitionIsRejectedWithBothLabels()",
+        "result": "pass",
+        "time": "0.025s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "inProgressOrderCanBeCanceledToo()",
+        "result": "pass",
+        "time": "0.039s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "numberRangesAreChecked()",
+        "result": "pass",
+        "time": "0.039s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "listIsNewestFirstAndCanBeFilteredByStatus()",
+        "result": "pass",
+        "time": "0.043s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "statusFollowsFixedOrderAndEveryChangeIsRecorded()",
+        "result": "pass",
+        "time": "0.026s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "simulateFillsMissingCountriesWithZero()",
+        "result": "pass",
+        "time": "0.013s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "countByStatusHasAllStatusesAndFollowsChanges()",
+        "result": "pass",
+        "time": "0.041s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "unknownRouteTypeIsRejected()",
+        "result": "pass",
+        "time": "0.034s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "memoLengthLimitIsOneThousandAfterTrim()",
+        "result": "pass",
+        "time": "0.04s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "cancelKeepsTheOrderWithCanceledStatusAndHistory()",
+        "result": "pass",
+        "time": "0.033s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "unknownOrderIsReportedWithReason()",
+        "result": "pass",
+        "time": "0.01s",
+        "message": ""
+      },
+      {
+        "suite": "ServiceBehaviorTest",
+        "name": "validMasterUpdateIsSavedAndBumpsVersionByOne()",
+        "result": "pass",
+        "time": "0.021s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "costGettersAreFormattedInEokWithTwoDecimals()",
+        "result": "pass",
+        "time": "0.018s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "detailHasOrderHistoryNextStatusesAndStoredPlan()",
+        "result": "pass",
+        "time": "0.037s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "simulateErrorsAreBadRequestWithoutConflictFlag()",
+        "result": "pass",
+        "time": "0.016s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "statusChangeReturnsMessageAndChangesTheOrder()",
+        "result": "pass",
+        "time": "0.032s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "wrongLoginIsUnauthorizedWithMessage()",
+        "result": "pass",
+        "time": "0.014s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "staleVersionIsAConflict()",
+        "result": "pass",
+        "time": "0.026s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "finalStatusHasNoNextStatusesAndMemoMayBeNull()",
+        "result": "pass",
+        "time": "0.027s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "apiMasterReturnsSnapshotFields()",
+        "result": "pass",
+        "time": "0.014s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "pageUrlsServeStaticHtmlWhenLoggedIn()",
+        "result": "pass",
+        "time": "0.018s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "listHasOrdersCountsTotalAndStatuses()",
+        "result": "pass",
+        "time": "0.051s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "unknownStatusFilterIsABadRequest()",
+        "result": "pass",
+        "time": "0.015s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "unknownOrderIsNotFoundWithMessage()",
+        "result": "pass",
+        "time": "0.013s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "everyPageNeedsLoginExceptTheLoginPage()",
+        "result": "pass",
+        "time": "0.015s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "loginSetsSessionAndMeReturnsTheUser()",
+        "result": "pass",
+        "time": "0.012s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "unknownStatusValueIsABadRequest()",
+        "result": "pass",
+        "time": "0.022s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "storedPlanOfConfirmedOrderKeepsTheSameJsonShape()",
+        "result": "pass",
+        "time": "0.02s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "invalidMasterReportsEveryReasonAndSavesNothing()",
+        "result": "pass",
+        "time": "0.02s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "everyApiNeedsLoginExceptLogin()",
+        "result": "pass",
+        "time": "0.011s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "statusChangeOfUnknownOrderIsNotFound()",
+        "result": "pass",
+        "time": "0.011s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "confirmReturnsIdAndSavesOrder()",
+        "result": "pass",
+        "time": "0.023s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "confirmErrorsMapToStatusCodes()",
+        "result": "pass",
+        "time": "0.039s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "logoutEndsTheSession()",
+        "result": "pass",
+        "time": "0.013s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "simulateResponseMatchesTheRecordedGolden()",
+        "result": "pass",
+        "time": "0.02s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "notAllowedStatusChangeIsABadRequestWithReason()",
+        "result": "pass",
+        "time": "0.02s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "validMasterIsSavedWithMessage()",
+        "result": "pass",
+        "time": "0.018s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "statusChangeRecordsTheLoggedInUser()",
+        "result": "pass",
+        "time": "0.02s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "listCanBeFilteredByStatusButCountsStayOverall()",
+        "result": "pass",
+        "time": "0.035s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "detailPlanEqualsTheStoredPlanJson()",
+        "result": "pass",
+        "time": "0.026s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "masterFormHasCurrentValues()",
+        "result": "pass",
+        "time": "0.032s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "canceledOrderStaysVisibleAsFinalState()",
+        "result": "pass",
+        "time": "0.049s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "masterFormShowsEokWithoutTrailingZeros()",
+        "result": "pass",
+        "time": "0.028s",
+        "message": ""
+      },
+      {
+        "suite": "WebBehaviorTest",
+        "name": "loginPageRedirectsWhenAlreadyLoggedIn()",
+        "result": "pass",
+        "time": "0.009s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerGoldenTest",
+        "name": "resultsMatchTheRecordedGolden()",
+        "result": "pass",
+        "time": "0.038s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerGoldenTest",
+        "name": "resultIsDeterministic()",
+        "result": "pass",
+        "time": "0.039s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "usesAtMostAvailableShips()",
+        "result": "pass",
+        "time": "0.003s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "costOptionIsNotMoreExpensiveAndFastOptionIsNotSlower()",
+        "result": "pass",
+        "time": "0.002s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "defaultOrderSummary()",
+        "result": "pass",
+        "time": "0.009s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "productionCostIsCellsTimesUnitCost()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "everyOptionCollectsExactlyWhatWasOrdered()",
+        "result": "pass",
+        "time": "0.002s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "productionStopsAtStockLimitUntilPickup()",
+        "result": "pass",
+        "time": "0.0s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "singleSmallOrderTakesProductionPlusRoundTrip()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "eachCountryIsVisitedByOneShipOnly()",
+        "result": "pass",
+        "time": "0.003s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "rejectsEmptyOrder()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "shipDepartsLateSoItDoesNotWaitAtPort()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "visitsAreCeilOfOrderOverStockLimit()",
+        "result": "pass",
+        "time": "0.0s",
+        "message": ""
+      },
+      {
+        "suite": "PlannerTest",
+        "name": "overStockLimitOrderIsCollectedInSeveralRoundTrips()",
+        "result": "pass",
+        "time": "0.001s",
+        "message": ""
+      }
+    ]
+  },
+  "e2e": {
+    "ran": true,
+    "note": "npx playwright test --reporter=list 를 전체 실행했습니다. 48건 모두 통과, 실패 0, known-issue 실패 0, 57.0s. 대상인 T-DUE, T-DUE2 와 회귀 대상 T06, T15, T17, No.12, master-change-confirm-conflict, order-status-flow 도 통과했습니다. 테스트 데이터: E2E 가 만든 주문은 cancelOrderIfOpen 으로 '취소' 상태입니다. verify 가 curl 로 확인하며 만든 주문 227~231 은 '확정' 상태로 개발 DB 에 남아 있고, 지침에 따라 되돌리지 않았습니다."
+  },
+  "issues": [
+    {
+      "severity": "minor",
+      "location": "src/main/resources/static/js/order-new.js:15-16, src/main/resources/static/order-new.html:27, OrderService.java MIN_DUE_DAYS/MAX_DUE_DAYS",
+      "problem": "납기 범위 5~50일이 서버 상수, JS 상수, HTML 안내 문구 세 곳에 따로 하드코딩되어 있습니다. 범위를 바꿀 때 한 곳만 고치면 화면과 서버 판정이 어긋납니다(아키텍처 minor).",
+      "reproduce": "grep -n '50' 로 세 파일의 값을 비교"
+    },
+    {
+      "severity": "minor",
+      "location": "src/main/java/com/example/demo/service/OrderService.java confirm(..., Boolean asap, String dueDate, String user)",
+      "problem": "서비스 공개 메서드가 납기일을 LocalDate 가 아닌 String 으로 받아 서비스 안에서 파싱합니다. 기존에 타입 값을 받던 시그니처 관례와 다릅니다(아키텍처 minor).",
+      "reproduce": "OrderService 시그니처 확인"
+    },
+    {
+      "severity": "minor",
+      "location": "order-new.js(브라우저 로컬 날짜) / OrderService(LocalDate.now())",
+      "problem": "화면과 서버가 '오늘'을 서로 다른 시간대로 정해, 자정 무렵이나 시간대가 다르면 경계일(5일/50일) 판정이 하루 어긋날 수 있습니다. 서버가 400 으로 막으므로 데이터는 안전합니다(참고).",
+      "reproduce": "브라우저 시간대를 서버와 다르게 두고 경계일 선택"
+    },
+    {
+      "severity": "minor",
+      "location": "docs/PRD-INTENT/team/PRD.md F4·§9·§10-4, INTENT.md §6·§7-4",
+      "problem": "팀 문서를 갱신하지 않았습니다. PR 본문에 문서 갱신이 필요하다고 알려야 합니다(참고).",
+      "reproduce": "PRD.md:52 의 F4 가 '[미구현]' 으로 남아 있음"
+    }
+  ],
+  "plan_feedback": {
+    "summary": "",
+    "failed_checklist": [],
+    "failed_tests": [],
+    "suggested_focus": []
+  },
+  "commands": [
+    {
+      "cmd": "netstat -ano | grep ':8080 .*LISTENING'; curl POST /api/login; curl GET /api/orders/173; curl /order-new.html",
+      "result": "PID 16944 실행 중. 로그인 200. 상세에 납기 새 키 3개(null) 있음. #dueAsap 과 #dueDate 있음 → 반영 확인"
+    },
+    {
+      "cmd": "curl POST /api/orders (asap=false, dueDate=+4/+51/과거/2026-11-30 슬래시/null)",
+      "result": "모두 400 과 이유 문구. 주문 건수 78→78"
+    },
+    {
+      "cmd": "curl POST /api/orders (dueDate=+5, +50, +20 COST, asap=true, 납기 필드 없음)",
+      "result": "모두 200 (id 227~231). 229 상세는 dueExceeded=true, 231 은 납기 null"
+    },
+    {
+      "cmd": "curl 메모 1,001자 / masterVersion -1 / 비로그인",
+      "result": "400 / 409 conflict:true / 401 (기존과 같음)"
+    },
+    {
+      "cmd": "curl POST /api/simulate (12,000K)",
+      "result": "COST 26, FAST 20, NEAR 21 (불변)"
+    },
+    {
+      "cmd": "./gradlew.bat test --console=plain",
+      "result": "BUILD SUCCESSFUL, 98건 중 실패 0"
+    },
+    {
+      "cmd": "npx playwright test --reporter=list",
+      "result": "48 passed (57.0s), known-issue 실패 0"
+    },
+    {
+      "cmd": "리뷰 로그 저장",
+      "result": "D:/work/battery-2-team/docs/logs/verify/review_20261022_160651.log"
+    }
+  ],
+  "precheck_link": "./precheck.html"
+}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">리포트 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function pill(x, k) { return el('span', 'pill ' + k, x); }
+  var RES = { pass: ['통과', 'ok'], fail: ['실패', 'bad'], skipped: ['건너뜀', 'warn'], unverified: ['확인 못함', 'warn'] };
+
+  var pass = D.verdict === 'PASS';
+  $('hero').classList.toggle('fail', !pass);
+  $('badge').textContent = pass ? '✔ PASS — 루프를 종료합니다' : '✖ FAIL — 계획 단계로 되돌아갑니다';
+  $('title').textContent = D.request || '구현 검증 리포트';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (D.summary || '');
+  document.title = (pass ? '[PASS] ' : '[FAIL] ') + '구현 검증 리포트';
+
+  var cl = D.checklist || [], R = D.regression || {}, tests = R.tests || [];
+  var okCl = cl.filter(function (c) { return c.result === 'pass'; }).length;
+  [['판정', pass ? 'PASS' : 'FAIL'], ['체크리스트', okCl + ' / ' + cl.length], ['회귀 테스트', (R.passed || 0) + ' / ' + (R.total || 0)], ['실패', (R.failed || 0) + (cl.length - okCl)]]
+    .forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  var F = D.plan_feedback;
+  if (!pass && F) {
+    var fb = el('div', 'feedback'); fb.appendChild(el('h3', '', '↩ 계획 단계로 되돌아가기 위한 값'));
+    if (F.summary) fb.appendChild(el('p', '', F.summary));
+    [['실패한 체크리스트', F.failed_checklist], ['실패한 테스트', F.failed_tests], ['계획이 집중할 점', F.suggested_focus]].forEach(function (g) {
+      if (!(g[1] || []).length) return; fb.appendChild(el('b', 'small', g[0]));
+      var ul = el('ul'); g[1].forEach(function (x) { ul.appendChild(el('li', '', x)); }); fb.appendChild(ul);
+    });
+    var w = el('div', 'card'); w.style.borderColor = 'var(--bad)'; w.appendChild(fb); $('feedbackBox').appendChild(w);
+  }
+
+  cl.forEach(function (c, i) {
+    var r = RES[c.result] || RES.unverified, d = el('div', 'item ' + r[1]), h = el('header');
+    h.appendChild(pill(r[0], r[1])); h.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); d.appendChild(h);
+    if (c.detail) d.appendChild(el('p', 'muted', '확인 방법: ' + c.detail));
+    if (c.evidence) d.appendChild(el('p', '', '근거: ' + c.evidence));
+    $('checks').appendChild(d);
+  });
+  if (!cl.length) $('checks').appendChild(el('div', 'empty', '체크리스트가 전달되지 않았습니다.'));
+
+  var tot = R.total || 0;
+  function seg(c, n) { var i = el('i', c); i.style.width = (tot ? n / tot * 100 : 0) + '%'; $('bar').appendChild(i); }
+  seg('p', R.passed || 0); seg('f', R.failed || 0); seg('s', R.skipped || 0);
+  $('barTxt').textContent = '통과 ' + (R.passed || 0) + ' · 실패 ' + (R.failed || 0) + ' · 건너뜀 ' + (R.skipped || 0) + ' / 전체 ' + tot + (R.duration ? ' · ' + R.duration : '');
+  var filter = 'all', q = '', defs = [['all', '전체'], ['pass', '통과'], ['fail', '실패'], ['skipped', '건너뜀']];
+  function draw() {
+    var tb = $('tests'); tb.textContent = '';
+    var list = tests.filter(function (t) { return (filter === 'all' || t.result === filter) && (!q || ((t.suite || '') + ' ' + t.name + ' ' + (t.message || '')).toLowerCase().indexOf(q) >= 0); });
+    if (!list.length) { var tr = el('tr'), td = el('td', 'empty', '표시할 테스트가 없습니다.'); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr); return; }
+    list.forEach(function (t) {
+      var r = RES[t.result] || RES.skipped, tr = el('tr'), a = el('td'); a.appendChild(pill(r[0], r[1])); tr.appendChild(a);
+      var b = el('td'); b.appendChild(el('b', '', t.name || '')); if (t.suite) b.appendChild(el('div', 'small muted', t.suite)); tr.appendChild(b);
+      tr.appendChild(el('td', 'num', t.time || '')); tr.appendChild(el('td', 'small', t.message || '')); tb.appendChild(tr);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); draw(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 검색'; s.oninput = function () { q = s.value.toLowerCase(); draw(); }; $('chips').appendChild(s);
+  draw();
+  if (D.e2e) $('e2e').textContent = 'E2E(Playwright): ' + (D.e2e.ran ? '실행함' : '실행하지 않음') + (D.e2e.note ? ' — ' + D.e2e.note : '');
+  if (R.command) $('e2e').textContent = '실행: ' + R.command + (D.e2e ? ' · ' + $('e2e').textContent : '');
+
+  var iss = D.issues || [];
+  if (!iss.length) $('issues').appendChild(el('div', 'empty', '발견한 문제가 없습니다.'));
+  iss.forEach(function (x) {
+    var k = x.severity === 'blocker' ? 'bad' : x.severity === 'major' ? 'warn' : 'info', d = el('div', 'item ' + (k === 'info' ? 'ok' : k)), h = el('header');
+    h.appendChild(pill(x.severity || '', k)); h.appendChild(el('b', '', x.location || '')); d.appendChild(h);
+    d.appendChild(el('p', '', x.problem || '')); if (x.reproduce) d.appendChild(el('p', 'muted', '재현/확인: ' + x.reproduce)); $('issues').appendChild(d);
+  });
+
+  var cm = D.commands || [];
+  if (!cm.length) $('cmdCard').hidden = true;
+  cm.forEach(function (c) { $('cmds').appendChild(el('pre', '', '$ ' + c.cmd + '\n→ ' + (c.result || ''))); });
+
+  if (D.precheck_link) { $('evCard').hidden = false; var a = el('a', '', '계획 점검 보기 (' + D.precheck_link + ')'); a.href = D.precheck_link; $('ev').appendChild(a); }
+})();
+</script>
+</body>
+</html>
