@@ -16,7 +16,8 @@
 
 	<form id="masterForm" action="/api/master" method="post">
 		<div id="masterBody"></div>
-		<button type="submit" class="primary">저장</button>
+		<!-- 입력칸이 그려지기 전에 눌러 빈 값이 저장 요청되지 않도록, 값을 불러온 뒤 켠다 -->
+		<button type="submit" class="primary" id="saveBtn" disabled>저장</button>
 	</form>
 </main>
 <script src="/js/common.js"></script>
