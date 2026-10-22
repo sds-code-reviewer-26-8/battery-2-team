@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 사전 점검</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; padding: 28px 16px 64px; }
+  .hero.hilp { background: linear-gradient(135deg, #d97706, #dc2626); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.2); font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.55rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .9; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: .82rem; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid2 .card { margin-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  ul.ev { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .88rem; }
+  .meter { display: flex; gap: 6px; margin: 8px 0 4px; }
+  .meter i { flex: 1; height: 10px; border-radius: 6px; background: var(--line); }
+  .meter i.on.low { background: var(--ok); } .meter i.on.medium { background: var(--warn); } .meter i.on.high { background: var(--bad); }
+  .risk { border-left: 4px solid var(--line); padding: 8px 12px; margin-top: 10px; background: var(--bg); border-radius: 0 10px 10px 0; }
+  .risk.low { border-color: var(--ok); } .risk.medium { border-color: var(--warn); } .risk.high { border-color: var(--bad); }
+  .alert { border-radius: 12px; padding: 12px 14px; margin-top: 12px; background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+  .alert.warn { background: var(--warn-soft); color: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px;
+    padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  .tc { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .tc header { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+  .tc code { font-size: .85rem; color: var(--muted); }
+  .tc dl { margin: 8px 0 0; display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; font-size: .88rem; }
+  .tc dt { color: var(--muted); } .tc dd { margin: 0; white-space: pre-wrap; }
+  .check { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .check:first-of-type { border-top: 0; }
+  .check input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .check b { display: block; } .check.done b { text-decoration: line-through; color: var(--muted); }
+  .progress { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; margin: 6px 0 4px; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s; }
+  .plan { white-space: pre-wrap; background: var(--bg); border-radius: 12px; padding: 14px; font-size: .9rem; }
+  details summary { cursor: pointer; font-weight: 700; }
+  ol.q { margin: 8px 0 0; padding-left: 20px; } ol.q li { margin-bottom: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero">
+  <div class="wrap">
+    <span class="badge" id="badge"></span>
+    <h1 id="title"></h1>
+    <p id="sub"></p>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="hilpBox"></div>
+  <div class="grid2">
+    <section class="card"><h2>🧭 배경 이해</h2><div id="bg"></div></section>
+    <section class="card"><h2>🎯 목적 이해</h2><div id="pu"></div></section>
+  </div>
+  <section class="card" style="margin-top:16px"><h2>⚠️ 변경 규모와 위험</h2><div id="risk"></div></section>
+  <section class="card"><h2>🧪 테스트 점검</h2>
+    <div class="chips" id="chips"></div>
+    <div id="tcs"></div>
+  </section>
+  <section class="card"><h2>✅ 구현 후 꼭 확인할 3가지</h2>
+    <div class="progress"><i id="bar"></i></div><div class="small muted" id="barTxt"></div>
+    <div id="checks"></div>
+  </section>
+  <section class="card" id="planCard"><h2>🗺️ 구현 계획</h2><div class="plan" id="plan"></div></section>
+</main>
+<footer>impl-plan 사전 점검 · 이 페이지는 계획 단계의 점검 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request":"확정된 주문도 수량을 나중에 수정할 수 있게 해줘","round":1,"status":"HILP","reason":"확정 후 수정은 팀 문서가 명시적으로 '미결'로 남긴 사항이다(PRD §9 범위 밖, §10-8, INTENT §6, §7-8). 수정 방식이 (a) 기존 주문 행을 제자리에서 변경, (b) 새 주문으로 대체, (c) 취소 후 재확정으로 갈리고, 어느 방식이냐에 따라 G1(확정 주문은 바뀌지 않는다)·G2(확정 시 서버 재계산)·G3(마스터 버전)·G4(상태 이력)와의 충돌 정도와 구현 범위가 크게 달라진다. 코드와 문서만으로는 정할 수 없다.","questions":["Q1. 수정을 어떤 방식으로 할까요? 선택지: (A) 같은 주문을 제자리에서 수정하고 수정 이력을 남김, (B) 수정 시 새 주문을 만들고 기존 주문은 '대체됨'으로 연결하여 원본 보존, (C) 기존 '취소' 후 '새 주문 추가'를 안내하는 정도로 UI만 보강(데이터 모델 변경 없음). 추천: (B). G1(확정 주문 내용 불변)과 I4(확정 당시 계획 보존)를 지키면서 요청을 만족하는 방식이고, 확정 시 서버 재계산(G2)을 그대로 재사용할 수 있다.","Q2. 어떤 상태의 주문까지 수정 가능하게 할까요? 선택지: (A) 확정(CONFIRMED)만, (B) 확정과 진행(IN_PROGRESS), (C) 완료·취소 제외 전부. 추천: (A). 진행은 계약서 작성 후 생산이 시작된 상태(PRD §6)라 수량 변경이 실제 생산과 어긋날 수 있다.","Q3. 수량을 바꾸면 경로 3종을 어떻게 처리할까요? 선택지: (A) 새 수량으로 3종을 다시 시뮬레이션하여 안을 다시 고르게 함, (B) 기존에 고른 경로 유형(COST/FAST/NEAR)을 유지한 채 재계산만 함. 추천: (A). 수량이 바뀌면 최적 경로가 달라질 수 있고 담당자 선택이 목적(INTENT §1)이다. 마스터가 그사이 바뀐 경우 새 기준값으로 계산하므로 확정 당시 값 보존 원칙과 어떻게 구분할지도 함께 확인 필요.","Q4. 수정 기록을 어떻게 남길까요? 선택지: (A) 기존 OrderStatusHistory 와 별도의 수정 이력(이전 수량→새 수량, 일시, 사용자) 추가, (B) 이력 없이 마지막 값만 보관. 추천: (A). G4와 D1의 취지(변경은 이력을 남긴다)에 맞다."],"background":{"understood":true,"summary":"주문은 확정 시 서버가 재계산해 StoredPlan JSON 으로 수량·마스터 값·선택 경로를 저장하며(BatteryService.confirm), 이후에는 상태만 바꿀 수 있다(changeStatus, 낙관적 락 Order.version). 확정 후 수량 수정은 현재 불가이며 팀 문서도 이를 의도적 범위 밖으로 둔다.","evidence":["src/main/java/com/example/demo/service/BatteryService.java:224-248 (confirm: 재계산, masterVersion 비교, StoredPlan 저장)","src/main/java/com/example/demo/service/BatteryService.java:274-298 (changeStatus: 수정 가능한 필드는 상태뿐, 취소 시 주문 삭제)","docs/PRD-INTENT/team/PRD.md:133 (확정한 주문 내용의 수정 불가)","docs/PRD-INTENT/team/PRD.md:148 (§10-8 확정 후 수정 방식 미결)","docs/PRD-INTENT/team/INTENT.md:68 (§6 확정 후 수정은 근거 보존이 목적이라 두지 않음)","docs/PRD-INTENT/team/INTENT.md:84 (§7-8 새 주문으로 대체 vs 취소 후 재확정)"]},"purpose":{"understood":true,"summary":"담당자가 확정 후 물량 변경 필요가 생겼을 때 대응하려는 요청으로 보인다. 다만 확정된 계획을 보존한다는 도구의 핵심 목적(INTENT §1, I4, G1)과 충돌하므로 수정의 정의를 사람이 정해야 한다.","evidence":["docs/PRD-INTENT/team/INTENT.md:17 (목적: 선택한 결과가 나중에 바뀌지 않게 보존)","docs/PRD-INTENT/team/INTENT.md:46 (G1 확정된 주문의 내용은 어떤 경우에도 바뀌지 않게 한다)","docs/PRD-INTENT/team/INTENT.md:47 (G2 확정 시 항상 서버 재계산)","docs/PRD-INTENT/team/INTENT.md:49 (G4 상태 변경은 이력과 낙관적 락)"]},"risk":{"size":"large","severity":"high","userAware":true,"warning":"확정 주문 수정은 '확정된 계획은 불변'이라는 팀 원칙(G1)과 직접 충돌합니다. 제자리 수정을 택하면 StoredPlan(마스터 스냅샷 포함), 비용, 소요일, 상세 화면, 지도 애니메이션 전체가 영향을 받습니다. 방식을 먼저 정해 주세요.","items":[{"title":"G1/I4 불변 원칙 충돌","detail":"Order 의 totalK, totalDays, 비용과 storedPlan JSON 이 확정 당시 값을 보존하는 구조다. 제자리 수정은 과거 근거를 덮어쓴다.","severity":"high"},{"title":"마스터 버전 불일치","detail":"수정 시 재계산에 현재 마스터를 쓰면 확정 당시와 다른 기준값이 섞인다. 이전 StoredPlan 의 마스터를 쓸지 현재 값을 쓸지 정해야 한다.","severity":"high"},{"title":"상태 규칙·동시성","detail":"IN_PROGRESS 이후 수정 허용 여부, Order.version 낙관적 락과 상태 변경이 동시에 일어날 때의 409 처리, 수정 이력(OrderStatusHistory 는 상태 전이 전용)이 필요하다.","severity":"medium"},{"title":"DB 스키마 변경","detail":"ddl-auto=update 이며 ./data/battery 파일 DB 를 쓰므로 필드나 테이블 추가 시 기존 데이터와의 호환(null 허용 등)을 고려해야 한다.","severity":"medium"},{"title":"프론트 재사용","detail":"order-new.js 와 planview.js 를 수정 화면에서 재사용하려면 주문 상세 화면 흐름 변경이 필요하다.","severity":"low"}]},"testCases":[{"id":"TC-1","origin":"existing","kind":"regression","target":"src/test/java/com/example/demo/OrderFlowTests.java confirmThenDetailAndStatusFlow","description":"확정 후 상세 조회와 상태 변경 흐름이 수정 기능 추가 후에도 유지되는지 확인","input":"시뮬레이션 후 확정, 상세 조회, 상태 변경","expected":"기존 동작과 동일하게 통과"},{"id":"TC-2","origin":"existing","kind":"regression","target":"src/test/java/com/example/demo/OrderFlowTests.java masterUpdateBumpsVersionAndKeepsConfirmedPlans","description":"마스터 변경 후에도 확정 주문의 계획이 보존되는지 확인(G1/I4)","input":"확정 후 마스터 수정","expected":"기존 주문의 StoredPlan 이 변하지 않음"},{"id":"TC-3","origin":"existing","kind":"regression","target":"src/test/java/com/example/demo/OrderFlowTests.java confirmFailsWhenMasterChangedAfterSimulation","description":"마스터 변경 후 확정 거절(409) 규칙이 유지되는지 확인","input":"시뮬레이션 후 마스터 변경 후 확정","expected":"409 로 거부"},{"id":"TC-4","origin":"new","kind":"feature","target":"확정 주문 수량 수정 (방식은 Q1 답변에 따름)","description":"확정 상태 주문의 수량을 수정하면 서버가 재계산하고 이력이 남는다","input":"CONFIRMED 주문, 새 수량","expected":"새 수량 기준 계획이 저장되고 수정 이력이 기록됨"},{"id":"TC-5","origin":"new","kind":"boundary","target":"수정 가능 상태 경계","description":"허용되지 않은 상태(완료 등)에서 수정 시도 시 거부","input":"COMPLETED 주문에 수정 요청","expected":"400 과 한국어 안내 메시지"},{"id":"TC-6","origin":"new","kind":"boundary","target":"수량 경계","description":"총 수량 0 이하 또는 100,000K 초과 수정 시 거부","input":"총 0K, 100,001K","expected":"기존 validateOrders 와 같은 오류 메시지"},{"id":"TC-7","origin":"new","kind":"regression","target":"동시 수정 충돌","description":"오래된 version 으로 수정 요청 시 409","input":"version 불일치","expected":"409 와 새로고침 안내"}],"checklist":[],"plan":""}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">점검 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function pill(text, kind) { return el('span', 'pill ' + kind, text); }
+
+  var hilp = D.status === 'HILP';
+  $('hero').classList.toggle('hilp', hilp);
+  $('badge').textContent = hilp ? '⏸ HILP — 사람의 판단이 필요합니다' : '✔ READY — 구현을 진행할 수 있습니다';
+  $('title').textContent = D.request || '구현 사전 점검';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (hilp ? (D.reason || '') : '배경·목적·위험·테스트를 점검했습니다');
+  document.title = (hilp ? '[HILP] ' : '[READY] ') + '구현 사전 점검';
+
+  var tcs = D.testCases || [];
+  var tiles = [
+    ['점검 결과', hilp ? 'HILP' : 'READY'],
+    ['테스트 케이스', tcs.length],
+    ['신규 작성', tcs.filter(function (t) { return t.origin === 'new'; }).length],
+    ['위험도', ({ low: '낮음', medium: '보통', high: '높음' })[(D.risk || {}).severity] || '-']
+  ];
+  tiles.forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  if (hilp) {
+    var box = el('section', 'card'); box.style.borderColor = 'var(--bad)';
+    box.appendChild(el('h2', '', '🙋 사람이 답해야 할 질문'));
+    if (D.risk && D.risk.warning && !D.risk.userAware) box.appendChild(el('div', 'alert', '경고: ' + D.risk.warning));
+    var ol = el('ol', 'q'); (D.questions || []).forEach(function (q) { ol.appendChild(el('li', '', q)); });
+    box.appendChild(ol); $('hilpBox').appendChild(box);
+  }
+
+  function understanding(root, u) {
+    u = u || {};
+    root.appendChild(pill(u.understood ? '이해함' : '이해하지 못함', u.understood ? 'ok' : 'bad'));
+    root.appendChild(el('p', '', u.summary || '(내용 없음)'));
+    if ((u.evidence || []).length) { var ul = el('ul', 'ev'); u.evidence.forEach(function (x) { ul.appendChild(el('li', '', x)); }); root.appendChild(ul); }
+  }
+  understanding($('bg'), D.background); understanding($('pu'), D.purpose);
+
+  var R = D.risk || {}, lv = { low: 1, medium: 2, high: 3 }[R.severity] || 0;
+  var sz = ({ small: '작음', medium: '보통', large: '큼' })[R.size] || '-';
+  var rr = $('risk');
+  rr.appendChild(pill('변경 규모: ' + sz, 'info')); rr.appendChild(document.createTextNode(' '));
+  rr.appendChild(pill('위험도: ' + (({ low: '낮음', medium: '보통', high: '높음' })[R.severity] || '-'), R.severity === 'high' ? 'bad' : R.severity === 'medium' ? 'warn' : 'ok'));
+  rr.appendChild(document.createTextNode(' ')); rr.appendChild(pill(R.userAware ? '사용자가 인지함' : '사용자 인지 여부 불명', R.userAware ? 'ok' : 'warn'));
+  var m = el('div', 'meter'); for (var i = 1; i <= 3; i++) m.appendChild(el('i', i <= lv ? 'on ' + R.severity : '')); rr.appendChild(m);
+  if (R.warning) rr.appendChild(el('div', 'alert warn', R.warning));
+  (R.items || []).forEach(function (x) { var b = el('div', 'risk ' + (x.severity || '')); b.appendChild(el('b', '', x.title || '')); if (x.detail) b.appendChild(el('div', 'small muted', x.detail)); rr.appendChild(b); });
+  if (!R.warning && !(R.items || []).length) rr.appendChild(el('p', 'muted', '특별한 위험 요소를 찾지 못했습니다.'));
+
+  var filter = 'all', q = '';
+  var defs = [['all', '전체'], ['existing', '기존'], ['new', '신규'], ['regression', '회귀'], ['boundary', '경계값']];
+  function match(t) {
+    if (filter === 'existing' || filter === 'new') { if (t.origin !== filter) return false; }
+    else if (filter !== 'all' && t.kind !== filter) return false;
+    var s = (t.id + ' ' + t.target + ' ' + t.description + ' ' + t.input + ' ' + t.expected).toLowerCase();
+    return !q || s.indexOf(q) >= 0;
+  }
+  function drawTcs() {
+    var root = $('tcs'); root.textContent = '';
+    var list = tcs.filter(match);
+    if (!list.length) { root.appendChild(el('div', 'empty', '조건에 맞는 테스트 케이스가 없습니다.')); return; }
+    list.forEach(function (t) {
+      var c = el('div', 'tc'), h = el('header');
+      h.appendChild(pill(t.origin === 'new' ? '신규' : '기존', t.origin === 'new' ? 'acc' : 'info'));
+      h.appendChild(pill(({ regression: '회귀', boundary: '경계값', feature: '기능' })[t.kind] || t.kind || '', t.kind === 'boundary' ? 'warn' : t.kind === 'regression' ? 'ok' : 'info'));
+      h.appendChild(el('code', '', t.id || '')); c.appendChild(h);
+      c.appendChild(el('b', '', t.description || ''));
+      var dl = el('dl');
+      [['대상', t.target], ['입력', t.input], ['기대', t.expected]].forEach(function (p) { if (p[1]) { dl.appendChild(el('dt', '', p[0])); dl.appendChild(el('dd', '', p[1])); } });
+      c.appendChild(dl); root.appendChild(c);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); drawTcs(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 케이스 검색'; s.oninput = function () { q = s.value.toLowerCase(); drawTcs(); }; $('chips').appendChild(s);
+  drawTcs();
+
+  var key = 'precheck:' + (D.request || '') + ':' + (D.round || 0), saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) {}
+  var cl = D.checklist || [];
+  function progress() {
+    var n = cl.filter(function (_, i) { return saved[i]; }).length;
+    $('bar').style.width = (cl.length ? n / cl.length * 100 : 0) + '%';
+    $('barTxt').textContent = n + ' / ' + cl.length + ' 확인함';
+  }
+  cl.forEach(function (c, i) {
+    var lab = el('label', 'check' + (saved[i] ? ' done' : '')), cb = el('input'); cb.type = 'checkbox'; cb.checked = !!saved[i];
+    var box = el('div'); box.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); if (c.detail) box.appendChild(el('span', 'small muted', c.detail));
+    cb.onchange = function () { saved[i] = cb.checked; lab.classList.toggle('done', cb.checked); try { localStorage.setItem(key, JSON.stringify(saved)); } catch (e) {} progress(); };
+    lab.appendChild(cb); lab.appendChild(box); $('checks').appendChild(lab);
+  });
+  progress();
+
+  if (D.plan) $('plan').textContent = D.plan; else $('planCard').hidden = true;
+})();
+</script>
+</body>
+</html>
