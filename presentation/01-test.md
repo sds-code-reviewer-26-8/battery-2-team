@@ -12,7 +12,7 @@
 | Robustness 테스트 | 7개 (전부 통과) | Playwright, 견고성 시나리오 S1·S3·S4·S5·S7·S8·S10 |
 | Stress 테스트 | 0개 | - |
 | 성능 테스트 | 0개 | - |
-| Test Coverage | 측정 안 함 | - |
+| Test Coverage | 라인 97.8%, 브랜치 97.5% | JaCoCo (단위·통합 테스트 165개 기준, E2E 제외) |
 
 <br>
 
