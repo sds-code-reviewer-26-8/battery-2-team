@@ -410,7 +410,7 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
       await expect(page.locator('#options .over-due')).toHaveCount(0);
       await expect(page.locator('#options')).not.toContainText('납기 초과');
 
-      // 4. 다시 해제(날짜 유지) → 빨간 안 '운항비 최소' 로도 확정 가능
+      // 4. 다시 해제(날짜 유지) → 빨간 안 '총 비용 최소' 로도 확정 가능
       await asap.uncheck();
       await expect(page.locator('#options .option[data-type="COST"]')).toHaveClass(/over-due/);
       await page.locator('#options .option[data-type="COST"]').click();
@@ -418,7 +418,7 @@ test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 
       await page.locator('#confirmBtn').click();
       await expect(page).toHaveURL(/\/orders\/\d+$/);
       id = Number(new URL(page.url()).pathname.split('/').pop());
-      await expect(metaValue(page, '경로')).toHaveText('운항비 최소');
+      await expect(metaValue(page, '경로')).toHaveText('총 비용 최소');
       await expect(metaValue(page, '필요 납기')).toHaveText(`${localDate(due)} 납기 초과`);
       expect(await orderTotalCount(page)).toBe(before + 1);
 
