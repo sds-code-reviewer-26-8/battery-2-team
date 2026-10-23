@@ -91,8 +91,8 @@ public class OrderService {
 		int totalK = result.orders().values().stream().mapToInt(Integer::intValue).sum();
 		LocalDateTime now = LocalDateTime.now();
 		Order order = orders.save(new Order(now, user, totalK, plan.type(), plan.label(), plan.totalDays(),
-				plan.productionCost(), plan.shippingCost(), plan.totalCost(), note, customer, json.writeValueAsString(stored),
-				due.asap(), due.date(), due.exceeded()));
+				plan.productionCost(), plan.shippingCost(), plan.operatingCost(), plan.totalCost(), note, customer,
+				json.writeValueAsString(stored), due.asap(), due.date(), due.exceeded()));
 		histories.save(new OrderStatusHistory(order.getId(), null, OrderStatus.CONFIRMED, user, now));
 		return order;
 	}

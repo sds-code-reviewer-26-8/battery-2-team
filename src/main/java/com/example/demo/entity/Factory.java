@@ -27,6 +27,15 @@ public class Factory {
 	@Column(nullable = false)
 	private long unitCost;
 
+	/** 새로 만드는 공장(처음 기동한 DB)의 하루 운영비 기본값: 0.5억 원 */
+	public static final long DEFAULT_OPERATING_COST = 50_000_000L;
+
+	/**
+	 * 하루 운영비(원). 이 컬럼이 생기기 전의 행(null)은 0원으로 본다. 기존 DB 를 올려도 사용자가 마스터에서
+	 * 저장하기 전에는 시뮬레이션 결과가 바뀌지 않도록 하기 위해서다.
+	 */
+	private Long operatingCost;
+
 	protected Factory() {
 	}
 
@@ -35,6 +44,12 @@ public class Factory {
 		this.maxDaily = maxDaily;
 		this.stockLimit = stockLimit;
 		this.unitCost = unitCost;
+		this.operatingCost = DEFAULT_OPERATING_COST;
+	}
+
+	public Factory(Country country, int maxDaily, int stockLimit, long unitCost, long operatingCost) {
+		this(country, maxDaily, stockLimit, unitCost);
+		this.operatingCost = operatingCost;
 	}
 
 	public Country getCountry() {
@@ -63,5 +78,13 @@ public class Factory {
 
 	public void setUnitCost(long unitCost) {
 		this.unitCost = unitCost;
+	}
+
+	public long getOperatingCost() {
+		return operatingCost == null ? 0L : operatingCost;
+	}
+
+	public void setOperatingCost(long operatingCost) {
+		this.operatingCost = operatingCost;
 	}
 }

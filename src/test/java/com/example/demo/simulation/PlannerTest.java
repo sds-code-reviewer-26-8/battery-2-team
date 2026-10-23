@@ -16,10 +16,10 @@ class PlannerTest {
 
 	private static Master master(int ships) {
 		return new Master(1, ships, 100_000_000L,
-				List.of(new FactoryParam(Country.CHINA, 400, 4000, 700),
-						new FactoryParam(Country.JAPAN, 800, 2000, 900),
-						new FactoryParam(Country.VIETNAM, 200, 10000, 550),
-						new FactoryParam(Country.INDONESIA, 300, 7000, 450)),
+				List.of(new FactoryParam(Country.CHINA, 400, 4000, 700, 0L),
+						new FactoryParam(Country.JAPAN, 800, 2000, 900, 0L),
+						new FactoryParam(Country.VIETNAM, 200, 10000, 550, 0L),
+						new FactoryParam(Country.INDONESIA, 300, 7000, 450, 0L)),
 				List.of(new RouteParam(Country.KOREA, Country.CHINA, 1),
 						new RouteParam(Country.KOREA, Country.JAPAN, 2),
 						new RouteParam(Country.KOREA, Country.VIETNAM, 5),

@@ -77,7 +77,7 @@ test.describe('sy9169park 담당 시나리오', () => {
     await expect(page.locator('#result')).toBeVisible();
 
     const option = (type: string) => page.locator(`#options .option[data-type="${type}"]`);
-    // 처음에는 "운항비 최소"가 선택되어 있다
+    // 처음에는 "총 비용 최소"가 선택되어 있다
     await expect(option('COST')).toHaveClass(/selected/);
 
     // 1. '가장 빠르게' 클릭 → 그 안만 선택, 요약과 상세가 그 안으로 갱신
@@ -135,7 +135,7 @@ test.describe('sy9169park 담당 시나리오', () => {
       const top = page.locator('table.grid tbody tr.clickable').first();
       await expect(top).toContainText(`#${id}`);
       await expect(top).toContainText('12,000'); // 총 수량(천 단위 콤마)
-      await expect(top).toContainText('운항비 최소');
+      await expect(top).toContainText('총 비용 최소');
       await expect(top).toContainText('확정');
       await expect(top).toContainText('admin');
       await expect(top).toContainText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/); // 확정 일시

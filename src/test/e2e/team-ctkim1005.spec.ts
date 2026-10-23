@@ -122,15 +122,15 @@ test.describe('ctkim1005 담당', () => {
     // 값을 바꾸지 않고 시뮬레이션 실행
     await runSimulation(page);
 
-    // 경로안 3개: 운항비 최소 / 가장 빠르게 / 가까운 곳부터, 각각 소요일·총 비용 표시
+    // 경로안 3개: 총 비용 최소 / 가장 빠르게 / 가까운 곳부터, 각각 소요일·총 비용 표시
     const options = page.locator('#options .option');
-    await expect(options.locator('strong')).toHaveText(['운항비 최소', '가장 빠르게', '가까운 곳부터']);
+    await expect(options.locator('strong')).toHaveText(['총 비용 최소', '가장 빠르게', '가까운 곳부터']);
     for (let i = 0; i < 3; i++) {
       await expect(options.nth(i)).toContainText(/소요 \d+일/);
       await expect(options.nth(i)).toContainText(/총 비용 [\d,.]+억원/);
     }
-    // 기본 선택은 '운항비 최소'
-    await expect(page.locator('#options .option.selected strong')).toHaveText('운항비 최소');
+    // 기본 선택은 '총 비용 최소'
+    await expect(page.locator('#options .option.selected strong')).toHaveText('총 비용 최소');
 
     // 지도 애니메이션 영역, 상세 표, '3. 주문 확정' 영역 표시
     await expect(page.locator('#anim')).toBeVisible();
@@ -336,7 +336,7 @@ test.describe('ctkim1005 담당', () => {
 
       // 변경 전보다 총 소요일 증가 (왕복이 길어짐)
       const after = await selectedOption(page);
-      expect(after.label).toBe('운항비 최소');
+      expect(after.label).toBe('총 비용 최소');
       expect(after.days).toBeGreaterThan(daysBefore);
       await expect(statValue(page, '소요 일수')).toHaveText(`${after.days}일`);
     } finally {

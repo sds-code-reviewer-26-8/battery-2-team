@@ -7,7 +7,14 @@ import java.util.List;
 public record Master(long version, int shipCount, long shipDailyCostWon, List<FactoryParam> factories,
 		List<RouteParam> routes) {
 
-	public record FactoryParam(Country country, int maxDaily, int stockLimit, long unitCost) {
+	/** operatingCostWon: 공장 하루 운영비(원). 이 값이 없던 옛 저장 JSON 은 0 으로 읽힌다. */
+	public record FactoryParam(Country country, int maxDaily, int stockLimit, long unitCost,
+			Long operatingCostWon) {
+
+		/** 옛 저장 JSON 에는 운영비가 없다(null). 0원으로 읽는다. */
+		public FactoryParam {
+			operatingCostWon = operatingCostWon == null ? 0L : operatingCostWon;
+		}
 	}
 
 	public record RouteParam(Country from, Country to, int days) {

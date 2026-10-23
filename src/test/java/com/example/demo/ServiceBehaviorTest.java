@@ -77,6 +77,7 @@ class ServiceBehaviorTest {
 			form.put("maxDaily_" + f.country(), String.valueOf(f.maxDaily()));
 			form.put("stockLimit_" + f.country(), String.valueOf(f.stockLimit()));
 			form.put("unitCost_" + f.country(), String.valueOf(f.unitCost()));
+			form.put("operatingCost_" + f.country(), java.math.BigDecimal.valueOf(f.operatingCostWon()).movePointLeft(8).stripTrailingZeros().toPlainString());
 		}
 		for (Master.RouteParam r : m.routes()) {
 			form.put(MasterService.routeKey(r.from(), r.to()), String.valueOf(r.days()));
@@ -104,10 +105,10 @@ class ServiceBehaviorTest {
 		assertThat(m.shipDailyCostWon()).isEqualTo(MasterService.WON_PER_EOK);
 		assertThat(m.factories()).extracting(Master.FactoryParam::country)
 				.containsExactly(Country.CHINA, Country.JAPAN, Country.VIETNAM, Country.INDONESIA);
-		assertThat(m.factory(Country.CHINA)).isEqualTo(new Master.FactoryParam(Country.CHINA, 400, 4000, 700));
-		assertThat(m.factory(Country.JAPAN)).isEqualTo(new Master.FactoryParam(Country.JAPAN, 800, 2000, 900));
-		assertThat(m.factory(Country.VIETNAM)).isEqualTo(new Master.FactoryParam(Country.VIETNAM, 200, 10000, 550));
-		assertThat(m.factory(Country.INDONESIA)).isEqualTo(new Master.FactoryParam(Country.INDONESIA, 300, 7000, 450));
+		assertThat(m.factory(Country.CHINA)).isEqualTo(new Master.FactoryParam(Country.CHINA, 400, 4000, 700, 50_000_000L));
+		assertThat(m.factory(Country.JAPAN)).isEqualTo(new Master.FactoryParam(Country.JAPAN, 800, 2000, 900, 50_000_000L));
+		assertThat(m.factory(Country.VIETNAM)).isEqualTo(new Master.FactoryParam(Country.VIETNAM, 200, 10000, 550, 50_000_000L));
+		assertThat(m.factory(Country.INDONESIA)).isEqualTo(new Master.FactoryParam(Country.INDONESIA, 300, 7000, 450, 50_000_000L));
 		assertThat(m.routes()).hasSize(10);
 		assertThat(m.days(Country.KOREA, Country.INDONESIA)).isEqualTo(7);
 		assertThat(m.days(Country.VIETNAM, Country.INDONESIA)).isEqualTo(2);
@@ -150,7 +151,7 @@ class ServiceBehaviorTest {
 		assertThat(after.factory(Country.VIETNAM).unitCost()).isEqualTo(650);
 		assertThat(after.days(Country.JAPAN, Country.CHINA)).isEqualTo(9);
 		// 바꾸지 않은 값은 그대로
-		assertThat(after.factory(Country.INDONESIA)).isEqualTo(new Master.FactoryParam(Country.INDONESIA, 300, 7000, 450));
+		assertThat(after.factory(Country.INDONESIA)).isEqualTo(new Master.FactoryParam(Country.INDONESIA, 300, 7000, 450, 50_000_000L));
 	}
 
 	@Test
@@ -158,7 +159,7 @@ class ServiceBehaviorTest {
 		long before = masters.currentMaster().version();
 		assertThatThrownBy(() -> masters.updateMaster(Map.of())).isInstanceOfSatisfying(BusinessException.class, e -> {
 			assertThat(e.isConflict()).isFalse();
-			// 배 척수 1 + 운항비 1 + 공장 4곳 x 3 + 항로 10 = 24
+			// 배 척수 1 + 운항비 1 + 공장 4곳 x 3(운영비 칸이 아예 없으면 기존 값 유지) + 항로 10 = 24
 			assertThat(e.getMessages()).hasSize(24);
 			assertThat(e.getMessages().get(0)).isEqualTo("배 척수은(는) 정수로 입력하세요");
 			assertThat(e.getMessages().get(1)).isEqualTo("척당 일 운항비(억 원)는 숫자로 입력하세요");
@@ -223,7 +224,7 @@ class ServiceBehaviorTest {
 	void simulateReturnsThreeOptionsInFixedOrderWithSameMasterVersion() {
 		SimulationResult r = simulations.simulate(orders(3000, 3000, 3000, 3000));
 		assertThat(r.options()).extracting(Plan::type).containsExactly("COST", "FAST", "NEAR");
-		assertThat(r.options()).extracting(Plan::label).containsExactly("운항비 최소", "가장 빠르게", "가까운 곳부터");
+		assertThat(r.options()).extracting(Plan::label).containsExactly("총 비용 최소", "가장 빠르게", "가까운 곳부터");
 		assertThat(r.master()).isEqualTo(masters.currentMaster());
 		assertThat(r.visits()).containsEntry(Country.JAPAN, 2).containsEntry(Country.CHINA, 1);
 	}

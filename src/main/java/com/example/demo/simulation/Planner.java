@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.TreeSet;
 
 /**
- * 주문 수량으로부터 경로 3가지(운항비 최소 / 가장 빠르게 / 가까운 곳부터)를 계산한다.
+ * 주문 수량으로부터 경로 3가지(총 비용 최소 / 가장 빠르게 / 가까운 곳부터)를 계산한다.
  *
  * <p>규칙 요약
  * <ul>
@@ -24,6 +24,8 @@ import java.util.TreeSet;
  * <li>한 나라의 방문 횟수는 올림(주문 / 재고 상한). 마지막 방문 전까지는 재고 상한만큼, 마지막은 나머지를 싣는다.</li>
  * <li>여러 번 수거할 때는 한국에 들러 내려놓고 다시 출항한다(왕복을 나눈다).</li>
  * <li>배는 재고가 채워지는 날에 맞춰 늦게 출항한다. 한국에서 대기는 무료.</li>
+ * <li>공장 운영비: 주문이 있는 공장만 0일차부터 총 소요일(마지막 배 귀환)까지 매일 부과한다. 주문 없는 공장은 0원.</li>
+ * <li>총 비용 = 생산원가 + 운항비 + 운영비. 총 비용 최소 안은 총 비용이 같으면 더 빠른 쪽을 고른다.</li>
  * </ul>
  */
 public final class Planner {
@@ -62,12 +64,12 @@ public final class Planner {
 			List<List<Country>> groups = sortGroups(master, partition);
 			for (List<List<List<Country>>> shipTrips : tripStructures(master, groups, amounts)) {
 				Candidate cand = schedule(master, amounts, shipTrips);
-				if (cost == null || cand.shipping < cost.shipping
-						|| (cand.shipping == cost.shipping && cand.totalDays < cost.totalDays)) {
+				if (cost == null || cand.variableCost() < cost.variableCost()
+						|| (cand.variableCost() == cost.variableCost() && cand.totalDays < cost.totalDays)) {
 					cost = cand;
 				}
 				if (fast == null || cand.totalDays < fast.totalDays
-						|| (cand.totalDays == fast.totalDays && cand.shipping < fast.shipping)) {
+						|| (cand.totalDays == fast.totalDays && cand.variableCost() < fast.variableCost())) {
 					fast = cand;
 				}
 			}
@@ -75,7 +77,7 @@ public final class Planner {
 		Candidate near = nearest(master, amounts, active, maxShips);
 
 		return List.of(
-				toPlan(master, orders, COST, "운항비 최소", cost),
+				toPlan(master, orders, COST, "총 비용 최소", cost),
 				toPlan(master, orders, FAST, "가장 빠르게", fast),
 				toPlan(master, orders, NEAR, "가까운 곳부터", near));
 	}
@@ -286,7 +288,12 @@ public final class Planner {
 
 	// ---------------------------------------------------------------- 일정 계산
 
-	private record Candidate(List<ShipPlan> ships, int totalDays, long shipping) {
+	private record Candidate(List<ShipPlan> ships, int totalDays, long shipping, long operating) {
+
+		/** 경로에 따라 달라지는 비용(운항비 + 운영비). 생산원가는 경로와 무관하게 같다. */
+		long variableCost() {
+			return shipping + operating;
+		}
 	}
 
 	/**
@@ -306,7 +313,11 @@ public final class Planner {
 			totalDays = Math.max(totalDays, shipEnd);
 			shipping += (long) ship.sailDays() * master.shipDailyCostWon();
 		}
-		return new Candidate(ships, totalDays, shipping);
+		long dailyOperating = 0;
+		for (Country c : amounts.keySet()) {
+			dailyOperating += master.factory(c).operatingCostWon();
+		}
+		return new Candidate(ships, totalDays, shipping, dailyOperating * totalDays);
 	}
 
 	/** 배 한 척의 왕복들을 차례로 일정에 올린다. 앞 왕복이 끝나야(한국 귀환) 다음 왕복을 출항할 수 있다. */
@@ -390,8 +401,8 @@ public final class Planner {
 			stock.put(c, st);
 			production.put(c, pr);
 		}
-		return new Plan(type, label, cand.totalDays, productionCost, cand.shipping, productionCost + cand.shipping,
-				cand.ships, stock, production);
+		return new Plan(type, label, cand.totalDays, productionCost, cand.shipping, cand.operating,
+				productionCost + cand.shipping + cand.operating, cand.ships, stock, production);
 	}
 
 	private static Map<Integer, Integer> pickups(Candidate cand, Country c) {

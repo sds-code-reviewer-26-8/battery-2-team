@@ -40,6 +40,9 @@ public class Order {
 
 	private long shippingCost;
 
+	/** 공장 운영비(원). 이 컬럼이 생기기 전의 주문(null)은 0원으로 본다. */
+	private Long operatingCost;
+
 	private long totalCost;
 
 	@Enumerated(EnumType.STRING)
@@ -75,8 +78,9 @@ public class Order {
 
 	/** 고객사와 필요 납기(dueAsap, dueDate, dueExceeded)는 확정 때 한 번만 정하므로 생성자로 받는다. 납기가 없으면 모두 null. */
 	public Order(LocalDateTime confirmedAt, String createdBy, int totalK, String routeType, String routeLabel,
-			int totalDays, long productionCost, long shippingCost, long totalCost, String memo, String customerName,
-			String planJson, Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
+			int totalDays, long productionCost, long shippingCost, long operatingCost, long totalCost, String memo,
+			String customerName, String planJson, Boolean dueAsap, LocalDate dueDate, Boolean dueExceeded) {
+		this.operatingCost = operatingCost;
 		this.confirmedAt = confirmedAt;
 		this.createdBy = createdBy;
 		this.totalK = totalK;
@@ -129,6 +133,10 @@ public class Order {
 
 	public long getShippingCost() {
 		return shippingCost;
+	}
+
+	public long getOperatingCost() {
+		return operatingCost == null ? 0L : operatingCost;
 	}
 
 	public long getTotalCost() {
@@ -187,6 +195,10 @@ public class Order {
 
 	public String getShippingCostEok() {
 		return eok(shippingCost);
+	}
+
+	public String getOperatingCostEok() {
+		return eok(getOperatingCost());
 	}
 
 	private static String eok(long won) {

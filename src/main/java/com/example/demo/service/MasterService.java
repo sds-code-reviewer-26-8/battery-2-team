@@ -24,6 +24,8 @@ public class MasterService {
 
 	public static final long WON_PER_EOK = 100_000_000L;
 	private static final int MAX_SHIPS = 4;
+	/** 공장 하루 운영비 상한(억 원) */
+	private static final int MAX_OPERATING_COST_EOK = 1000;
 
 	private final FactoryRepository factories;
 	private final RouteRepository routes;
@@ -41,10 +43,10 @@ public class MasterService {
 		if (settings.count() > 0) {
 			return;
 		}
-		factories.save(new Factory(Country.CHINA, 400, 4000, 700));
-		factories.save(new Factory(Country.JAPAN, 800, 2000, 900));
-		factories.save(new Factory(Country.VIETNAM, 200, 10000, 550));
-		factories.save(new Factory(Country.INDONESIA, 300, 7000, 450));
+		factories.save(new Factory(Country.CHINA, 400, 4000, 700, Factory.DEFAULT_OPERATING_COST));
+		factories.save(new Factory(Country.JAPAN, 800, 2000, 900, Factory.DEFAULT_OPERATING_COST));
+		factories.save(new Factory(Country.VIETNAM, 200, 10000, 550, Factory.DEFAULT_OPERATING_COST));
+		factories.save(new Factory(Country.INDONESIA, 300, 7000, 450, Factory.DEFAULT_OPERATING_COST));
 
 		routes.save(new Route(Country.KOREA, Country.CHINA, 1));
 		routes.save(new Route(Country.KOREA, Country.JAPAN, 2));
@@ -66,7 +68,8 @@ public class MasterService {
 				.orElseThrow(() -> new IllegalStateException("마스터 데이터가 초기화되지 않았습니다"));
 		List<Master.FactoryParam> fs = factories.findAll().stream()
 				.sorted(Comparator.comparing(Factory::getCountry))
-				.map(f -> new Master.FactoryParam(f.getCountry(), f.getMaxDaily(), f.getStockLimit(), f.getUnitCost()))
+				.map(f -> new Master.FactoryParam(f.getCountry(), f.getMaxDaily(), f.getStockLimit(), f.getUnitCost(),
+						f.getOperatingCost()))
 				.toList();
 		List<Master.RouteParam> rs = routes.findAll().stream()
 				.sorted(Comparator.comparing(Route::getFromCountry).thenComparing(Route::getToCountry))
@@ -84,14 +87,18 @@ public class MasterService {
 			form.put("maxDaily_" + f.country(), String.valueOf(f.maxDaily()));
 			form.put("stockLimit_" + f.country(), String.valueOf(f.stockLimit()));
 			form.put("unitCost_" + f.country(), String.valueOf(f.unitCost()));
+			form.put("operatingCost_" + f.country(), eokText(f.operatingCostWon()));
 		}
 		for (Master.RouteParam r : m.routes()) {
 			form.put(routeKey(r.from(), r.to()), String.valueOf(r.days()));
 		}
 		form.put("shipCount", String.valueOf(m.shipCount()));
-		form.put("shipDailyCost", new BigDecimal(m.shipDailyCostWon())
-				.divide(BigDecimal.valueOf(WON_PER_EOK)).stripTrailingZeros().toPlainString());
+		form.put("shipDailyCost", eokText(m.shipDailyCostWon()));
 		return form;
+	}
+
+	private static String eokText(long won) {
+		return new BigDecimal(won).divide(BigDecimal.valueOf(WON_PER_EOK)).stripTrailingZeros().toPlainString();
 	}
 
 	/** 항로 입력칸 이름 (from, to 는 ordinal 순) */
@@ -126,6 +133,7 @@ public class MasterService {
 
 		Map<Country, int[]> factoryValues = new EnumMap<>(Country.class);
 		Map<Country, Long> unitCosts = new EnumMap<>(Country.class);
+		Map<Country, Long> operatingCosts = new EnumMap<>(Country.class);
 		for (Country c : Country.factories()) {
 			String name = c.getLabel();
 			int max = parseInt(form, "maxDaily_" + c, name + " 하루 최대 생산량", 1, 1_000_000, errors);
@@ -133,6 +141,10 @@ public class MasterService {
 			int cost = parseInt(form, "unitCost_" + c, name + " 셀당 원가", 1, 100_000_000, errors);
 			factoryValues.put(c, new int[] {max, limit});
 			unitCosts.put(c, (long) cost);
+			String operatingKey = "operatingCost_" + c;
+			if (form.containsKey(operatingKey)) {
+				operatingCosts.put(c, parseOperatingCost(form, operatingKey, name + " 하루 운영비", errors));
+			}
 		}
 
 		List<Country> all = List.of(Country.values());
@@ -154,6 +166,10 @@ public class MasterService {
 			f.setMaxDaily(factoryValues.get(c)[0]);
 			f.setStockLimit(factoryValues.get(c)[1]);
 			f.setUnitCost(unitCosts.get(c));
+			// 하루 운영비 칸이 없는 요청(이 칸이 생기기 전 형식)은 지금 저장된 값을 그대로 둔다
+			if (operatingCosts.containsKey(c)) {
+				f.setOperatingCost(operatingCosts.get(c));
+			}
 		}
 		for (Route r : routes.findAll()) {
 			r.setDays(days.get(routeKey(r.getFromCountry(), r.getToCountry())));
@@ -162,6 +178,27 @@ public class MasterService {
 		s.setShipCount(shipCount);
 		s.setShipDailyCostWon(shipCostWon);
 		s.bumpMasterVersion();
+	}
+
+	/** 억 원 단위 입력을 원으로 바꾼다. 0 이상 MAX_OPERATING_COST_EOK 이하, 원 단위로 떨어지는 값만 받는다. */
+	private static long parseOperatingCost(Map<String, String> form, String key, String label, List<String> errors) {
+		String text = form.getOrDefault(key, "").trim().replace(",", "");
+		try {
+			BigDecimal eok = new BigDecimal(text);
+			if (eok.signum() < 0 || eok.compareTo(BigDecimal.valueOf(MAX_OPERATING_COST_EOK)) > 0) {
+				errors.add("%s(억 원)은(는) 0 이상 %d 이하여야 합니다".formatted(label, MAX_OPERATING_COST_EOK));
+				return 0;
+			}
+			BigDecimal won = eok.multiply(BigDecimal.valueOf(WON_PER_EOK));
+			if (won.stripTrailingZeros().scale() > 0) {
+				errors.add("%s은(는) 원 단위로 떨어지는 값이어야 합니다".formatted(label));
+				return 0;
+			}
+			return won.longValueExact();
+		} catch (NumberFormatException | ArithmeticException e) {
+			errors.add("%s(억 원)은(는) 숫자로 입력하세요".formatted(label));
+			return 0;
+		}
 	}
 
 	private static int parseInt(Map<String, String> form, String key, String label, int min, int max,
