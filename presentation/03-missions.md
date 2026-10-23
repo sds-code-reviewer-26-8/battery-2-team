@@ -27,10 +27,10 @@ GIF는 화면에서 바로 재생되지만, mp4는 다운로드한 후 별도의
 
 ## 기능 3. 공장 운영비
 
-master 화면에서 공장별 하루 운영비(기본 10억)를 설정하고, 시뮬레이션이 이를 반영합니다. COST 안은 총 비용(생산원가 + 운항비 + 운영비) 최소로 고릅니다. (Red, 변규리 · [PR #32](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/32))
+master 화면에서 공장별 하루 운영비(새 DB 기본 0.5억)를 설정하고, 시뮬레이션이 이를 반영합니다. COST 안은 총 비용(생산원가 + 운항비 + 운영비) 최소로 고릅니다. (Red, 변규리 · [PR #32](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/32))
 
-<!-- ![공장 운영비 기능](assets/operating-cost.gif) -->
-<!-- ▶ [operating-cost.mp4](assets/operating-cost.mp4) -->
+![공장 운영비 기능](assets/operating-cost.gif)
+▶ [operating-cost.mp4](assets/operating-cost.mp4)
 
 <br>
 
