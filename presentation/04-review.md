@@ -12,8 +12,6 @@ Action과 Gate 규칙을 적용하여 PR & 코드 리뷰를 진행했습니다.
 
 ## 미션별 PR 현황
 
-<!-- 각 미션은 Action과 Gate를 1명씩 담당합니다. 누가 무엇을 담당했는지 아래 표에 적으세요. -->
-
 | 미션 | Action 담당자 | Gate 담당자 | PR 링크 | 리뷰 코멘트 수 | Commit 수 |
 |---|---|---|---|:-:|:-:|
 | 기능 1. 회원 가입 (Red) | 박상윤 | 변규리 | [#30](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/30) | 2개 | 12개 |
@@ -26,8 +24,6 @@ Action과 Gate 규칙을 적용하여 PR & 코드 리뷰를 진행했습니다.
 <br>
 
 ## Best Practice: 코드 리뷰
-
-<!-- 코드 리뷰를 하며 효과를 본 Best Practice를 1개 이상 소개하세요. 쓰지 않는 블록은 지워도 됩니다. 예: PR 올리기 전 셀프 점검, 리뷰 체크리스트, 개선 제안 유형(리팩토링, 성능, TC 보강, 버그·보안)별 분류 -->
 
 #### Best Practice 1
 
