@@ -62,6 +62,7 @@ test('TASK-002 공장 운영비 설정과 시뮬레이션·주문 반영', async
     expect(Math.abs(production + shipping + operating - total)).toBeLessThan(0.02);
 
     // 절차 3 / Pass 2 — 확정한 주문의 상세·목록 운영비가 시뮬레이션과 같다
+    await page.locator('#customerName').fill('E2E 고객사');
     await page.locator('#confirmBtn').click();
     await expect(page).toHaveURL(/\/orders\/\d+$/);
     id = Number(new URL(page.url()).pathname.split('/').pop());
