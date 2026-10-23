@@ -46,10 +46,10 @@ Action과 Gate 규칙을 적용하여 PR & 코드 리뷰를 진행했습니다.
 |---|---|
 | 구현 내용 | 주문 시 필요 납기일 지정 + 납기 초과 경로 빨간 표시 — Yellow 영역 |
 | PR 링크 | [PR #33](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/33) |
-| 문제 상황 | `Order`에 컬럼이 추가되는 DB 스키마 변경인데, "납기 없는 기존 주문"을 검증하는 테스트가 없었습니다. |
-| 적용한 방법 | Gate가 PR을 체크아웃해 JUnit 98개·E2E 48개를 재현하고, 기존 파일 DB(`data/battery`) **복사본**으로 직접 기동해 컬럼 3개가 자동 추가되고 기존 주문은 null로 남는지 확인했습니다. Evidence(precheck/report)는 잘 된 점과 정리할 점(E1~E3)으로 나눠 리뷰하고, 제안 3가지는 로컬에서 적용해 테스트했습니다. |
-| 좋았던 점 | 말로만 "호환된다"고 넘기지 않고 스키마 변경을 실제 데이터로 확인했습니다. 리뷰 중에 report에 들어간 개인 PC 경로와, 파일 DB에서 E2E를 돌려 주문이 남는 문제도 찾아냈습니다. |
-| Evidence | [PR #33 리뷰](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/33), `docs/evidence/ctkim1005/TASK-004-due-date/` (`precheck.html`, `report.html`) |
+| 문제 상황 | `Order`에 컬럼이 추가되는 DB 스키마 변경인데, "납기 없는 기존 주문"을 검증하는 테스트가 없었습니다. 또 납기 범위(5~50일)와 '오늘'을 화면과 서버가 따로 계산해, Loop가 PASS를 줬어도 화면에서만 드러나는 문제가 남을 수 있었습니다. |
+| 적용한 방법 | **Gate(박상윤)**: PR을 체크아웃해 JUnit 98개·E2E 48개를 재현하고, 기존 파일 DB(`data/battery`) **복사본**으로 기동해 컬럼 3개가 자동 추가되고 기존 주문은 null로 남는지 확인했습니다. 코드를 읽다 의심된 문제 2개는 직접 재현했습니다. (가) 브라우저 시계를 하루 늦추면 화면이 허용한 날짜를 서버가 거절하고, (나) '가능한 빨리'를 해제하면 날짜를 고르기도 전에 경로안 3개가 모두 빨갛게 됩니다. 제안 3가지(서버가 납기 규칙 API로 범위·오늘을 알려 주기, 자동 채움 제거, 테스트 보강)는 로컬에 적용해 diff와 결과를 첨부했고, 새 E2E가 원래 코드에서는 실패하는 것까지 확인했습니다. Evidence는 잘 된 점과 정리할 점(E1~E3)으로 나눠 리뷰했습니다.<br>**Action(김춘택)**: 제안을 반영해 항목별 결과 표로 회신했고, 승인 뒤 main(PR #30·#31)과의 충돌을 풀고 테스트를 다시 돌려 알렸습니다. |
+| 좋았던 점 | 말로만 "호환된다"고 넘기지 않고 스키마 변경을 실제 데이터로 확인했습니다. 코드 읽기만으로는 놓치기 쉬운 시계 차이·화면 표시 문제를 재현 수치로 보여 줘서, Action이 논쟁 없이 바로 반영할 수 있었습니다. 새 테스트가 원래 문제를 실제로 잡는지 원래 코드에서 실패시켜 확인해, 테스트 보강이 형식에 그치지 않았습니다. report에 들어간 개인 PC 경로와 파일 DB에서 E2E를 돌려 주문이 남는 문제도 찾아냈습니다. 결과적으로 JUnit 98 → 104개, E2E 48 → 51개로 늘었습니다. |
+| Evidence | [PR #33 리뷰](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/33), [반영 결과 회신](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/33#issuecomment-6336591625), [충돌 해결 회신](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/33#issuecomment-6336954147), `docs/evidence/ctkim1005/TASK-004-due-date/` (`precheck.html`, `report.html`) |
 
 ---
 

@@ -38,8 +38,8 @@ master 화면에서 공장별 하루 운영비(새 DB 기본 0.5억)를 설정�
 
 '가능한 빨리' 체크 또는 오늘 기준 5~50일 납기를 선택하고, 납기일을 넘기는 경로안은 빨간색으로 표시합니다. (Yellow, 김춘택 · [PR #33](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/33))
 
-<!-- ![필요 납기일 기능](assets/due-date.gif) -->
-<!-- ▶ [due-date.mp4](assets/due-date.mp4) -->
+![필요 납기일 기능](assets/due-date.gif)
+▶ [due-date.mp4](assets/due-date.mp4)
 
 ---
 

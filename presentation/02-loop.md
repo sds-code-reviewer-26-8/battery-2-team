@@ -12,12 +12,16 @@ Loop 설계는 이번 팀 프로젝트에서 가장 핵심이 되는 내용입�
 
 팀이 함께 쓰는 단일 HTML 템플릿 2개입니다(PR #15). 데이터 자리 한 곳을 JSON으로 교체하면 화면이 만들어지고, 값은 `textContent`로만 넣어 데이터에 HTML 태그가 있어도 실행되지 않습니다. 사람의 판단이 필요한 상태(HILP)는 헤더 색과 질문 카드로 구분하고, FAIL이면 "계획 단계로 되돌아가기 위한 값" 카드가 맨 위에 나옵니다.
 
-<!-- GitHub에서는 .html 파일이 소스로 보입니다. 결과 화면을 캡처해서 presentation/assets/에 올리고 함께 보여주세요. -->
-
 | 템플릿 | 사용 시점 | 링크 |
 |---|---|---|
 | precheck.html | 구현 전 | [precheck.template.html](../docs/templates/precheck.template.html) |
 | report.html | 구현 후 | [report.template.html](../docs/templates/report.template.html) |
+
+아래는 김춘택의 필요 납기일 작업(TASK-004, PR #33)에서 Loop가 만든 결과 화면의 윗부분입니다. 전체 화면은 [docs/evidence/ctkim1005/TASK-004-due-date/](../docs/evidence/ctkim1005/TASK-004-due-date/)의 HTML을 브라우저로 열어 확인합니다.
+
+| precheck.html (구현 전, READY) | report.html (구현 후, PASS) |
+|---|---|
+| ![TASK-004 precheck 결과 화면](assets/evidence-precheck.png) | ![TASK-004 report 결과 화면](assets/evidence-report.png) |
 
 <br>
 
@@ -41,7 +45,7 @@ Loop 설계는 이번 팀 프로젝트에서 가장 핵심이 되는 내용입�
 |---|---|
 | 소개 팀원 | 김춘택 |
 | Loop 설명 링크 | [docs/loops/ctkim1005/README.md](../docs/loops/ctkim1005/README.md) |
-| 좋았던 점 | `/impl-loop <구현할 내용>` 한 줄로 prepare → implement → verify 전체가 실행됨<br>verify가 FAIL이면 `plan_feedback`을 들고 prepare로 복귀(최대 3라운드)하고, 보안 점검과 아키텍처 점검을 병렬로 수행<br>팀 템플릿에 JSON을 끼우는 렌더 스크립트가 필수 키가 빠지면 렌더를 거부해 Evidence 품질이 일정함 |
+| 좋았던 점 | `/impl-loop <구현할 내용>` 한 줄로 규칙 대조 → 사전 점검 → 구현 → 보안·아키텍처 점검 → 검증이 이어서 실행되고, 요청이 PRD/INTENT와 충돌하면 구현 전에 멈춰 사람에게 물음(HILP)<br>검증이 FAIL이면 실패 이유(`plan_feedback`)를 들고 규칙 대조부터 다시 시작(최대 3라운드). 보안과 아키텍처 점검은 diff만 보므로 동시에 돌려 라운드당 1~2분만 더 듦<br>HTML은 에이전트가 직접 쓰지 않고 렌더 스크립트가 팀 템플릿에 JSON을 끼워 만듦. 필수 항목이 빠지면 만들지 않아 팀원 Evidence와 항목·디자인이 같음 |
 
 <br>
 
