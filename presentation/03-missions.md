@@ -21,17 +21,16 @@ GIF는 화면에서 바로 재생되지만, mp4는 다운로드한 후 별도의
 
 주문 확정 때 고객사(필수, 100자 이하)를 입력하고, 확정 후에도 상세 화면에서 고칠 수 있습니다. 완료·취소된 주문은 수정할 수 없습니다. (Yellow, 송상우 · [PR #31](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/31))
 
-<!-- ![고객사 입력·수정 기능](assets/customer.gif) -->
-<!-- ▶ [customer.mp4](assets/customer.mp4) -->
+![고객사 입력·수정 기능](assets/feature2.gif)
 
 <br>
 
 ## 기능 3. 공장 운영비
 
-master 화면에서 공장별 하루 운영비(기본 10억)를 설정하고, 시뮬레이션이 이를 반영합니다. COST 안은 총 비용(생산원가 + 운항비 + 운영비) 최소로 고릅니다. (Red, 변규리 · [PR #32](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/32))
+master 화면에서 공장별 하루 운영비(새 DB 기본 0.5억)를 설정하고, 시뮬레이션이 이를 반영합니다. COST 안은 총 비용(생산원가 + 운항비 + 운영비) 최소로 고릅니다. (Red, 변규리 · [PR #32](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/32))
 
-<!-- ![공장 운영비 기능](assets/operating-cost.gif) -->
-<!-- ▶ [operating-cost.mp4](assets/operating-cost.mp4) -->
+![공장 운영비 기능](assets/operating-cost.gif)
+▶ [operating-cost.mp4](assets/operating-cost.mp4)
 
 <br>
 
