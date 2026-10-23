@@ -208,7 +208,7 @@ class OperatingCostTest {
 		Master master = masters.currentMaster();
 		Map<Country, Integer> req = orders(3000, 3000, 3000, 3000);
 		Plan expected = byType(simulations.simulate(req).options(), Planner.COST);
-		Order order = orderService.confirm(req, Planner.COST, master.version(), null, "admin");
+		Order order = orderService.confirm(req, Planner.COST, master.version(), null, "테스트고객", "admin");
 		assertThat(order.getOperatingCost()).isEqualTo(expected.operatingCost()).isPositive();
 		assertThat(order.getTotalCost()).isEqualTo(
 				order.getProductionCost() + order.getShippingCost() + order.getOperatingCost());
@@ -220,7 +220,7 @@ class OperatingCostTest {
 	@Test
 	void oldOrderWithoutOperatingCostIsShownAsZeroAndTotalIsNotRecalculated() {
 		Order old = new Order(LocalDateTime.now(), "admin", 12000, "COST", "운항비 최소", 10, 100 * EOK, 20 * EOK,
-				120 * EOK, null, "{}");
+				0L, 120 * EOK, null, null, "{}", null, null, null);
 		assertThat(old.getOperatingCost()).isZero();
 		assertThat(old.getOperatingCostEok()).isEqualTo("0.00");
 		assertThat(old.getTotalCost()).isEqualTo(120 * EOK);

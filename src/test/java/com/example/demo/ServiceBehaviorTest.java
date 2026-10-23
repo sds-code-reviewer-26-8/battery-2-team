@@ -44,6 +44,8 @@ class ServiceBehaviorTest {
 	@Autowired
 	OrderService orderService;
 	@Autowired
+	com.example.demo.repository.OrderRepository orderRepository;
+	@Autowired
 	ObjectMapper json;
 
 	private Map<String, String> originalForm;
@@ -91,7 +93,7 @@ class ServiceBehaviorTest {
 
 	private Order confirmDefault(String routeType, String memo) {
 		Master master = masters.currentMaster();
-		return orderService.confirm(orders(3000, 3000, 3000, 3000), routeType, master.version(), memo, "tester");
+		return orderService.confirm(orders(3000, 3000, 3000, 3000), routeType, master.version(), memo, "테스트고객", "tester");
 	}
 
 	// ---------------------------------------------------------------- 마스터 데이터
@@ -329,7 +331,7 @@ class ServiceBehaviorTest {
 	void staleMasterVersionIsAConflictAndNothingIsSaved() {
 		long count = orderService.listOrders(null).size();
 		long stale = masters.currentMaster().version() - 1;
-		assertThatThrownBy(() -> orderService.confirm(orders(3000, 3000, 3000, 3000), "COST", stale, null, "tester"))
+		assertThatThrownBy(() -> orderService.confirm(orders(3000, 3000, 3000, 3000), "COST", stale, null, "테스트고객", "tester"))
 				.isInstanceOfSatisfying(BusinessException.class, e -> {
 					assertThat(e.isConflict()).isTrue();
 					assertThat(e.getMessage()).isEqualTo("시뮬레이션 이후 마스터 데이터가 바뀌었습니다. 다시 시뮬레이션해 주세요");
@@ -339,7 +341,7 @@ class ServiceBehaviorTest {
 
 	@Test
 	void confirmStillValidatesQuantities() {
-		assertThatThrownBy(() -> orderService.confirm(orders(0, 0, 0, 0), "COST", masters.currentMaster().version(), null, "tester"))
+		assertThatThrownBy(() -> orderService.confirm(orders(0, 0, 0, 0), "COST", masters.currentMaster().version(), null, "테스트고객", "tester"))
 				.isInstanceOf(BusinessException.class).hasMessage("총 생산 필요 수는 1K 이상이어야 합니다");
 	}
 
@@ -389,6 +391,157 @@ class ServiceBehaviorTest {
 		assertThatThrownBy(() -> orderService.getOrder(-12345L)).isInstanceOf(NotFoundException.class)
 				.isInstanceOf(BusinessException.class).hasMessage("주문을 찾을 수 없습니다");
 		assertThat(orderService.history(-12345L)).isEmpty();
+	}
+
+	// ---------------------------------------------------------------- 고객사
+
+	private Order confirmWithCustomer(String customer) {
+		return orderService.confirm(orders(3000, 3000, 3000, 3000), "COST", masters.currentMaster().version(), null,
+				customer, "tester");
+	}
+
+	@Test
+	void confirmStoresTrimmedCustomerName() {
+		Order order = confirmWithCustomer("  ㈜한빛  ");
+		assertThat(orderService.getOrder(order.getId()).getCustomerName()).isEqualTo("㈜한빛");
+	}
+
+	@Test
+	void blankCustomerNameIsRejectedOnConfirm() {
+		int count = orderService.listOrders(null).size();
+		for (String blank : new String[] {null, "", "   ", "	"}) {
+			assertThatThrownBy(() -> confirmWithCustomer(blank)).isInstanceOf(BusinessException.class)
+					.isInstanceOfSatisfying(BusinessException.class, e -> {
+						assertThat(e.isConflict()).isFalse();
+						assertThat(e.getMessage()).isEqualTo("고객사를 입력하세요");
+					});
+		}
+		assertThat(orderService.listOrders(null)).hasSize(count);
+	}
+
+	@Test
+	void customerNameLengthBoundaryIncludesOneCharAndTrimmedHundred() {
+		assertThat(orderService.getOrder(confirmWithCustomer("가").getId()).getCustomerName()).isEqualTo("가");
+		assertThat(orderService.getOrder(confirmWithCustomer("  " + "가".repeat(100) + "  ").getId()).getCustomerName())
+				.hasSize(100);
+	}
+
+	@Test
+	void customerNameLengthBoundaryOnConfirm() {
+		assertThat(orderService.getOrder(confirmWithCustomer("가".repeat(100)).getId()).getCustomerName())
+				.hasSize(100);
+		int count = orderService.listOrders(null).size();
+		assertThatThrownBy(() -> confirmWithCustomer("가".repeat(101))).isInstanceOf(BusinessException.class)
+				.hasMessage("고객사는 100자 이하로 입력하세요");
+		assertThat(orderService.listOrders(null)).hasSize(count);
+	}
+
+	@Test
+	void customerNameCanChangeWhileConfirmedOrInProgressWithoutTouchingThePlan() {
+		Order order = confirmWithCustomer("처음");
+		Long id = order.getId();
+		String plan = order.getPlanJson();
+		orderService.changeCustomerName(id, "A사", order.getVersion(), "tester");
+		Order a = orderService.getOrder(id);
+		assertThat(a.getCustomerName()).isEqualTo("A사");
+		orderService.changeStatus(id, OrderStatus.IN_PROGRESS, a.getVersion(), "tester");
+		Order running = orderService.getOrder(id);
+		orderService.changeCustomerName(id, "B사", running.getVersion(), "tester");
+		Order b = orderService.getOrder(id);
+		assertThat(b.getCustomerName()).isEqualTo("B사");
+		assertThat(b.getPlanJson()).isEqualTo(plan);
+		assertThat(b.getTotalCost()).isEqualTo(order.getTotalCost());
+		assertThat(b.getRouteType()).isEqualTo(order.getRouteType());
+		assertThat(b.getStatus()).isEqualTo(OrderStatus.IN_PROGRESS);
+		assertThat(orderService.history(id)).hasSize(2);
+	}
+
+	@Test
+	void customerNameCannotChangeAfterCompleted() {
+		Order order = confirmWithCustomer("원래");
+		Long id = order.getId();
+		orderService.changeStatus(id, OrderStatus.IN_PROGRESS, order.getVersion(), "u");
+		orderService.changeStatus(id, OrderStatus.COMPLETED, orderService.getOrder(id).getVersion(), "u");
+		Order done = orderService.getOrder(id);
+		assertThatThrownBy(() -> orderService.changeCustomerName(id, "새", done.getVersion(), "u"))
+				.isInstanceOf(BusinessException.class).hasMessage("완료 상태의 주문은 고객사를 수정할 수 없습니다");
+		assertThat(orderService.getOrder(id).getCustomerName()).isEqualTo("원래");
+	}
+
+	@Test
+	void customerNameCannotChangeAfterCanceled() {
+		Order order = confirmWithCustomer("원래");
+		Long id = order.getId();
+		orderService.changeStatus(id, OrderStatus.CANCELED, order.getVersion(), "u");
+		Order canceled = orderService.getOrder(id);
+		assertThatThrownBy(() -> orderService.changeCustomerName(id, "새", canceled.getVersion(), "u"))
+				.isInstanceOf(BusinessException.class).hasMessage("취소 상태의 주문은 고객사를 수정할 수 없습니다");
+		assertThat(orderService.getOrder(id).getCustomerName()).isEqualTo("원래");
+	}
+
+	@Test
+	void staleVersionOnCustomerChangeIsAConflict() {
+		Order order = confirmWithCustomer("원래");
+		Long id = order.getId();
+		orderService.changeStatus(id, OrderStatus.IN_PROGRESS, order.getVersion(), "u");
+		assertThatThrownBy(() -> orderService.changeCustomerName(id, "새", order.getVersion(), "u"))
+				.isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.isConflict()).isTrue());
+		assertThat(orderService.getOrder(id).getCustomerName()).isEqualTo("원래");
+	}
+
+	@Test
+	void customerNameLengthBoundaryAndBlankOnChange() {
+		Order order = confirmWithCustomer("원래");
+		Long id = order.getId();
+		orderService.changeCustomerName(id, "가".repeat(100), order.getVersion(), "u");
+		Order o = orderService.getOrder(id);
+		assertThat(o.getCustomerName()).hasSize(100);
+		assertThatThrownBy(() -> orderService.changeCustomerName(id, "가".repeat(101), o.getVersion(), "u"))
+				.isInstanceOf(BusinessException.class).hasMessage("고객사는 100자 이하로 입력하세요");
+		assertThat(orderService.getOrder(id).getCustomerName()).hasSize(100);
+	}
+
+	@Test
+	void blankCustomerNameIsRejectedOnChange() {
+		Order order = confirmWithCustomer("원래");
+		Long id = order.getId();
+		for (String blank : new String[] {"", "   ", null}) {
+			assertThatThrownBy(() -> orderService.changeCustomerName(id, blank, order.getVersion(), "u"))
+					.isInstanceOf(BusinessException.class).hasMessage("고객사를 입력하세요");
+		}
+		Order after = orderService.getOrder(id);
+		assertThat(after.getCustomerName()).isEqualTo("원래");
+		assertThat(after.getVersion()).isEqualTo(order.getVersion());
+	}
+
+	/** 필수화 이전에 확정된 주문(고객사 null)을 흉내 낸다 */
+	private Order legacyOrderWithoutCustomer() {
+		Order order = confirmWithCustomer("임시");
+		Order saved = orderService.getOrder(order.getId());
+		saved.changeCustomerName(null);
+		return orderRepository.saveAndFlush(saved);
+	}
+
+	@Test
+	void legacyOrderWithoutCustomerCanBeFilledOnceButNotCleared() {
+		Order legacy = legacyOrderWithoutCustomer();
+		Long id = legacy.getId();
+		assertThat(legacy.getCustomerName()).isNull();
+		assertThat(legacy.getStatus().isCustomerEditable()).isTrue();
+		String plan = legacy.getPlanJson();
+		int histories = orderService.history(id).size();
+
+		orderService.changeCustomerName(id, "신규사", legacy.getVersion(), "u");
+		Order filled = orderService.getOrder(id);
+		assertThat(filled.getCustomerName()).isEqualTo("신규사");
+
+		assertThatThrownBy(() -> orderService.changeCustomerName(id, "", filled.getVersion(), "u"))
+				.isInstanceOf(BusinessException.class).hasMessage("고객사를 입력하세요");
+		Order after = orderService.getOrder(id);
+		assertThat(after.getCustomerName()).isEqualTo("신규사");
+		assertThat(after.getPlanJson()).isEqualTo(plan);
+		assertThat(after.getTotalCost()).isEqualTo(legacy.getTotalCost());
+		assertThat(orderService.history(id)).hasSize(histories);
 	}
 
 	// ---------------------------------------------------------------- 상태 변경

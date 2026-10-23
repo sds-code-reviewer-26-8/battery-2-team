@@ -182,6 +182,7 @@ test.describe('ctkim1005 담당', () => {
 
       // 2. 메모 입력  3. 주문 확정
       await page.locator('#memo').fill('3분기 긴급 물량');
+      await page.locator('#customerName').fill('E2E 고객사');
       await page.locator('#confirmBtn').click();
 
       // /orders/{id} 상세로 이동
@@ -228,7 +229,7 @@ test.describe('ctkim1005 담당', () => {
     // 2. 우회 요청: 기준값 번호를 읽고 메모 1,001자로 확정 요청 → 400
     const version = await masterVersion(page);
     const res = await page.request.post('/api/orders', {
-      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, memo: 'a'.repeat(1001) },
+      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, memo: 'a'.repeat(1001), customerName: 'E2E 고객사' },
     });
     expect(res.status()).toBe(400);
     expect((await res.json()).error).toBe('메모는 1000자 이하로 입력하세요');
@@ -343,6 +344,115 @@ test.describe('ctkim1005 담당', () => {
       await saveMasterField(page, 'days_KOREA_CHINA', original);
       await page.reload();
       await expect(route).toHaveValue(original);
+    }
+  });
+});
+
+// ---------------------------------------------------------------- 신규: 필요 납기 (TASK-004-due-date)
+
+/** 로컬 날짜 기준 오늘 + days 를 yyyy-MM-dd 로 (브라우저와 같은 PC 의 시간대) */
+function localDate(days: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** 경로안 버튼의 소요일 */
+async function optionDays(page: Page, type: string): Promise<number> {
+  const text = await page.locator(`#options .option[data-type="${type}"]`).innerText();
+  return Number(/소요\s*([\d,]+)일/.exec(text)?.[1]?.replace(/,/g, ''));
+}
+
+test.describe('신규 필요 납기일 지정과 납기 초과 경로안 빨간 표시', () => {
+  test('T-DUE 납기 입력 범위·초과 표시·확정·상세·우회 요청 거절', async ({ page }) => {
+    await login(page);
+    const before = await orderTotalCount(page);
+    let id: number | undefined;
+    try {
+      // 1. 기본은 '가능한 빨리' 체크, 납기일 입력은 비활성. min/max = 오늘+5 / 오늘+50
+      await page.goto('/orders/new');
+      const asap = page.locator('#dueAsap');
+      const date = page.locator('#dueDate');
+      await expect(asap).toBeChecked();
+      await expect(date).toBeDisabled();
+      await expect(date).toHaveAttribute('min', localDate(5));
+      await expect(date).toHaveAttribute('max', localDate(50));
+
+      // 2. 시뮬레이션 후 '가능한 빨리' 해제, 납기 = '가장 빠르게' 소요일 (다른 E2E 가 마스터를 바꿔도 성립)
+      await runSimulation(page);
+      await expect(page.locator('#options .over-due')).toHaveCount(0);
+      const due = await optionDays(page, 'FAST');
+      expect(due).toBeGreaterThanOrEqual(5);
+      expect(due).toBeLessThanOrEqual(50);
+      await asap.uncheck();
+      await expect(date).toBeEnabled();
+      await date.fill(localDate(due));
+
+      for (const type of ['COST', 'FAST', 'NEAR']) {
+        const opt = page.locator(`#options .option[data-type="${type}"]`);
+        if ((await optionDays(page, type)) > due) {
+          await expect(opt).toHaveClass(/over-due/);
+          await expect(opt).toContainText('납기 초과');
+        } else {
+          await expect(opt).not.toHaveClass(/over-due/);
+          await expect(opt).not.toContainText('납기 초과');
+        }
+      }
+      // 기본 마스터(COST 26일 / FAST 20일 / NEAR 21일)라면 COST·NEAR 가 빨간 안
+      expect(await optionDays(page, 'COST')).toBeGreaterThan(due);
+      await expect(page.locator('#result')).toBeVisible(); // 납기를 바꿔도 결과는 사라지지 않는다
+
+      // 3. '가능한 빨리' 체크 → 입력 비활성, 빨간 표시 즉시 사라짐
+      await asap.check();
+      await expect(date).toBeDisabled();
+      await expect(page.locator('#options .over-due')).toHaveCount(0);
+      await expect(page.locator('#options')).not.toContainText('납기 초과');
+
+      // 4. 다시 해제(날짜 유지) → 빨간 안 '운항비 최소' 로도 확정 가능
+      await asap.uncheck();
+      await expect(page.locator('#options .option[data-type="COST"]')).toHaveClass(/over-due/);
+      await page.locator('#options .option[data-type="COST"]').click();
+      await page.locator('#customerName').fill('E2E 고객사');
+      await page.locator('#confirmBtn').click();
+      await expect(page).toHaveURL(/\/orders\/\d+$/);
+      id = Number(new URL(page.url()).pathname.split('/').pop());
+      await expect(metaValue(page, '경로')).toHaveText('운항비 최소');
+      await expect(metaValue(page, '필요 납기')).toHaveText(`${localDate(due)} 납기 초과`);
+      expect(await orderTotalCount(page)).toBe(before + 1);
+
+      // 5. 화면을 거치지 않은 범위 밖 요청 → 400 + 이유, 주문 건수 불변
+      const version = await masterVersion(page);
+      for (const days of [4, 51]) {
+        const res = await page.request.post('/api/orders', {
+          data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: version, customerName: 'E2E 고객사', dueAsap: false, dueDate: localDate(days) },
+        });
+        expect(res.status()).toBe(400);
+        expect((await res.json()).error).toBe('필요 납기일은 오늘부터 5~50일 사이로 선택하세요');
+      }
+      expect(await orderTotalCount(page)).toBe(before + 1);
+    } finally {
+      if (id) await cancelOrderIfOpen(page, id);
+    }
+  });
+
+  test('T-DUE2 납기 정보 없는 주문(기존 형식 요청)의 상세는 필요 납기 \'-\'', async ({ page }) => {
+    await login(page);
+    // 납기 기능 전 형식의 확정 요청(납기 필드 없음)으로 주문을 만든다
+    const res = await page.request.post('/api/orders', {
+      data: { orders: DEFAULT_ORDERS, routeType: 'COST', masterVersion: await masterVersion(page), customerName: 'E2E 고객사' },
+    });
+    expect(res.status()).toBe(200);
+    const id: number = (await res.json()).id;
+    try {
+      await page.goto(`/orders/${id}`);
+      await expect(metaValue(page, '필요 납기')).toHaveText('-');
+      await expect(metaValue(page, '작성자')).toHaveText('admin');
+      await expect(page.locator('h1 .badge')).toHaveText('확정');
+      await expect(statValue(page, '소요 일수')).toBeVisible();
+    } finally {
+      await cancelOrderIfOpen(page, id);
     }
   });
 });

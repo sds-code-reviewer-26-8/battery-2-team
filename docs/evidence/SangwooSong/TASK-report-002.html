@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구현 검증 리포트</title>
+<style>
+  :root {
+    --bg: #f4f6fb; --card: #ffffff; --text: #1b2330; --muted: #657084; --line: #e1e6ef;
+    --accent: #4f46e5; --accent-soft: #eceafe;
+    --ok: #15803d; --ok-soft: #e1f6e8; --warn: #b45309; --warn-soft: #fdf0d9;
+    --bad: #b91c1c; --bad-soft: #fde4e4; --info: #0369a1; --info-soft: #e0f2fe;
+    --shadow: 0 1px 2px rgba(20,30,60,.06), 0 8px 24px rgba(20,30,60,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --card: #181d27; --text: #e8ecf3; --muted: #97a3b6; --line: #2a3241;
+      --accent: #8b9cff; --accent-soft: #232a4a;
+      --ok: #5ccf86; --ok-soft: #14301f; --warn: #f0b35a; --warn-soft: #33260f;
+      --bad: #ff8b8b; --bad-soft: #3a1717; --info: #6cc4f2; --info-soft: #11293a; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.65 "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .hero { background: linear-gradient(135deg, #059669, #0891b2); color: #fff; padding: 28px 16px 64px; }
+  .hero.fail { background: linear-gradient(135deg, #dc2626, #9333ea); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px; }
+  .hero .wrap { padding: 0; }
+  .badge { display: inline-flex; gap: 8px; padding: 4px 14px; border-radius: 999px; background: rgba(255,255,255,.2);
+    font-weight: 700; letter-spacing: .04em; font-size: .85rem; }
+  .hero h1 { margin: 12px 0 6px; font-size: 1.5rem; line-height: 1.35; }
+  .hero p { margin: 0; opacity: .92; }
+  main.wrap { margin-top: -40px; padding-bottom: 56px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+  .muted { color: var(--muted); } .small { font-size: .85rem; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 1.6rem; line-height: 1.2; } .tile span { color: var(--muted); font-size: .82rem; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); } .pill.info { background: var(--info-soft); color: var(--info); }
+  .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; border-left-width: 4px; }
+  .item.ok { border-left-color: var(--ok); } .item.bad { border-left-color: var(--bad); } .item.warn { border-left-color: var(--warn); }
+  .item header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .item p { margin: 6px 0 0; font-size: .9rem; white-space: pre-wrap; }
+  .bar { display: flex; height: 12px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0; }
+  .bar i { display: block; height: 100%; } .bar .p { background: var(--ok); } .bar .f { background: var(--bad); } .bar .s { background: var(--warn); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 4px 14px; cursor: pointer; font: inherit; font-size: .85rem; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=search] { flex: 1 1 160px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: .85rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; } td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feedback { border: 2px dashed var(--bad); border-radius: 14px; padding: 14px 16px; background: var(--bad-soft); }
+  .feedback h3 { margin: 0 0 6px; color: var(--bad); font-size: 1rem; } .feedback ul { margin: 4px 0 8px; padding-left: 20px; }
+  pre { background: var(--bg); border-radius: 10px; padding: 10px 12px; overflow: auto; font-size: .82rem; margin: 6px 0 0; white-space: pre-wrap; }
+  details summary { cursor: pointer; font-weight: 700; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  a { color: var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="hero" id="hero"><div class="wrap">
+  <span class="badge" id="badge"></span><h1 id="title"></h1><p id="sub"></p>
+</div></div>
+<main class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div id="feedbackBox"></div>
+  <section class="card"><h2>✅ 체크리스트 점검</h2><div id="checks"></div></section>
+  <section class="card"><h2>🧪 회귀 테스트</h2>
+    <div class="bar" id="bar"></div><div class="small muted" id="barTxt"></div>
+    <div class="chips" id="chips" style="margin-top:12px"></div>
+    <div style="overflow-x:auto"><table><thead><tr><th>결과</th><th>테스트</th><th class="num">시간</th><th>메시지</th></tr></thead><tbody id="tests"></tbody></table></div>
+    <div class="small muted" id="e2e" style="margin-top:10px"></div>
+  </section>
+  <section class="card" id="issuesCard"><h2>🔎 발견한 문제</h2><div id="issues"></div></section>
+  <section class="card" id="cmdCard"><details><summary>실행한 명령</summary><div id="cmds"></div></details></section>
+  <section class="card" id="evCard" hidden><h2>🔗 관련 산출물</h2><div id="ev"></div></section>
+</main>
+<footer>impl-verify 검증 리포트 · 이 페이지는 검증 단계의 점검·피드백 결과입니다</footer>
+
+<!-- 에이전트는 아래 JSON 한 줄만 실제 데이터로 교체한다. 문자열 안의 '<' 는 \u003c 로 이스케이프한다. -->
+<script id="data" type="application/json">{"request": "주문 시 고객사 입력, 주문 후 수정 가능, 완료/삭제(취소) 후 수정 불가", "round": 1, "verdict": "PASS", "loop_action": "END", "summary": "git diff 로 변경을 읽고 cleanTest test 를 직접 실행해 104건 전부 통과를 확인했다. 체크리스트 3개 모두 코드와 테스트 결과로 확인했다. 브라우저 렌더링, 기존 파일 DB 기동, E2E 는 실행하지 못했다.", "checklist": [{"title": "완료·취소 주문은 서버에서 수정 거부, 계획·비용 불변", "detail": "TC-7~9,12 통과, 판단이 OrderStatus 한 곳인지 Grep", "result": "pass", "evidence": "cleanTest test 성공(104건 실패 0). OrderService.java:137 에서 status.isCustomerEditable() 로 거부, 판단은 OrderStatus.java:30 한 곳. order-detail.js 는 order.customerEditable 만 사용(27행), 17행의 'CANCELED' 는 버튼 스타일용 기존 코드. 개별 테스트 메서드 이름은 XML 로 일부만 대조."}, {"title": "기존 파일 DB 호환과 확정 흐름 유지", "detail": "Order.java nullable/length 100, 전체 테스트, 가능하면 bootRun", "result": "pass", "evidence": "Order.java:52 @Column(length = 100) 로 nullable. 전체 테스트 통과(OrderFlowTests 9건 포함). 실제 data/battery 파일 DB 로 bootRun 은 하지 않아 확인하지 못했다(코드상 nullable 컬럼이라 요지는 입증)."}, {"title": "충돌·입력 검증이 사유와 함께 거부", "detail": "TC-6,10,11 통과, 오류 응답 한국어 사유", "result": "pass", "evidence": "OrderService.changeCustomerName 에서 version 불일치 시 conflict(), 100자 초과 시 한국어 BusinessException. ServiceBehaviorTest 39건, WebBehaviorTest 36건 통과."}], "regression": {"command": "./gradlew cleanTest test", "total": 104, "passed": 104, "failed": 0, "skipped": 0, "duration": "31s", "tests": [{"suite": "com.example.demo.AuthApiControllerAccountTest", "name": "(스위트 합계 5건)", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.DemoApplicationTests", "name": "(스위트 합계 1건)", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.OrderFlowTests", "name": "(스위트 합계 9건)", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.ServiceBehaviorTest", "name": "(스위트 합계 39건)", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.WebBehaviorTest", "name": "(스위트 합계 36건)", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.PlannerGoldenTest", "name": "(스위트 합계 2건)", "result": "pass", "time": "", "message": ""}, {"suite": "com.example.demo.PlannerTest", "name": "(스위트 합계 12건)", "result": "pass", "time": "", "message": ""}]}, "e2e": {"ran": false, "note": "서버가 실행 중이지 않아(localhost:8080 무응답) 실행하지 않음. 건너뜀이며 실패 아님."}, "issues": [{"severity": "minor", "location": "기존 data/battery", "problem": "파일 DB 로 bootRun 해 컬럼 추가(ddl-auto=update)를 확인하지 못함", "reproduce": "기존 data/battery 가 있는 상태에서 ./gradlew bootRun"}, {"severity": "minor", "location": "order-new.html, order-detail.html", "problem": "브라우저 렌더링(입력칸 위치, 완료 후 입력칸 사라짐)을 확인하지 못함", "reproduce": "서버 기동 후 주문 추가/상세 화면 확인"}, {"severity": "minor", "location": "E2E", "problem": "서버 미실행으로 Playwright 건너뜀", "reproduce": "서버 기동 후 BASE_URL 지정 실행"}, {"severity": "minor", "location": "OrderFlowTests", "problem": "계획의 TC-14 를 OrderFlowTests 대신 WebBehaviorTest 로 검증함. 목록 화면 고객사 열 없음, '삭제'=취소 해석은 사람 판단 필요", "reproduce": "WebBehaviorTest.confirmRequestWithoutCustomerNameStillWorks"}, {"severity": "minor", "location": "테스트 수치", "problem": "구현 보고의 테스트 합계(5/1/9/39/36/2/12)와 일치함을 확인. 보고의 캐시 의심은 cleanTest 재실행으로 해소", "reproduce": "./gradlew cleanTest test"}], "plan_feedback": {"summary": "", "failed_checklist": [], "failed_tests": [], "suggested_focus": []}, "commands": [{"cmd": "git diff --stat", "result": "11개 파일 변경"}, {"cmd": "./gradlew cleanTest test", "result": "BUILD SUCCESSFUL 31s, 104건 실패 0"}, {"cmd": "git fetch / git log --all TASK-*", "result": "최대 번호 001, 작업번호 002"}, {"cmd": "curl localhost:8080/login", "result": "무응답(E2E 건너뜀)"}], "precheck_link": "TASK-precheck-002.html"}</script>
+<script>
+(function () {
+  var D;
+  try { D = JSON.parse(document.getElementById('data').textContent); }
+  catch (e) { document.body.insertAdjacentHTML('afterbegin', '<p style="padding:24px">리포트 데이터를 읽지 못했습니다.</p>'); return; }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function pill(x, k) { return el('span', 'pill ' + k, x); }
+  var RES = { pass: ['통과', 'ok'], fail: ['실패', 'bad'], skipped: ['건너뜀', 'warn'], unverified: ['확인 못함', 'warn'] };
+
+  var pass = D.verdict === 'PASS';
+  $('hero').classList.toggle('fail', !pass);
+  $('badge').textContent = pass ? '✔ PASS — 루프를 종료합니다' : '✖ FAIL — 계획 단계로 되돌아갑니다';
+  $('title').textContent = D.request || '구현 검증 리포트';
+  $('sub').textContent = (D.round ? D.round + '회차 · ' : '') + (D.summary || '');
+  document.title = (pass ? '[PASS] ' : '[FAIL] ') + '구현 검증 리포트';
+
+  var cl = D.checklist || [], R = D.regression || {}, tests = R.tests || [];
+  var okCl = cl.filter(function (c) { return c.result === 'pass'; }).length;
+  [['판정', pass ? 'PASS' : 'FAIL'], ['체크리스트', okCl + ' / ' + cl.length], ['회귀 테스트', (R.passed || 0) + ' / ' + (R.total || 0)], ['실패', (R.failed || 0) + (cl.length - okCl)]]
+    .forEach(function (t) { var d = el('div', 'tile'); d.appendChild(el('b', '', String(t[1]))); d.appendChild(el('span', '', t[0])); $('tiles').appendChild(d); });
+
+  var F = D.plan_feedback;
+  if (!pass && F) {
+    var fb = el('div', 'feedback'); fb.appendChild(el('h3', '', '↩ 계획 단계로 되돌아가기 위한 값'));
+    if (F.summary) fb.appendChild(el('p', '', F.summary));
+    [['실패한 체크리스트', F.failed_checklist], ['실패한 테스트', F.failed_tests], ['계획이 집중할 점', F.suggested_focus]].forEach(function (g) {
+      if (!(g[1] || []).length) return; fb.appendChild(el('b', 'small', g[0]));
+      var ul = el('ul'); g[1].forEach(function (x) { ul.appendChild(el('li', '', x)); }); fb.appendChild(ul);
+    });
+    var w = el('div', 'card'); w.style.borderColor = 'var(--bad)'; w.appendChild(fb); $('feedbackBox').appendChild(w);
+  }
+
+  cl.forEach(function (c, i) {
+    var r = RES[c.result] || RES.unverified, d = el('div', 'item ' + r[1]), h = el('header');
+    h.appendChild(pill(r[0], r[1])); h.appendChild(el('b', '', (i + 1) + '. ' + (c.title || ''))); d.appendChild(h);
+    if (c.detail) d.appendChild(el('p', 'muted', '확인 방법: ' + c.detail));
+    if (c.evidence) d.appendChild(el('p', '', '근거: ' + c.evidence));
+    $('checks').appendChild(d);
+  });
+  if (!cl.length) $('checks').appendChild(el('div', 'empty', '체크리스트가 전달되지 않았습니다.'));
+
+  var tot = R.total || 0;
+  function seg(c, n) { var i = el('i', c); i.style.width = (tot ? n / tot * 100 : 0) + '%'; $('bar').appendChild(i); }
+  seg('p', R.passed || 0); seg('f', R.failed || 0); seg('s', R.skipped || 0);
+  $('barTxt').textContent = '통과 ' + (R.passed || 0) + ' · 실패 ' + (R.failed || 0) + ' · 건너뜀 ' + (R.skipped || 0) + ' / 전체 ' + tot + (R.duration ? ' · ' + R.duration : '');
+  var filter = 'all', q = '', defs = [['all', '전체'], ['pass', '통과'], ['fail', '실패'], ['skipped', '건너뜀']];
+  function draw() {
+    var tb = $('tests'); tb.textContent = '';
+    var list = tests.filter(function (t) { return (filter === 'all' || t.result === filter) && (!q || ((t.suite || '') + ' ' + t.name + ' ' + (t.message || '')).toLowerCase().indexOf(q) >= 0); });
+    if (!list.length) { var tr = el('tr'), td = el('td', 'empty', '표시할 테스트가 없습니다.'); td.colSpan = 4; tr.appendChild(td); tb.appendChild(tr); return; }
+    list.forEach(function (t) {
+      var r = RES[t.result] || RES.skipped, tr = el('tr'), a = el('td'); a.appendChild(pill(r[0], r[1])); tr.appendChild(a);
+      var b = el('td'); b.appendChild(el('b', '', t.name || '')); if (t.suite) b.appendChild(el('div', 'small muted', t.suite)); tr.appendChild(b);
+      tr.appendChild(el('td', 'num', t.time || '')); tr.appendChild(el('td', 'small', t.message || '')); tb.appendChild(tr);
+    });
+  }
+  defs.forEach(function (d) {
+    var b = el('button', 'chip', d[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(d[0] === filter));
+    b.onclick = function () { filter = d[0]; $('chips').querySelectorAll('button').forEach(function (x, i) { x.setAttribute('aria-pressed', String(defs[i][0] === filter)); }); draw(); };
+    $('chips').appendChild(b);
+  });
+  var s = el('input'); s.type = 'search'; s.placeholder = '테스트 검색'; s.oninput = function () { q = s.value.toLowerCase(); draw(); }; $('chips').appendChild(s);
+  draw();
+  if (D.e2e) $('e2e').textContent = 'E2E(Playwright): ' + (D.e2e.ran ? '실행함' : '실행하지 않음') + (D.e2e.note ? ' — ' + D.e2e.note : '');
+  if (R.command) $('e2e').textContent = '실행: ' + R.command + (D.e2e ? ' · ' + $('e2e').textContent : '');
+
+  var iss = D.issues || [];
+  if (!iss.length) $('issues').appendChild(el('div', 'empty', '발견한 문제가 없습니다.'));
+  iss.forEach(function (x) {
+    var k = x.severity === 'blocker' ? 'bad' : x.severity === 'major' ? 'warn' : 'info', d = el('div', 'item ' + (k === 'info' ? 'ok' : k)), h = el('header');
+    h.appendChild(pill(x.severity || '', k)); h.appendChild(el('b', '', x.location || '')); d.appendChild(h);
+    d.appendChild(el('p', '', x.problem || '')); if (x.reproduce) d.appendChild(el('p', 'muted', '재현/확인: ' + x.reproduce)); $('issues').appendChild(d);
+  });
+
+  var cm = D.commands || [];
+  if (!cm.length) $('cmdCard').hidden = true;
+  cm.forEach(function (c) { $('cmds').appendChild(el('pre', '', '$ ' + c.cmd + '\n→ ' + (c.result || ''))); });
+
+  if (D.precheck_link) { $('evCard').hidden = false; var a = el('a', '', '계획 점검 보기 (' + D.precheck_link + ')'); a.href = D.precheck_link; $('ev').appendChild(a); }
+})();
+</script>
+</body>
+</html>

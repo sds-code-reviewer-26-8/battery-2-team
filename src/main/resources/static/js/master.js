@@ -49,8 +49,7 @@
 
 	function showErrors(e) {
 		const reasons = e.errors && e.errors.length ? e.errors : [e.message];
-		setAlert(alerts, h('div', {class: 'alert error'}, h('strong', null, '저장하지 않았습니다. 아래 값을 확인하세요.'),
-			h('ul', null, ...reasons.map(r => h('li', null, r)))));
+		setAlert(alerts, errorListAlert('저장하지 않았습니다. 아래 값을 확인하세요.', reasons));
 	}
 
 	form.addEventListener('submit', async e => {

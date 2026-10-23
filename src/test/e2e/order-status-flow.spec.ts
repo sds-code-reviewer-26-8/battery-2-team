@@ -43,6 +43,7 @@ test('No.22 핵심 업무 흐름: 확정 → 진행 → 완료, 완료는 최종
   // 절차 2 — '총 비용 최소' 선택, 메모 입력 후 주문 확정
   await page.locator('#options .option', { hasText: '총 비용 최소' }).click();
   await page.locator('#memo').fill('No.22 핵심 업무 흐름 테스트');
+  await page.locator('#customerName').fill('E2E 고객사');
   await page.locator('#confirmBtn').click();
 
   // Pass — 확정 후 상세 화면(/orders/{id}), 상태 '확정'
