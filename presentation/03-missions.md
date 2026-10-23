@@ -12,8 +12,8 @@ GIF는 화면에서 바로 재생되지만, mp4는 다운로드한 후 별도의
 
 가입 코드를 아는 사람이 아이디·비밀번호로 가입하고, 로그인은 회원 테이블(DB)을 조회합니다. 비밀번호는 BCrypt로 저장하며, 기존 `admin` 계정과 주문 이력은 그대로 유효합니다. (Red, 박상윤 · [PR #30](https://github.com/sds-code-reviewer-26-8/battery-2-team/pull/30))
 
-<!-- ![회원 가입 기능](assets/signup.gif) -->
-<!-- ▶ [signup.mp4](assets/signup.mp4) -->
+![회원 가입 기능](assets/signup.gif)
+▶ [signup.mp4](assets/signup.mp4)
 
 <br>
 
