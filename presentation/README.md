@@ -6,15 +6,15 @@
   - 영상/이미지는 presentation/assets/ 에 넣고 상대 경로로 링크하세요.
 -->
 
-# [팀명]
+# LG2M
 
 | 항목 | 내용 |
 |---|---|
-| 팀장 | ___ |
-| 팀원 | ___, ___, ___, ___ |
-| 발표자 | ___ |
-| PRD.md 링크 | [PRD.md](../PRD.md) |
-| INTENT.md 링크 | [INTENT.md](../INTENT.md) |
+| 팀장 | 박상윤 |
+| 팀원 | 송상우, 변규리, 김춘택, 박상윤 |
+| 발표자 | 송상우 |
+| PRD.md 링크 | [PRD.md](../docs/PRD-INTENT/team/PRD.md) |
+| INTENT.md 링크 | [INTENT.md](../docs/PRD-INTENT/team/INTENT.md) |
 
 <!-- PRD.md, INTENT.md는 팀 저장소 안에 있어야 합니다. 파일 위치가 루트가 아니면 링크 경로를 고치세요. -->
 
